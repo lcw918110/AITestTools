@@ -22,8 +22,8 @@
 | `.gitignore`（含 `.env`） | 已有 |
 | README / 设计文档 | 已有 |
 | MIT `LICENSE` | 见本仓根目录 |
-| 首次 commit | 尚无（`main` 无提交） |
-| 公开 remote | 未建（需你定 GitHub/GitLab 与可见性） |
+| 首次 commit | **已有** `b3f8828` |
+| 公开 remote | **已推送** https://github.com/lcw918110/AITestTools （public） |
 
 **本阶段明确不做**：`npm publish` 到 registry.npmjs.org。
 

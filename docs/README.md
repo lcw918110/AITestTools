@@ -52,4 +52,4 @@
 ## 当前阶段
 
 **见 [28-ops-path](design/28-ops-path-npm-st-2026-07-27.md)。**  
-节奏：**先 Git 开源** → 本地/社区验证后再定对外形态（npm 暂缓）。PATH 已钉 24.18；ST 最小面绿；密钥轮换仍需你。
+开源仓：https://github.com/lcw918110/AITestTools（public）。节奏：Git 开源 → 验证后再定对外形态（npm 暂缓）。密钥轮换仍需你。
