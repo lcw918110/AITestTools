@@ -1,0 +1,10 @@
+{
+  "name": "smoke-C-write",
+  "description": "C 轴本地工具契约：workspace 副作用",
+  "axis": "C",
+  "room": "shell-echo-v1",
+  "items": ["DEMO-C-WRITE-01"],
+  "gates": {
+    "a_case_pass_rate": { "min": 1 }
+  }
+}

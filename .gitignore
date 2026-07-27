@@ -1,0 +1,24 @@
+node_modules/
+dist/
+coverage/
+*.tsbuildinfo
+
+# 评测产物：run 目录与基线由使用方仓库自行管理，不入引擎仓库
+runs/
+baselines/
+.proctor-promptfoo*/
+.harness-cache/
+.wanxiangshu.ndjson
+**/.wanxiangshu.ndjson
+
+# 环境与密钥（profile 中的模型密钥只走环境变量）
+.env
+.env.*
+!.env.example
+
+.DS_Store
+*.log
+npm-debug.log*
+.idea/
+.vscode/*
+!.vscode/extensions.json

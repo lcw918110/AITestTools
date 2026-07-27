@@ -1,0 +1,14 @@
+{
+  "id": "text-stop-v1",
+  "rev": 1,
+  "version": "scripted-model-v1",
+  "entry": "say",
+  "nodes": {
+    "say": {
+      "type": "assistant_text",
+      "text": "完成。",
+      "next": "end"
+    },
+    "end": { "type": "terminal", "reason": "stop" }
+  }
+}

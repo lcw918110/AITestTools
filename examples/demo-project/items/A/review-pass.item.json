@@ -1,0 +1,54 @@
+{
+  "id": "DEMO-A-REVIEW-PASS-01",
+  "rev": 1,
+  "axis": "A",
+  "status": "active",
+  "title": "Review.Required 为真时须经 submit_review 关闭，不得静默结束",
+  "owner": "demo",
+  "tags": ["l2", "control-flow", "review"],
+  "intent": {
+    "statement": "经契约假宿主验证审查闭环：剧本调用 submit_review 后投影关闭且无 SessionSettledWithoutReview",
+    "attribution_focus": "PROTOCOL"
+  },
+  "freeze": {
+    "layer": "L2",
+    "model_driver": "scripted",
+    "contract": "demo-host-v1",
+    "script": "scripts/review-pass-v1.json"
+  },
+  "stimulus": {
+    "kind": "hook_script",
+    "ref": "materials/DEMO-A-REVIEW-PASS-01/session.json"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "id": "review-closed",
+        "type": "state_predicate",
+        "expr": "review.required == false && review.verdict == 'Passed'"
+      },
+      {
+        "id": "submit-then-close",
+        "type": "event_subsequence",
+        "names": ["ReviewSubmitted", "ReviewClosed"]
+      },
+      {
+        "id": "no-silent-settle",
+        "type": "no_event",
+        "names": ["SessionSettledWithoutReview"]
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["a_case_pass_rate"],
+    "secondary": ["a_invariant_violations"]
+  },
+  "execution": {
+    "deadline_ms": 15000,
+    "requires_network": false,
+    "requires_durable_log": true
+  },
+  "change_log": {
+    "rev1": "切片 3 第二道 L2：review 闭环（对照设计 13/14）"
+  }
+}

@@ -1,0 +1,9 @@
+{
+  "name": "live-model-v1",
+  "kind": "live-model",
+  "description": "B 轴：真模型经 API 调用；密钥只读环境变量，不入库不入 run.json 明文",
+  "model_driver": "live",
+  "network": true,
+  "secrets": ["env-only"],
+  "durable_log": "temp-workspace"
+}

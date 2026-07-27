@@ -1,0 +1,21 @@
+{
+  "name": "fold-v1",
+  "kind": "fold",
+  "description": "A-L1 事件直测：指向本考卷库内假 Fold 模块（演示用）。",
+  "model_driver": "none",
+  "network": false,
+  "fold_entries": {
+    "todo-projection": {
+      "module": "sut/todo-fold.mjs",
+      "export": "foldTodos",
+      "signature": "pure_fold_v1",
+      "event_schema": "demo-events-v1",
+      "resolve_root": "project",
+      "normalize": "json_clone"
+    }
+  },
+  "sut": {
+    "name": "demo-agent",
+    "root_env": "SUT_ROOT"
+  }
+}

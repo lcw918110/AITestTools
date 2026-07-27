@@ -1,0 +1,11 @@
+{
+  "name": "smoke-A",
+  "axis": "A",
+  "profile": "fake-host-v1",
+  "gates": {
+    "a_case_pass_rate": { "min": 1.0 },
+    "a_invariant_violations": { "max": 0 },
+    "a_live_model_noise_cases": { "max": 0 }
+  },
+  "cases": ["A-REVIEW-REQUIRED-01"]
+}

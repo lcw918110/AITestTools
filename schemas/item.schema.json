@@ -1,0 +1,214 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/agent-proctor/agent-proctor/schemas/item.schema.json",
+  "title": "Exam Item",
+  "description": "单道试题（PRD 所称 case）。id + rev 与内容绑定：改 stimulus/expect 必须升 rev。",
+  "type": "object",
+  "required": [
+    "id",
+    "rev",
+    "axis",
+    "status",
+    "title",
+    "intent",
+    "freeze",
+    "stimulus",
+    "expect",
+    "metrics",
+    "execution"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z]+[A-Z0-9-]*$",
+      "description": "全局唯一试题号。"
+    },
+    "rev": { "type": "integer", "minimum": 1 },
+    "axis": { "enum": ["A", "B", "C", "AB", "AC", "BC"] },
+    "status": { "enum": ["active", "draft", "deprecated"] },
+    "title": { "type": "string", "minLength": 1 },
+    "owner": { "type": "string" },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "intent": {
+      "type": "object",
+      "required": ["statement", "attribution_focus"],
+      "additionalProperties": false,
+      "properties": {
+        "statement": { "type": "string", "minLength": 1 },
+        "attribution_focus": { "$ref": "#/$defs/attribution" },
+        "protocol_probes": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 },
+          "description": "hosted：durable NDJSON 中期望出现的 Kind（设计 12）"
+        }
+      }
+    },
+    "freeze": { "type": "object" },
+    "stimulus": {
+      "type": "object",
+      "required": ["kind", "ref"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": ["event_sequence", "task_prompt", "tool_args", "hook_script", "cassette"]
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "相对考卷库根的考材路径（materials/...）。"
+        },
+        "notes": { "type": "string" }
+      }
+    },
+    "expect": {
+      "type": "object",
+      "required": ["oracles"],
+      "additionalProperties": false,
+      "properties": {
+        "oracles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/oracle" }
+        }
+      }
+    },
+    "metrics": {
+      "type": "object",
+      "required": ["primary"],
+      "additionalProperties": false,
+      "properties": {
+        "primary": { "type": "array", "minItems": 1, "items": { "type": "string" } },
+        "secondary": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+    "execution": {
+      "type": "object",
+      "required": ["deadline_ms", "requires_network"],
+      "additionalProperties": false,
+      "properties": {
+        "deadline_ms": { "type": "integer", "exclusiveMinimum": 0 },
+        "requires_network": { "type": "boolean" },
+        "requires_durable_log": { "type": "boolean" },
+        "repeats": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "change_log": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    },
+    "deprecation": {
+      "type": "object",
+      "required": ["reason"],
+      "properties": {
+        "reason": { "type": "string", "minLength": 1 },
+        "superseded_by": { "type": "string" }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "axis": { "const": "A" } }, "required": ["axis"] },
+      "then": { "properties": { "freeze": { "$ref": "#/$defs/freezeA" } } },
+      "else": { "properties": { "freeze": { "$ref": "#/$defs/freezeBC" } } }
+    },
+    {
+      "if": { "properties": { "status": { "const": "deprecated" } }, "required": ["status"] },
+      "then": { "required": ["deprecation"] }
+    }
+  ],
+  "$defs": {
+    "attribution": {
+      "enum": ["PROTOCOL", "CONTEXT", "MODEL_SCHEMA", "MODEL_TASK", "TOOL", "HARNESS"]
+    },
+    "oracle": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "enum": [
+            "event_fold",
+            "event_subsequence",
+            "state_predicate",
+            "no_event",
+            "tool_trace",
+            "schema_obedience",
+            "workspace_assert",
+            "tool_result_equals",
+            "tool_side_effect",
+            "exit_code",
+            "metric_threshold"
+          ]
+        },
+        "id": { "type": "string" }
+      }
+    },
+    "freezeA": {
+      "type": "object",
+      "required": ["layer", "model_driver"],
+      "properties": {
+        "layer": { "enum": ["L1", "L2", "L3"] },
+        "model_driver": { "enum": ["none", "scripted", "as-recorded"] },
+        "fold_entry": {
+          "type": "string",
+          "minLength": 1,
+          "description": "逻辑名，对应 room.fold_entries 的键（非模块路径）。"
+        },
+        "event_schema": { "type": "string", "minLength": 1 },
+        "session_id": { "type": "string", "minLength": 1 },
+        "contract": { "type": "string", "minLength": 1 },
+        "script": { "type": "string", "minLength": 1 },
+        "cassette": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false,
+      "allOf": [
+        {
+          "if": { "properties": { "layer": { "const": "L1" } }, "required": ["layer"] },
+          "then": {
+            "required": ["fold_entry"],
+            "properties": { "model_driver": { "const": "none" } },
+            "not": {
+              "anyOf": [
+                { "required": ["contract"] },
+                { "required": ["script"] },
+                { "required": ["cassette"] }
+              ]
+            }
+          }
+        },
+        {
+          "if": { "properties": { "layer": { "const": "L2" } }, "required": ["layer"] },
+          "then": {
+            "required": ["contract", "script"],
+            "properties": { "model_driver": { "const": "scripted" } }
+          }
+        },
+        {
+          "if": { "properties": { "layer": { "const": "L3" } }, "required": ["layer"] },
+          "then": {
+            "required": ["contract", "cassette"],
+            "properties": { "model_driver": { "const": "as-recorded" } }
+          }
+        }
+      ]
+    },
+    "freezeBC": {
+      "type": "object",
+      "required": ["model_driver", "model_id", "host_profile", "tool_profile", "prompt_template"],
+      "additionalProperties": false,
+      "properties": {
+        "model_driver": { "type": "string", "minLength": 1 },
+        "model_id": { "type": "string", "minLength": 1 },
+        "host_profile": {
+          "type": "string",
+          "minLength": 1,
+          "description": "绑定的考场（room）名。"
+        },
+        "tool_profile": { "type": "string", "minLength": 1 },
+        "prompt_template": { "type": "string", "minLength": 1 },
+        "channel": { "enum": ["direct", "hosted"] }
+      }
+    }
+  }
+}

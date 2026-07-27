@@ -1,0 +1,2 @@
+{"type":"TodoAdded","todo_id":"t-2","title":"第二题","at":1}
+{"type":"TodoCompleted","todo_id":"t-2","at":2}

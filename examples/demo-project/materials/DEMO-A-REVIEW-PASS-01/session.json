@@ -1,0 +1,10 @@
+{
+  "description": "假宿主会话初态：审查 Required 为真，尚未关闭。",
+  "session": {
+    "id": "demo-review-1",
+    "review": {
+      "required": true,
+      "verdict": null
+    }
+  }
+}

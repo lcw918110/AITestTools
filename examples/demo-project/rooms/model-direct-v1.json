@@ -1,0 +1,14 @@
+{
+  "name": "model-direct-v1",
+  "kind": "live-model",
+  "description": "B-direct 通道：经外部评测框架跑模型矩阵，工具返回用录制夹具；密钥只走环境变量。",
+  "model_driver": "live",
+  "network": true,
+  "secrets": ["env-only"],
+  "durable_log": "temp-workspace",
+  "adapter": {
+    "framework": "promptfoo",
+    "config": "adapters/promptfoo.yaml",
+    "repeats": 3
+  }
+}

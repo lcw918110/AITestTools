@@ -1,0 +1,37 @@
+{
+  "id": "recorded-boundary-v1",
+  "rev": 1,
+  "host": "recorded",
+  "host_version": "0.0.0",
+  "contract": "demo-host-v1",
+  "script": "scripts/review-pass-v1.json",
+  "expected_hooks": [
+    "event",
+    "chat.message",
+    "event",
+    "chat.message",
+    "tool.execute.before",
+    "tool.execute.after",
+    "event",
+    "chat.message",
+    "event",
+    "chat.message",
+    "event",
+    "chat.message"
+  ],
+  "expected_events": [
+    "SessionReady",
+    "TurnStarted",
+    "TurnCompleted",
+    "TurnStarted",
+    "TurnCompleted",
+    "TurnStarted",
+    "TurnCompleted",
+    "TurnStarted",
+    "TurnCompleted",
+    "TurnStarted",
+    "TurnCompleted"
+  ],
+  "source_trace": "l3-trace.json",
+  "note": "proctor cassette record（离线；非 OpenCode 真录制插件）"
+}

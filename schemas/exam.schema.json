@@ -1,0 +1,58 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/agent-proctor/agent-proctor/schemas/exam.schema.json",
+  "title": "Exam Project",
+  "description": "考卷库清单（exam.json）。引擎不持有试题，只按此清单从被测项目读取 papers-v1 资产。",
+  "type": "object",
+  "required": ["name", "asset_protocol"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "asset_protocol": {
+      "const": "papers-v1",
+      "description": "资产协议版本（ADR-0006）。"
+    },
+    "engine": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "min_version": { "type": "string" }
+      }
+    },
+    "system_under_test": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "repo": { "type": "string" },
+        "version": { "type": "string" },
+        "root_env": { "type": "string" }
+      }
+    },
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "items": { "type": "string" },
+        "papersets": { "type": "string" },
+        "rooms": { "type": "string" },
+        "materials": { "type": "string" },
+        "scripts": { "type": "string" },
+        "cassettes": { "type": "string" },
+        "contracts": { "type": "string" },
+        "shells": { "type": "string" },
+        "runs": { "type": "string" }
+      }
+    },
+    "defaults": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "paperset": { "type": "string" },
+        "room": { "type": "string" }
+      }
+    }
+  }
+}

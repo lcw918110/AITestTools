@@ -1,0 +1,10 @@
+{
+  "name": "tool-core",
+  "axis": "C",
+  "profile": "direct-tool-v1",
+  "gates": {
+    "c_contract_pass_rate": { "min": 1.0 },
+    "c_boundary_pass_rate": { "min": 1.0 }
+  },
+  "cases": ["C-FUZZYGREP-BOUNDARY-01"]
+}

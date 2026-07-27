@@ -1,0 +1,15 @@
+{
+  "id": "demo-host-v1",
+  "host": "demo",
+  "host_version": "0.0.0",
+  "rev": 1,
+  "hooks": [
+    { "name": "chat.message" },
+    { "name": "tool.execute.before" },
+    { "name": "tool.execute.after" },
+    { "name": "event" },
+    { "name": "turn.completed" }
+  ],
+  "sdk": [],
+  "timing_rules": []
+}

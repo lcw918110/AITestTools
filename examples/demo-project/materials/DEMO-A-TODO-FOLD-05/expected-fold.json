@@ -1,0 +1,7 @@
+{
+  "todos": {
+    "a": { "title": "A", "state": "Completed", "completed_at": 3 },
+    "b": { "title": "B", "state": "Pending" }
+  },
+  "ignored_events": 0
+}

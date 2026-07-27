@@ -1,0 +1,106 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/agent-proctor/agent-proctor/schemas/room.schema.json",
+  "title": "Exam Room",
+  "description": "考场：一次 run 的环境冻结（PRD 所称 profile）。",
+  "type": "object",
+  "required": ["name", "kind", "model_driver", "network"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "name": { "type": "string", "minLength": 1 },
+    "kind": {
+      "enum": ["fold", "fake-host", "cassette", "live-model", "hosted", "direct-tool"]
+    },
+    "description": { "type": "string" },
+    "model_driver": { "enum": ["none", "scripted", "as-recorded", "live"] },
+    "network": { "type": "boolean" },
+    "durable_log": { "type": "string" },
+    "durable_log_glob": { "type": "string" },
+    "workspace": { "type": "string" },
+    "secrets": {
+      "type": "array",
+      "items": { "type": "string" }
+    },
+    "fold_entries": {
+      "type": "object",
+      "description": "L1 多项 Fold 入口：逻辑名 → 模块约定（设计 11）。",
+      "minProperties": 1,
+      "additionalProperties": {
+        "type": "object",
+        "required": ["module", "export", "signature", "event_schema"],
+        "additionalProperties": false,
+        "properties": {
+          "module": { "type": "string", "minLength": 1 },
+          "export": { "type": "string", "minLength": 1 },
+          "signature": { "enum": ["session_fold_v1", "pure_fold_v1"] },
+          "event_schema": { "type": "string", "minLength": 1 },
+          "resolve_root": { "enum": ["sut", "project"] },
+          "normalize": { "enum": ["json_clone", "none"] }
+        }
+      }
+    },
+    "sut": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "root_env": { "type": "string" },
+        "root_rel": { "type": ["string", "null"] }
+      }
+    },
+    "event_schema": { "type": "string" },
+    "contract": { "type": "string" },
+    "attribution_tree": { "type": "string" },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "command": { "type": "string" },
+        "args": { "type": "array", "items": { "type": "string" } },
+        "log_path": { "type": "string" },
+        "model": {
+          "type": "string",
+          "description": "OpenCode -m provider/model；显式指定避免落到未鉴权默认 agent"
+        },
+        "agent": {
+          "type": "string",
+          "description": "可选 OpenCode --agent"
+        },
+        "plugin": {
+          "type": "string",
+          "description": "相对 SUT_ROOT（或绝对路径）的 OpenCode 插件入口，如 build/src/Opencode/Plugin.js"
+        }
+      }
+    },
+    "adapter": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "framework": { "type": "string" },
+        "config": { "type": "string" },
+        "repeats": { "type": "integer", "minimum": 1 },
+        "hook_style": {
+          "type": "string",
+          "enum": ["demo-v1", "opencode-v1"],
+          "description": "demo-v1=afterTurn/onToolAfter；opencode-v1=plugin(ctx)→官方 hook 名"
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "kind": { "const": "fold" } }, "required": ["kind"] },
+      "then": {
+        "required": ["fold_entries"],
+        "properties": { "network": { "const": false }, "model_driver": { "const": "none" } }
+      }
+    },
+    {
+      "if": { "properties": { "kind": { "const": "hosted" } }, "required": ["kind"] },
+      "then": { "required": ["host"] }
+    }
+  ]
+}

@@ -1,0 +1,70 @@
+{
+  "hooks": [
+    "event",
+    "event",
+    "chat.message",
+    "chat.message",
+    "event",
+    "event",
+    "chat.message",
+    "tool.execute.before",
+    "tool.execute.after",
+    "event",
+    "event",
+    "chat.message",
+    "chat.message",
+    "event",
+    "event",
+    "chat.message",
+    "chat.message",
+    "event",
+    "event",
+    "chat.message"
+  ],
+  "timeline": [
+    {
+      "type": "SessionReady"
+    },
+    {
+      "type": "TurnStarted",
+      "turn": 0
+    },
+    {
+      "type": "TurnCompleted",
+      "turn": 0
+    },
+    {
+      "type": "TurnStarted",
+      "turn": 1
+    },
+    {
+      "type": "TurnCompleted",
+      "turn": 1
+    },
+    {
+      "type": "TurnStarted",
+      "turn": 2
+    },
+    {
+      "type": "TurnCompleted",
+      "turn": 2
+    },
+    {
+      "type": "TurnStarted",
+      "turn": 3
+    },
+    {
+      "type": "TurnCompleted",
+      "turn": 3
+    },
+    {
+      "type": "TurnStarted",
+      "turn": 4
+    },
+    {
+      "type": "TurnCompleted",
+      "turn": 4,
+      "terminal": true
+    }
+  ]
+}

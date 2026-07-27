@@ -1,0 +1,12 @@
+{
+  "name": "smoke-A",
+  "description": "A 轴 L2 冒烟：契约假宿主 + 剧本（nudge + review）。",
+  "axis": "A",
+  "room": "fake-host-v1",
+  "items": ["DEMO-A-NUDGE-TIMING-01", "DEMO-A-REVIEW-PASS-01"],
+  "gates": {
+    "a_case_pass_rate": { "min": 1 },
+    "a_invariant_violations": { "max": 0 },
+    "a_flaky_rerun_delta": { "max": 0 }
+  }
+}

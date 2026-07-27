@@ -1,0 +1,8 @@
+{
+  "name": "leaky-v1",
+  "kind": "live-model",
+  "description": "违规示例：把密钥写进了资产文件。",
+  "model_driver": "live",
+  "network": true,
+  "secrets": ["inline:sk-not-a-real-key"]
+}

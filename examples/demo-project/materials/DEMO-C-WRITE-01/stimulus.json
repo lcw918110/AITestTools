@@ -1,0 +1,8 @@
+{
+  "args": { "mode": "write", "message": "side-effect-ok" },
+  "expect": {
+    "ok": true,
+    "side_effect_file": "out.txt",
+    "side_effect_contains": "side-effect-ok"
+  }
+}

@@ -1,0 +1,5 @@
+dist/
+coverage/
+node_modules/
+40-评测工具/
+tests/fixtures/invalid/

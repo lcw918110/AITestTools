@@ -1,0 +1,10 @@
+{
+  "name": "broken-project",
+  "description": "故意违规的资产项目，用于验证交叉引用规则确实会拦住问题。",
+  "asset_protocol": "papers-v1",
+  "paths": {
+    "items": "items",
+    "papersets": "papersets",
+    "rooms": "rooms"
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "$schema": "../../schemas/exam.schema.json",
+  "name": "my-agent-assets",
+  "description": "本项目的评测资产：用例、suite、profile 由被测仓库持有，引擎按需装载。",
+  "asset_protocol": "papers-v1",
+  "engine": {
+    "min_version": "0.1.0"
+  },
+  "system_under_test": {
+    "name": "my-agent",
+    "repo": "",
+    "version": ""
+  },
+  "paths": {
+    "items": "items",
+    "papersets": "papersets",
+    "rooms": "rooms",
+    "materials": "materials",
+    "scripts": "scripts"
+  },
+  "defaults": {
+    "paperset": "smoke-A",
+    "room": "fold-v1"
+  }
+}

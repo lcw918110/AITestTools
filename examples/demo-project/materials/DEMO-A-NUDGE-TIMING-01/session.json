@@ -1,0 +1,10 @@
+{
+  "description": "假宿主会话初态：一个已下发但未收敛的任务。",
+  "session": {
+    "id": "s-1",
+    "task": "把 README 补全并跑通测试",
+    "turns": 0,
+    "nudge_count": 0
+  },
+  "hooks": ["chat.message", "tool.execute.before", "turn.completed"]
+}

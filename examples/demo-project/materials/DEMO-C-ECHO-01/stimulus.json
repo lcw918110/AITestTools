@@ -1,0 +1,7 @@
+{
+  "args": { "mode": "echo", "message": "hello-proctor" },
+  "expect": {
+    "ok": true,
+    "result": { "echo": "hello-proctor" }
+  }
+}

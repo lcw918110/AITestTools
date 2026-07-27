@@ -1,0 +1,19 @@
+{
+  "id": "NET-01",
+  "rev": 1,
+  "axis": "B",
+  "status": "active",
+  "title": "需要网络的模型用例",
+  "intent": { "statement": "占位", "attribution_focus": "MODEL_SCHEMA" },
+  "freeze": {
+    "model_driver": "live",
+    "model_id": "${MATRIX_SUBJECT}",
+    "host_profile": "offline-v1",
+    "tool_profile": "recorded",
+    "prompt_template": "tpl-v1"
+  },
+  "stimulus": { "kind": "task_prompt", "ref": "fixtures/NET-01/task.md" },
+  "expect": { "oracles": [{ "type": "schema_obedience", "tool": "todowrite" }] },
+  "metrics": { "primary": ["b_schema_obedience_rate"] },
+  "execution": { "deadline_ms": 60000, "requires_network": true }
+}

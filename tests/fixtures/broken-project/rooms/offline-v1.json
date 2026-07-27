@@ -1,0 +1,7 @@
+{
+  "name": "offline-v1",
+  "kind": "live-model",
+  "description": "违规示例：声明无网络，却被需要网络的模型用例引用。",
+  "model_driver": "live",
+  "network": false
+}

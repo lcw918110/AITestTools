@@ -1,0 +1,3 @@
+{"type":"TodoAdded","todo_id":"t-3","title":"第三题","at":1}
+{"type":"TodoStarted","todo_id":"t-3","at":2}
+{"type":"TodoStarted","todo_id":"t-3","at":3}

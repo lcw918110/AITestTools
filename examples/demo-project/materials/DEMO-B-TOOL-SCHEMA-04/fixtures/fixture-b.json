@@ -1,0 +1,9 @@
+{
+  "pass": true,
+  "tool_trace": [
+    {
+      "name": "todowrite",
+      "args": { "todos": [{ "id": "1", "content": "x", "status": "pending" }], "merge": false }
+    }
+  ]
+}

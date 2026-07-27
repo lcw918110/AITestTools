@@ -1,0 +1,4 @@
+{"type":"TodoAdded","todo_id":"t-1","title":"写初始化脚本","at":1}
+{"type":"TodoStarted","todo_id":"t-1","at":2}
+{"type":"TodoCompleted","todo_id":"t-1","at":3}
+{"type":"TodoStarted","todo_id":"t-1","at":4}

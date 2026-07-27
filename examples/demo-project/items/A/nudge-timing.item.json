@@ -1,0 +1,49 @@
+{
+  "id": "DEMO-A-NUDGE-TIMING-01",
+  "rev": 2,
+  "axis": "A",
+  "status": "active",
+  "title": "任务未收敛时必须在下一轮之前发出提醒",
+  "owner": "demo",
+  "tags": ["l2", "control-flow"],
+  "intent": {
+    "statement": "经契约假宿主验证 hook 时序：模型连续两轮无进展时插件应发出 nudge",
+    "attribution_focus": "PROTOCOL"
+  },
+  "freeze": {
+    "layer": "L2",
+    "model_driver": "scripted",
+    "contract": "demo-host-v1",
+    "script": "scripts/no-progress-twice.json"
+  },
+  "stimulus": {
+    "kind": "hook_script",
+    "ref": "materials/DEMO-A-NUDGE-TIMING-01/session.json"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "id": "nudge-emitted",
+        "type": "event_subsequence",
+        "names": ["TurnCompleted", "NudgeEmitted", "TurnStarted"]
+      },
+      {
+        "id": "state-after",
+        "type": "state_predicate",
+        "expr": "session.nudge_count == 1"
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["a_case_pass_rate"],
+    "secondary": ["a_invariant_violations"]
+  },
+  "execution": {
+    "deadline_ms": 15000,
+    "requires_network": false,
+    "requires_durable_log": true
+  },
+  "change_log": {
+    "rev2": "把断言从「出现 NudgeEmitted」收紧为「必须落在两轮之间」，避免迟到的提醒也算通过"
+  }
+}

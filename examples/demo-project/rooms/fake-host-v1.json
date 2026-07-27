@@ -1,0 +1,13 @@
+{
+  "name": "fake-host-v1",
+  "kind": "fake-host",
+  "description": "A-L2 契约假宿主：剧本模型 + 可插拔插件钩子。",
+  "model_driver": "scripted",
+  "network": false,
+  "contract": "demo-host-v1",
+  "durable_log": "temp-workspace",
+  "adapter": {
+    "framework": "demo-plugin",
+    "config": "sut/control-flow-plugin.mjs"
+  }
+}

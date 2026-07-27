@@ -1,0 +1,8 @@
+{
+  "name": "fake-host-v1",
+  "kind": "fake-host",
+  "description": "A 轴默认：可注入事件的假宿主 + scripted model；durable 日志写临时工作区",
+  "model_driver": "scripted",
+  "network": false,
+  "durable_log": "temp-workspace"
+}

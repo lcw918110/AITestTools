@@ -1,0 +1,10 @@
+{
+  "name": "smoke-C",
+  "description": "C 轴 CLI 壳冒烟（2 题）",
+  "axis": "C",
+  "room": "shell-echo-v1",
+  "items": ["DEMO-C-ECHO-01", "DEMO-C-WRITE-01"],
+  "gates": {
+    "a_case_pass_rate": { "min": 1 }
+  }
+}

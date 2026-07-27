@@ -1,0 +1,10 @@
+{
+  "name": "model-core",
+  "axis": "B",
+  "profile": "live-model-v1",
+  "matrix_env": "MATRIX_SUBJECT",
+  "gates": {
+    "b_schema_obedience_rate": { "min": 0.9 }
+  },
+  "cases": ["B-SCHEMA-TODOWRITE-01"]
+}

@@ -1,0 +1,44 @@
+{
+  "id": "DEMO-A-TODO-FOLD-05",
+  "rev": 1,
+  "axis": "A",
+  "status": "active",
+  "title": "双待办独立折叠",
+  "owner": "demo",
+  "tags": ["l1"],
+  "intent": {
+    "statement": "双待办独立折叠",
+    "attribution_focus": "PROTOCOL"
+  },
+  "freeze": {
+    "layer": "L1",
+    "model_driver": "none",
+    "fold_entry": "todo-projection",
+    "event_schema": "demo-events-v1"
+  },
+  "stimulus": {
+    "kind": "event_sequence",
+    "ref": "materials/DEMO-A-TODO-FOLD-05/stimulus.ndjson"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "id": "fold",
+        "type": "event_fold",
+        "spec": "materials/DEMO-A-TODO-FOLD-05/expected-fold.json"
+      },
+      {
+        "id": "pred",
+        "type": "state_predicate",
+        "expr": "todos['b'].state == 'Pending'"
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["a_case_pass_rate"]
+  },
+  "execution": {
+    "deadline_ms": 5000,
+    "requires_network": false
+  }
+}

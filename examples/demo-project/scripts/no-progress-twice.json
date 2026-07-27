@@ -1,0 +1,9 @@
+{
+  "name": "no-progress-twice",
+  "description": "剧本模型：连续两轮输出无进展文本、不调用任何工具，用于触发 nudge 判定。",
+  "steps": [
+    { "assistant_text": "我再想想。", "tool_calls": [] },
+    { "assistant_text": "还在想。", "tool_calls": [] },
+    { "terminal": true }
+  ]
+}

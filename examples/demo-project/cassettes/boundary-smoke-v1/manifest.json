@@ -1,0 +1,10 @@
+{
+  "id": "boundary-smoke-v1",
+  "rev": 1,
+  "host": "demo",
+  "host_version": "0.0.0",
+  "contract": "demo-host-v1",
+  "script": "scripts/review-pass-v1.json",
+  "expected_hooks": ["event", "chat.message", "tool.execute.before", "tool.execute.after"],
+  "expected_events": ["SessionReady", "TurnStarted", "TurnCompleted"]
+}

@@ -1,0 +1,71 @@
+{
+  "name": "agent-proctor",
+  "version": "0.1.0",
+  "description": "第三方独立 Agent 监考/评测引擎（三轴）。用例资产由被测项目以 papers-v1 考卷库持有。",
+  "keywords": [
+    "agent",
+    "evaluation",
+    "harness",
+    "llm",
+    "testing"
+  ],
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=22.22.0"
+  },
+  "bin": {
+    "proctor": "dist/cli/main.js"
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./schemas/*": "./schemas/*"
+  },
+  "files": [
+    "dist",
+    "schemas",
+    "templates",
+    "README.md",
+    "CHANGELOG.md",
+    "LICENSE"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "node -e \"import('node:fs').then(fs=>fs.rmSync('dist',{recursive:true,force:true}))\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "harness": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/main.ts",
+    "validate:examples": "npm run proctor -- item validate --project examples/demo-project",
+    "smoke:offline": "npm run proctor -- run --axis A --paperset smoke-A-L1 --project examples/demo-project && npm run proctor -- run --axis A --paperset smoke-A --project examples/demo-project && npm run proctor -- run --axis A --paperset smoke-A-L3 --project examples/demo-project && npm run proctor -- run --axis B --paperset model-core --project examples/demo-project && npm run proctor -- run --axis C --paperset smoke-C-echo --project examples/demo-project && npm run proctor -- run --axis C --paperset smoke-C-write --project examples/demo-project",
+    "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run validate:examples",
+    "prepublishOnly": "npm run clean && npm run build",
+    "proctor": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/main.ts"
+  },
+  "dependencies": {
+    "ajv": "^8.17.1",
+    "ajv-formats": "^3.0.1",
+    "promptfoo": "^0.121.19"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.32.0",
+    "@types/node": "^22.10.0",
+    "@vitest/coverage-v8": "^3.2.4",
+    "eslint": "^9.32.0",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.6.2",
+    "typescript": "^5.9.2",
+    "typescript-eslint": "^8.38.0",
+    "vitest": "^3.2.4"
+  }
+}

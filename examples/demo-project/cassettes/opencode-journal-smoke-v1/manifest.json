@@ -1,0 +1,21 @@
+{
+  "id": "opencode-journal-smoke-v1",
+  "rev": 1,
+  "replay_mode": "journal",
+  "host": "opencode",
+  "host_version": "recorded",
+  "contract": "opencode-v1.18",
+  "journal_ref": "cassettes/opencode-journal-smoke-v1/journal.ndjson",
+  "expected_hooks": [
+    "event",
+    "chat.message",
+    "event",
+    "chat.message",
+    "tool.execute.before",
+    "tool.execute.after",
+    "event"
+  ],
+  "expected_events": ["session.created", "session.idle"],
+  "note": "fixture journal from recorder shape",
+  "recorder_plugin": "src/drivers/cassette/recorder-plugin.mjs"
+}

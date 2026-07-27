@@ -1,0 +1,10 @@
+{
+  "id": "text-stop-v1",
+  "rev": 1,
+  "host": "demo",
+  "host_version": "0.0.0",
+  "contract": "demo-host-v1",
+  "script": "scripts/text-stop-v1.json",
+  "expected_hooks": ["event", "chat.message"],
+  "expected_events": ["SessionReady", "TurnStarted", "TurnCompleted"]
+}

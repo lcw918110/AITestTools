@@ -1,0 +1,8 @@
+{
+  "name": "direct-tool-v1",
+  "kind": "direct-tool",
+  "description": "C 轴默认：绕过 Agent 循环直调工具 execute；副作用限定在临时工作区",
+  "model_driver": "none",
+  "network": false,
+  "workspace": "temp-copy"
+}

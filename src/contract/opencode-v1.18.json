@@ -1,0 +1,61 @@
+{
+  "id": "opencode-v1.18",
+  "host": "opencode",
+  "host_version": "1.18.5",
+  "host_version_range": ">=1.18.5 <1.19.0",
+  "rev": 1,
+  "source": "本机 opencode@1.18.5（ADR-0006 C4）；host-docs 1.17 仅参考",
+  "hooks": [
+    {
+      "name": "tool.execute.before",
+      "phase": "before_tool",
+      "input": {
+        "required": ["sessionID", "callID", "tool", "args"]
+      },
+      "output": {
+        "allows_mutate_args": true,
+        "deny": { "via": "throw_or_explicit" }
+      },
+      "coverage": "all_tools"
+    },
+    {
+      "name": "tool.execute.after",
+      "phase": "after_tool",
+      "input": {
+        "required": ["sessionID", "callID", "tool", "args"]
+      }
+    },
+    {
+      "name": "event",
+      "phase": "event",
+      "input": {
+        "required": ["type"]
+      },
+      "notes": "覆盖 session.idle 等生命周期事件名以 verify 为准"
+    },
+    {
+      "name": "chat.message",
+      "phase": "chat",
+      "input": {
+        "required": ["sessionID"]
+      }
+    }
+  ],
+  "sdk": [
+    {
+      "method": "session.prompt",
+      "input": { "required": ["sessionID"] },
+      "errors": ["MessageAbortedError"]
+    }
+  ],
+  "timing_rules": [
+    {
+      "id": "idle-before-nudge",
+      "description": "连续无进展轮次达到阈值后才允许 nudge",
+      "verify_probe": "idle-nudge"
+    }
+  ],
+  "verify": {
+    "suite": "contract-verify-opencode-v1.18"
+  }
+}

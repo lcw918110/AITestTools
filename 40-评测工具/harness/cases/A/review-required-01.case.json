@@ -1,0 +1,50 @@
+{
+  "id": "A-REVIEW-REQUIRED-01",
+  "rev": 2,
+  "axis": "A",
+  "status": "active",
+  "title": "Review.Required 为真时必须进入审查闭环，不得静默 Finish",
+  "owner": "behavior",
+  "intent": {
+    "statement": "验证审查 Required 投影为真时，会话不会在未审查的情况下结束（L1 事件直测）",
+    "attribution_focus": "PROTOCOL"
+  },
+  "freeze": {
+    "layer": "L1",
+    "fold_entry": "build/src/Runtime/Projection.js",
+    "model_driver": "none",
+    "event_schema": "wanxiangshu-ndjson-v1"
+  },
+  "stimulus": {
+    "kind": "event_sequence",
+    "ref": "fixtures/A-REVIEW-REQUIRED-01/stimulus.ndjson"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "type": "event_fold",
+        "spec": "fixtures/A-REVIEW-REQUIRED-01/expected-fold.json"
+      },
+      {
+        "type": "state_predicate",
+        "expr": "review.required == false && review.verdict == 'Passed'"
+      },
+      {
+        "type": "no_event",
+        "names": ["SessionSettledWithoutReview"]
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["a_invariant_pass"],
+    "secondary": []
+  },
+  "execution": {
+    "deadline_ms": 10000,
+    "requires_network": false,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "PRD v2：由 scripted 假宿主用例改为 L1 事件直测；freeze 换为 layer/fold_entry 形状"
+  }
+}

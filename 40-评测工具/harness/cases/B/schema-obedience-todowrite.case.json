@@ -1,0 +1,48 @@
+{
+  "id": "B-SCHEMA-TODOWRITE-01",
+  "rev": 1,
+  "axis": "B",
+  "status": "active",
+  "title": "模型在待办场景下必须调用 todowrite 且填齐必选字段",
+  "owner": "model-eval",
+  "intent": {
+    "statement": "对比不同模型对 todowrite 契约（全量待办 + select_methodology）的服从率",
+    "attribution_focus": "MODEL_SCHEMA"
+  },
+  "freeze": {
+    "model_driver": "live",
+    "model_id": "${MATRIX_SUBJECT}",
+    "host_profile": "fake-host-v1",
+    "tool_profile": "recorded-tools-v1",
+    "prompt_template": "todo-task-v1"
+  },
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "fixtures/B-SCHEMA-TODOWRITE-01/task.md"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "type": "tool_trace",
+        "must_call": ["todowrite"],
+        "args_contains": {
+          "todowrite": ["todos", "select_methodology"]
+        }
+      },
+      {
+        "type": "schema_obedience",
+        "tool": "todowrite",
+        "required_fields": ["todos", "select_methodology"]
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["b_schema_obedience_rate", "b_required_tool_call_rate"],
+    "secondary": ["b_invalid_args_rate"]
+  },
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  }
+}

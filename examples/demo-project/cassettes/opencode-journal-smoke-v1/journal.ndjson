@@ -1,0 +1,7 @@
+{"ts":"2026-07-27T00:00:00.000Z","hook":"event","cassette_id":"opencode-journal-smoke-v1","payload":{"event":{"type":"session.created"}}}
+{"ts":"2026-07-27T00:00:01.000Z","hook":"chat.message","cassette_id":"opencode-journal-smoke-v1","payload":{"sessionID":"s1","role":"user"}}
+{"ts":"2026-07-27T00:00:02.000Z","hook":"event","cassette_id":"opencode-journal-smoke-v1","payload":{"event":{"type":"session.idle"}}}
+{"ts":"2026-07-27T00:00:03.000Z","hook":"chat.message","cassette_id":"opencode-journal-smoke-v1","payload":{"sessionID":"s1","role":"assistant"}}
+{"ts":"2026-07-27T00:00:04.000Z","hook":"tool.execute.before","cassette_id":"opencode-journal-smoke-v1","payload":{"tool":"read","sessionID":"s1"}}
+{"ts":"2026-07-27T00:00:05.000Z","hook":"tool.execute.after","cassette_id":"opencode-journal-smoke-v1","payload":{"tool":"read","sessionID":"s1"}}
+{"ts":"2026-07-27T00:00:06.000Z","hook":"event","cassette_id":"opencode-journal-smoke-v1","payload":{"event":{"type":"session.idle"}}}

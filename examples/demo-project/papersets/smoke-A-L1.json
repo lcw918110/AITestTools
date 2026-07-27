@@ -1,0 +1,24 @@
+{
+  "name": "smoke-A-L1",
+  "description": "A 轴 L1 冒烟：事件直测，考场须为 fold。",
+  "axis": "A",
+  "room": "fold-v1",
+  "items": [
+    "DEMO-A-TODO-FOLD-01",
+    "DEMO-A-TODO-FOLD-02",
+    "DEMO-A-TODO-FOLD-03",
+    "DEMO-A-TODO-FOLD-04",
+    "DEMO-A-TODO-FOLD-05"
+  ],
+  "gates": {
+    "a_case_pass_rate": {
+      "min": 1
+    },
+    "a_invariant_violations": {
+      "max": 0
+    },
+    "a_flaky_rerun_delta": {
+      "max": 0
+    }
+  }
+}

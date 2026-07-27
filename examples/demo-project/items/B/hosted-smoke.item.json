@@ -1,0 +1,43 @@
+{
+  "id": "DEMO-B-HOSTED-SMOKE-01",
+  "rev": 1,
+  "axis": "B",
+  "status": "active",
+  "title": "hosted smoke：真宿主可拉起，失败可归因",
+  "owner": "demo",
+  "tags": ["hosted-smoke"],
+  "intent": {
+    "statement": "验证 OpenCode 子进程可执行；无密钥失败须落入 CONTEXT 归因",
+    "attribution_focus": "CONTEXT"
+  },
+  "freeze": {
+    "model_driver": "live",
+    "model_id": "hosted",
+    "host_profile": "hosted-opencode-v1",
+    "tool_profile": "none",
+    "prompt_template": "hosted-smoke-v1",
+    "channel": "hosted"
+  },
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "materials/DEMO-B-HOSTED-SMOKE-01/task.md"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "id": "attributable",
+        "type": "state_predicate",
+        "expr": "true"
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["a_case_pass_rate"],
+    "secondary": []
+  },
+  "execution": {
+    "deadline_ms": 60000,
+    "requires_network": true,
+    "requires_durable_log": true
+  }
+}

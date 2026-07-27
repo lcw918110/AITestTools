@@ -1,0 +1,15 @@
+{
+  "name": "smoke-A",
+  "description": "最小冒烟集：全部 A-L1 用例必须全绿。",
+  "axis": "A",
+  "gates": {
+    "a_case_pass_rate": {
+      "min": 1
+    },
+    "a_invariant_violations": {
+      "max": 0
+    }
+  },
+  "items": ["EXAMPLE-L1-01"],
+  "room": "fold-v1"
+}
