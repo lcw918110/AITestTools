@@ -1,0 +1,33 @@
+{
+  "sessionId": "st-03b",
+  "requirement": "dep",
+  "tasks": [
+    {
+      "id": "a",
+      "status": "merged",
+      "dependsOn": [],
+      "worktreePath": "/wt/a",
+      "branchName": "a",
+      "mergedSha": "sha-a"
+    },
+    {
+      "id": "b",
+      "status": "pending",
+      "dependsOn": [
+        "a"
+      ],
+      "worktreePath": null,
+      "branchName": null,
+      "mergedSha": null
+    }
+  ],
+  "readyTaskIds": [
+    "b"
+  ],
+  "schedule": {
+    "toStart": [
+      "b"
+    ],
+    "waiting": []
+  }
+}

@@ -1,0 +1,51 @@
+{
+  "id": "WX-A-REVIEW-PASS-01",
+  "rev": 1,
+  "axis": "A",
+  "status": "active",
+  "title": "review.required 时须经 submit_review 以 accepted 关闭",
+  "owner": "wanxiangshu",
+  "tags": ["l2", "review", "opencode-hooks"],
+  "intent": {
+    "statement": "tool.execute.after(submit_review) 应写出 review_verdict=accepted 并关闭 required",
+    "attribution_focus": "PROTOCOL"
+  },
+  "freeze": {
+    "layer": "L2",
+    "model_driver": "scripted",
+    "contract": "opencode-hooks-v1",
+    "script": "scripts/review-pass-v1.json"
+  },
+  "stimulus": {
+    "kind": "hook_script",
+    "ref": "materials/WX-A-REVIEW-PASS-01/session.json"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "id": "review-closed",
+        "type": "state_predicate",
+        "expr": "review.required == false && review.verdict == 'accepted'"
+      },
+      {
+        "id": "verdict-emitted",
+        "type": "event_subsequence",
+        "names": ["review_verdict"]
+      },
+      {
+        "id": "no-silent-settle",
+        "type": "no_event",
+        "names": ["SessionSettledWithoutReview"]
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["a_case_pass_rate"],
+    "secondary": ["a_invariant_violations"]
+  },
+  "execution": {
+    "deadline_ms": 15000,
+    "requires_network": false,
+    "requires_durable_log": true
+  }
+}

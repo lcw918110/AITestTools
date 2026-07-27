@@ -1,0 +1,4 @@
+{"v":1,"session":"st-11","kind":"squad_created","at":"1","payload":{"requirement":"kill"}}
+{"v":1,"session":"st-11","kind":"tasks_created","at":"2","payload":{"tasksJson":"[{\"task_id\":\"t1\",\"title\":\"kill\",\"description\":\"d\"}]"}}
+{"v":1,"session":"st-11","kind":"task_started","at":"3","payload":{"task_id":"t1","worktree_path":"/wt/keep","branch_name":"keep"}}
+{"v":1,"session":"st-11","kind":"squad_cancelled","at":"4","payload":{}}

@@ -1,0 +1,27 @@
+{
+  "sessionId": "st-02",
+  "requirement": "parallel",
+  "tasks": [
+    {
+      "id": "a",
+      "status": "running",
+      "dependsOn": [],
+      "worktreePath": "/wt/a",
+      "branchName": "a",
+      "mergedSha": null
+    },
+    {
+      "id": "b",
+      "status": "running",
+      "dependsOn": [],
+      "worktreePath": "/wt/b",
+      "branchName": "b",
+      "mergedSha": null
+    }
+  ],
+  "readyTaskIds": [],
+  "schedule": {
+    "toStart": [],
+    "waiting": []
+  }
+}

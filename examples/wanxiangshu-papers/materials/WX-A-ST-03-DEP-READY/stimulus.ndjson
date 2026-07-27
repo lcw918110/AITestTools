@@ -1,0 +1,5 @@
+{"v":1,"session":"st-03b","kind":"squad_created","at":"1","payload":{"requirement":"dep"}}
+{"v":1,"session":"st-03b","kind":"tasks_created","at":"2","payload":{"tasksJson":"[{\"task_id\":\"a\",\"title\":\"A\",\"description\":\"d\"},{\"task_id\":\"b\",\"title\":\"B\",\"description\":\"d\",\"depends_on\":[\"a\"]}]"}}
+{"v":1,"session":"st-03b","kind":"task_started","at":"3","payload":{"task_id":"a","worktree_path":"/wt/a","branch_name":"a"}}
+{"v":1,"session":"st-03b","kind":"task_submitted","at":"4","payload":{"task_id":"a","commit_sha":"sha-a"}}
+{"v":1,"session":"st-03b","kind":"task_merged","at":"5","payload":{"task_id":"a","master_sha":"sha-a"}}

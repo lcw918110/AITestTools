@@ -1,0 +1,11 @@
+{
+  "name": "smoke-A-L2",
+  "description": "万象术 L2：opencode-v1 假宿主控流。",
+  "axis": "A",
+  "room": "fake-host-opencode-v1",
+  "items": ["WX-A-NUDGE-TIMING-01", "WX-A-REVIEW-PASS-01"],
+  "gates": {
+    "a_case_pass_rate": { "min": 1 },
+    "a_invariant_violations": { "max": 0 }
+  }
+}

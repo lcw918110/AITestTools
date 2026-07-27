@@ -1,0 +1,10 @@
+{
+  "description": "审查 Required 为真。",
+  "session": {
+    "id": "wx-review-1",
+    "review": {
+      "required": true,
+      "verdict": null
+    }
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "name": "hosted-smoke",
+  "description": "万象术 hosted：真 OpenCode + Plugin + NDJSON 归因",
+  "axis": "B",
+  "room": "hosted-wanxiangshu-v1",
+  "items": ["WX-B-HOSTED-PLUGIN-01"]
+}

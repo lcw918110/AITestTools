@@ -1,0 +1,54 @@
+{
+  "name": "fold-wanxiangshu-v1",
+  "kind": "fold",
+  "description": "A-L1：adapters/fold-bridge → Review / Nudge / Squad DAG。",
+  "model_driver": "none",
+  "network": false,
+  "fold_entries": {
+    "review-task": {
+      "module": "adapters/fold-bridge.mjs",
+      "export": "foldReviewTask",
+      "signature": "session_fold_v1",
+      "event_schema": "wanxiangshu-ndjson-v1",
+      "resolve_root": "project",
+      "normalize": "json_clone"
+    },
+    "nudge-dedup": {
+      "module": "adapters/fold-bridge.mjs",
+      "export": "foldNudgeDedup",
+      "signature": "session_fold_v1",
+      "event_schema": "wanxiangshu-ndjson-v1",
+      "resolve_root": "project",
+      "normalize": "json_clone"
+    },
+    "squad-dag": {
+      "module": "adapters/fold-bridge.mjs",
+      "export": "foldSquadDag",
+      "signature": "session_fold_v1",
+      "event_schema": "wanxiangshu-ndjson-v1",
+      "resolve_root": "project",
+      "normalize": "json_clone"
+    },
+    "squad-cycle": {
+      "module": "adapters/fold-bridge.mjs",
+      "export": "foldSquadCycleCheck",
+      "signature": "session_fold_v1",
+      "event_schema": "wanxiangshu-ndjson-v1",
+      "resolve_root": "project",
+      "normalize": "json_clone"
+    },
+    "squad-strict": {
+      "module": "adapters/fold-bridge.mjs",
+      "export": "foldSquadStrictTransition",
+      "signature": "session_fold_v1",
+      "event_schema": "wanxiangshu-ndjson-v1",
+      "resolve_root": "project",
+      "normalize": "json_clone"
+    }
+  },
+  "sut": {
+    "name": "wanxiangshu",
+    "root_env": "SUT_ROOT",
+    "root_rel": null
+  }
+}

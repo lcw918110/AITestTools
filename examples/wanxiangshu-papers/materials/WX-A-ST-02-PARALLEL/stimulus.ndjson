@@ -1,0 +1,4 @@
+{"v":1,"session":"st-02","kind":"squad_created","at":"1","payload":{"requirement":"parallel"}}
+{"v":1,"session":"st-02","kind":"tasks_created","at":"2","payload":{"tasksJson":"[{\"task_id\":\"a\",\"title\":\"A\",\"description\":\"d\"},{\"task_id\":\"b\",\"title\":\"B\",\"description\":\"d\"}]"}}
+{"v":1,"session":"st-02","kind":"task_started","at":"3","payload":{"task_id":"a","worktree_path":"/wt/a","branch_name":"a"}}
+{"v":1,"session":"st-02","kind":"task_started","at":"4","payload":{"task_id":"b","worktree_path":"/wt/b","branch_name":"b"}}

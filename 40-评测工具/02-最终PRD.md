@@ -228,7 +228,7 @@ exit 0 = 壳正常（含工具业务失败）；非 0 = 壳/环境故障 → HAR
 
 ## 8. 验收清单（Phase 1 DoD，v2）
 
-> 勾选状态：见 `docs/design/20-phase1-dod-closure-2026-07-26.md`（2026-07-26）。
+> 勾选状态：见 `docs/process/20-phase1-dod-closure-2026-07-26.md`（2026-07-26）。
 
 - [x] 引擎独立包可运行，不依赖被测仓库构建链（本地 `bin`/`dist`；registry `npx` 发布另议）
 - [x] L1：import Fold 产物直测成立；zero-host 用例 ≥5 条

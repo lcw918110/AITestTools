@@ -1,0 +1,2 @@
+{"v":1,"session":"st-13","kind":"squad_created","at":"1","payload":{"requirement":"cycle"}}
+{"v":1,"session":"st-13","kind":"tasks_created","at":"2","payload":{"tasksJson":"[{\"task_id\":\"a\",\"title\":\"A\",\"description\":\"d\",\"depends_on\":[\"b\"]},{\"task_id\":\"b\",\"title\":\"B\",\"description\":\"d\",\"depends_on\":[\"a\"]}]"}}

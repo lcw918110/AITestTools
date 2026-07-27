@@ -1,0 +1,8 @@
+{
+  "description": "会话初态：有任务、尚未 nudge。",
+  "session": {
+    "id": "wx-nudge-1",
+    "task": "补全 README 并跑通测试",
+    "nudge_count": 0
+  }
+}

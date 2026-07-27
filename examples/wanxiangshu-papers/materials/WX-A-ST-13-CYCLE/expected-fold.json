@@ -1,0 +1,8 @@
+{
+  "hasCycle": true,
+  "cycle": [
+    "a",
+    "b",
+    "a"
+  ]
+}

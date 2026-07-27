@@ -1,0 +1,14 @@
+{
+  "name": "fake-host-opencode-v1",
+  "kind": "fake-host",
+  "description": "A-L2：假宿主 + opencode-v1 hook_style（官方 hook 名）。",
+  "model_driver": "scripted",
+  "network": false,
+  "contract": "opencode-hooks-v1",
+  "durable_log": "temp-workspace",
+  "adapter": {
+    "framework": "wanxiangshu-l2-shim",
+    "config": "adapters/l2-control-flow-plugin.mjs",
+    "hook_style": "opencode-v1"
+  }
+}

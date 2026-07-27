@@ -1,0 +1,27 @@
+{
+  "sessionId": "st-05",
+  "requirement": "race",
+  "tasks": [
+    {
+      "id": "a",
+      "status": "merged",
+      "dependsOn": [],
+      "worktreePath": "/wt/a",
+      "branchName": "a",
+      "mergedSha": "sha-a"
+    },
+    {
+      "id": "b",
+      "status": "submitted",
+      "dependsOn": [],
+      "worktreePath": "/wt/b",
+      "branchName": "b",
+      "mergedSha": null
+    }
+  ],
+  "readyTaskIds": [],
+  "schedule": {
+    "toStart": [],
+    "waiting": []
+  }
+}

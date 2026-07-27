@@ -1,0 +1,19 @@
+{
+  "sessionId": "st-08",
+  "requirement": "replay",
+  "tasks": [
+    {
+      "id": "t1",
+      "status": "submitted",
+      "dependsOn": [],
+      "worktreePath": "/wt/t1",
+      "branchName": "t1",
+      "mergedSha": null
+    }
+  ],
+  "readyTaskIds": [],
+  "schedule": {
+    "toStart": [],
+    "waiting": []
+  }
+}

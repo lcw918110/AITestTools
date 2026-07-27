@@ -1,0 +1,2 @@
+{"v":1,"session":"sess-review-1","kind":"assistant_completed","at":"1","payload":{"agent":"coder","assistantMessage":"start","openTodosJson":"[]","turnId":"1"}}
+{"v":1,"session":"sess-review-1","kind":"loop_activated","at":"2","payload":{"task":"fix-auth-flow"}}

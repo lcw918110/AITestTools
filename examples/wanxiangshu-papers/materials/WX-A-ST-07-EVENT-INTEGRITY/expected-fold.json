@@ -1,0 +1,19 @@
+{
+  "sessionId": "st-07",
+  "requirement": "integrity",
+  "tasks": [
+    {
+      "id": "t1",
+      "status": "done",
+      "dependsOn": [],
+      "worktreePath": "/wt/t1",
+      "branchName": "t1",
+      "mergedSha": "s"
+    }
+  ],
+  "readyTaskIds": [],
+  "schedule": {
+    "toStart": [],
+    "waiting": []
+  }
+}

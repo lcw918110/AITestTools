@@ -10,13 +10,13 @@
 
 ## 范围（PRD）对照
 
-| PRD 项                                   | 本仓状态                                                               |
-| ---------------------------------------- | ---------------------------------------------------------------------- |
-| L3：cassette 3~5 盘 + fakehost 对拍      | **smoke-A-L3 6/6**（含 journal + live journal）；真录制见 design/25–26 |
-| C 轴：CLI 壳 + 2 个本地工具 suite        | **smoke-C-echo / smoke-C-write 全绿**                                  |
-| `item new / bump-rev / retire / migrate` | **已实现**                                                             |
-| ST-\* 导入 ≥10（优先 L1）                | **12/12 PASS**（design/24）；真 git e2e 未做                           |
-| 录制器插件                               | **最小面绿**（design/25）；live hosted 录制自测绿（design/26）         |
+| PRD 项                                   | 本仓状态                                                                   |
+| ---------------------------------------- | -------------------------------------------------------------------------- |
+| L3：cassette 3~5 盘 + fakehost 对拍      | **smoke-A-L3 6/6**（含 journal + live journal）；真录制见 ../process/25–26 |
+| C 轴：CLI 壳 + 2 个本地工具 suite        | **smoke-C-echo / smoke-C-write 全绿**                                      |
+| `item new / bump-rev / retire / migrate` | **已实现**                                                                 |
+| ST-\* 导入 ≥10（优先 L1）                | **12/12 PASS**（../process/24）；真 git e2e 未做                           |
+| 录制器插件                               | **最小面绿**（../process/25）；live hosted 录制自测绿（../process/26）     |
 
 ---
 

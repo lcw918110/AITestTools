@@ -1,0 +1,19 @@
+{
+  "sessionId": "st-04",
+  "requirement": "ff",
+  "tasks": [
+    {
+      "id": "t1",
+      "status": "merged",
+      "dependsOn": [],
+      "worktreePath": "/wt/t1",
+      "branchName": "t1",
+      "mergedSha": "ff-sha"
+    }
+  ],
+  "readyTaskIds": [],
+  "schedule": {
+    "toStart": [],
+    "waiting": []
+  }
+}

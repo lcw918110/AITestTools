@@ -1,0 +1,43 @@
+{
+  "id": "live-hosted-record-v3",
+  "rev": 1,
+  "replay_mode": "journal",
+  "host": "opencode",
+  "host_version": "1.18.5",
+  "contract": "opencode-v1.18",
+  "journal_ref": "cassettes/live-hosted-record-v3/journal.ndjson",
+  "expected_hooks": [
+    "event",
+    "chat.message",
+    "event"
+  ],
+  "expected_events": [
+    "session.created",
+    "session.updated",
+    "message.updated",
+    "message.part.updated",
+    "session.updated",
+    "session.status",
+    "message.updated",
+    "session.updated",
+    "session.diff",
+    "message.updated",
+    "plugin.added",
+    "catalog.updated",
+    "plugin.added",
+    "reference.updated",
+    "integration.updated",
+    "catalog.updated",
+    "session.status",
+    "message.part.updated",
+    "message.part.delta",
+    "message.part.updated",
+    "message.updated",
+    "session.status",
+    "session.idle",
+    "catalog.updated",
+    "integration.updated",
+    "reference.updated"
+  ],
+  "note": "hosted run + recorder-plugin 自动封装"
+}

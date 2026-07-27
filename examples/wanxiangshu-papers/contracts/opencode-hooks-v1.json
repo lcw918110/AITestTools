@@ -1,0 +1,14 @@
+{
+  "id": "opencode-hooks-v1",
+  "host": "opencode",
+  "host_version": "1.18.5",
+  "rev": 1,
+  "hooks": [
+    { "name": "chat.message" },
+    { "name": "tool.execute.before" },
+    { "name": "tool.execute.after" },
+    { "name": "event" }
+  ],
+  "sdk": [],
+  "timing_rules": []
+}

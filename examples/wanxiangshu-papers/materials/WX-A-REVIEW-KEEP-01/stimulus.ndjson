@@ -1,0 +1,2 @@
+{"v":1,"session":"sess-review-3","kind":"loop_activated","at":"1","payload":{"task":"fix-tests"}}
+{"v":1,"session":"sess-review-3","kind":"review_verdict","at":"2","payload":{"verdict":"needs_revision"}}

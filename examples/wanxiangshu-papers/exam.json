@@ -1,0 +1,24 @@
+{
+  "$schema": "https://github.com/agent-proctor/agent-proctor/schemas/exam.schema.json",
+  "name": "wanxiangshu-papers",
+  "description": "万象术考卷库本地副本（权威源：邻仓 wanxiangshu/papers；引擎运行默认 --project 本目录）。",
+  "asset_protocol": "papers-v1",
+  "engine": { "min_version": "0.1.0" },
+  "system_under_test": {
+    "name": "wanxiangshu",
+    "repo": ".",
+    "version": "dev",
+    "root_env": "SUT_ROOT"
+  },
+  "paths": {
+    "items": "items",
+    "papersets": "papersets",
+    "rooms": "rooms",
+    "materials": "materials",
+    "scripts": "scripts"
+  },
+  "defaults": {
+    "paperset": "smoke-A-L1",
+    "room": "fold-wanxiangshu-v1"
+  }
+}

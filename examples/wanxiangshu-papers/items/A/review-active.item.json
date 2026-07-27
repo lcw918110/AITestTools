@@ -1,0 +1,42 @@
+{
+  "id": "WX-A-REVIEW-ACTIVE-01",
+  "rev": 1,
+  "axis": "A",
+  "status": "active",
+  "title": "loop_activated 后 review task 保持激活",
+  "owner": "wanxiangshu",
+  "tags": ["l1", "review", "fold"],
+  "intent": {
+    "statement": "loop_activated 写入 task 后，foldReviewTask 应返回该 task",
+    "attribution_focus": "PROTOCOL"
+  },
+  "freeze": {
+    "layer": "L1",
+    "model_driver": "none",
+    "fold_entry": "review-task",
+    "event_schema": "wanxiangshu-ndjson-v1",
+    "session_id": "sess-review-1"
+  },
+  "stimulus": {
+    "kind": "event_sequence",
+    "ref": "materials/WX-A-REVIEW-ACTIVE-01/stimulus.ndjson"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "id": "active-task",
+        "type": "event_fold",
+        "spec": "materials/WX-A-REVIEW-ACTIVE-01/expected-fold.json"
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["a_case_pass_rate"],
+    "secondary": ["a_invariant_violations"]
+  },
+  "execution": {
+    "deadline_ms": 10000,
+    "requires_network": false,
+    "requires_durable_log": false
+  }
+}

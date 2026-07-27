@@ -1,0 +1,48 @@
+{
+  "id": "review-pass-v1",
+  "rev": 1,
+  "version": "scripted-model-v1",
+  "entry": "announce",
+  "nodes": {
+    "announce": {
+      "type": "assistant_text",
+      "text": "审查已就绪，我将提交审查报告。",
+      "next": "call-submit"
+    },
+    "call-submit": {
+      "type": "tool_calls",
+      "calls": [
+        {
+          "name": "submit_review",
+          "args": {
+            "report": "所有检查通过。",
+            "affectedFiles": ["demo.ts"]
+          }
+        }
+      ],
+      "next": "after-submit"
+    },
+    "after-submit": {
+      "type": "branch",
+      "on": [
+        {
+          "when": { "tool_result": { "name": "submit_review", "ok": true } },
+          "next": "confirm"
+        }
+      ],
+      "else": "fail-path"
+    },
+    "confirm": {
+      "type": "assistant_text",
+      "text": "审查已关闭。",
+      "next": "end"
+    },
+    "fail-path": {
+      "type": "assistant_text",
+      "text": "审查提交失败。",
+      "next": "abort"
+    },
+    "end": { "type": "terminal", "reason": "stop" },
+    "abort": { "type": "terminal", "reason": "abort" }
+  }
+}

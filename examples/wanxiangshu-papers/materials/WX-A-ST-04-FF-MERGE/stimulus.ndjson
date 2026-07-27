@@ -1,0 +1,5 @@
+{"v":1,"session":"st-04","kind":"squad_created","at":"1","payload":{"requirement":"ff"}}
+{"v":1,"session":"st-04","kind":"tasks_created","at":"2","payload":{"tasksJson":"[{\"task_id\":\"t1\",\"title\":\"ff\",\"description\":\"d\"}]"}}
+{"v":1,"session":"st-04","kind":"task_started","at":"3","payload":{"task_id":"t1","worktree_path":"/wt/t1","branch_name":"t1"}}
+{"v":1,"session":"st-04","kind":"task_submitted","at":"4","payload":{"task_id":"t1","commit_sha":"ff-sha"}}
+{"v":1,"session":"st-04","kind":"task_merged","at":"5","payload":{"task_id":"t1","master_sha":"ff-sha"}}

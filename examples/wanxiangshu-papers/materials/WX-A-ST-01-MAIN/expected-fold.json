@@ -1,0 +1,19 @@
+{
+  "sessionId": "st-01",
+  "requirement": "solo task",
+  "tasks": [
+    {
+      "id": "t1",
+      "status": "done",
+      "dependsOn": [],
+      "worktreePath": "/wt/t1",
+      "branchName": "squad-t1",
+      "mergedSha": "sha-t1"
+    }
+  ],
+  "readyTaskIds": [],
+  "schedule": {
+    "toStart": [],
+    "waiting": []
+  }
+}

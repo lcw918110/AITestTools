@@ -1,0 +1,17 @@
+{
+  "name": "smoke-A-L1",
+  "description": "万象术 L1：真 Fold。",
+  "axis": "A",
+  "room": "fold-wanxiangshu-v1",
+  "items": [
+    "WX-A-REVIEW-ACTIVE-01",
+    "WX-A-REVIEW-CLOSED-01",
+    "WX-A-REVIEW-KEEP-01",
+    "WX-A-NUDGE-DEDUP-01",
+    "WX-A-NUDGE-CLEAR-01"
+  ],
+  "gates": {
+    "a_case_pass_rate": { "min": 1 },
+    "a_invariant_violations": { "max": 0 }
+  }
+}

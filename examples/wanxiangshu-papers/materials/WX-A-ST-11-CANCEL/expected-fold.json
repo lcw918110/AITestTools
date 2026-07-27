@@ -1,0 +1,19 @@
+{
+  "sessionId": "st-11",
+  "requirement": "kill",
+  "tasks": [
+    {
+      "id": "t1",
+      "status": "cancelled",
+      "dependsOn": [],
+      "worktreePath": "/wt/keep",
+      "branchName": "keep",
+      "mergedSha": null
+    }
+  ],
+  "readyTaskIds": [],
+  "schedule": {
+    "toStart": [],
+    "waiting": []
+  }
+}
