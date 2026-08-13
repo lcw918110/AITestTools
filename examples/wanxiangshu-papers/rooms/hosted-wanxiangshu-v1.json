@@ -1,12 +1,12 @@
 {
   "name": "hosted-wanxiangshu-v1",
   "kind": "hosted",
-  "description": "真 OpenCode + 万象术 Plugin。0.8+ 耐久为 EventStore；.wanxiangshu.ndjson 不再当挂载健康信号。",
+  "description": "真 OpenCode + 万象术 Plugin。0.8+ 耐久为 refs/wanxiang/store；.wanxiangshu.ndjson 不再当挂载健康信号。",
   "model_driver": "live",
   "network": true,
   "secrets": ["env-only"],
-  "durable_log": "temp-workspace",
-  "durable_log_glob": "**/.wanxiangshu.ndjson",
+  "durable_log": "event-store",
+  "durable_log_glob": "**/.git/refs/wanxiang/store",
   "attribution_tree": "attribution-tree-v1",
   "host": {
     "name": "opencode",

@@ -230,3 +230,14 @@
 | 试卷        | `smoke-A-L1` 两题；`npm run smoke:wanxiangshu:l1` 真跑（需 `SUT_ROOT` + `dist/Journal/Fold.js`） |
 | 旧 ST       | Review/Nudge/Squad 入口调用即失败；`st-import-L1` 未全改                                     |
 | 未做        | LIVE、扩题、阶段 C                                                                           |
+
+## 2026-08-13（EventStore 归因 + 自主优化）
+
+| 项            | 结果                                                                                         |
+| :------------ | :------------------------------------------------------------------------------------------- |
+| 耐久只读      | `refs/wanxiang/store` + `events/<shard>/<id>.jsonl`；Kind=`JournalEnvelope`/`RuntimeStarted` |
+| hosted-runner | 工作区 git init；artifact `event-store.json`；ndjson 不当挂载                                |
+| 真 hosted     | **阻塞**：Plugin import 缺 `PromptDispatcherSend.js`                                         |
+| L1            | `smoke-A-L1` 增线格式第 3 题                                                                 |
+| 日志          | [08-autonomous-optimize-2026-08-13.md](08-autonomous-optimize-2026-08-13.md)                 |
+| 未做          | LIVE、改万象术 F#、提交 156/console                                                          |

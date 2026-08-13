@@ -3,7 +3,7 @@
 | 字段   | 值                                     |
 | :----- | :------------------------------------- |
 | 状态   | **现行**（主线 1–19 已尽）             |
-| 日期   | 2026-08-13（接入面止血 + L1 重接）     |
+| 日期   | 2026-08-13（EventStore 归因 + 自主优化） |
 | 阅读序 | 过程第 **5** 篇（日常看 01-changelog） |
 
 本文列出**产品评测最小面收口之后**的待办，按推荐执行顺序排列，并记录关键过程。
@@ -57,7 +57,8 @@
 | N11 | 失败 run→录题草稿                  | 结果页                         | ✅ 预填向导最小版                                                                                                                                               | 是                       |
 | N12 | 确定性判定加深                     | 产品题 oracle 扩展点           | ⏭ 无清晰新扩展点（沿用 hosted_pass_token）                                                                                                                      | 是（本轮跳过）           |
 | N13 | 万象术 0.8 接入面止血              | 被测仓布局/导出                | ✅ 路径+导出适配；coordinator/ndjson 标失效                                                                                                                     | 是                       |
-| N14 | L1 按 foldEnvelope 重接            | N13 + 万象术 dist/Journal      | ✅ fold-bridge + smoke-A-L1（RuntimeStarted×2）；旧 ST 入口调用即失败                                                                                            | 是                       |
+| N14 | L1 按 foldEnvelope 重接            | N13 + 万象术 dist/Journal      | ✅ fold-bridge + smoke-A-L1（RuntimeStarted×3，含线格式）                                                                                                        | 是                       |
+| N15 | hosted 改读 EventStore             | N13 + git 只读                 | ✅ 只读解析/fixture 绿；**真 hosted 阻塞**（Plugin 缺模块）                                                                                                      | 是（LIVE 需人）          |
 
 ---
 
@@ -83,9 +84,20 @@
 | :--------- | :------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | 被测仓构建 | 官方编译：`dotnet tool restore && node scripts/build.mjs`（无 `npm run build`）。Fable **整仓未绿**；`dist/Journal/{Fold,Envelope}.js` 齐全，Plugin import 仍缺依赖。未改万象术源码。 |
 | fold-bridge | 只碰 Journal/Fold + Envelope + Fact + Identity；刺激 `RuntimeStarted` 或 journal 线格式 Envelope JSON                                                         |
-| 试卷       | `smoke-A-L1` = `WX-A-JOURNAL-RUNTIME-01/02`；`smoke:wanxiangshu:l1` 改为真跑                                                                                  |
+| 试卷       | `smoke-A-L1` = `WX-A-JOURNAL-RUNTIME-01/02/03`；`smoke:wanxiangshu:l1` 改为真跑                                                                                |
 | 旧入口     | `foldReviewTask` 等调用即失败；`st-import-L1` 未改                                                                                                            |
 | 未做       | LIVE、扩 product-eval、阶段 C / rooms UI / MCP 全真、旧 ST 全量改词                                                                                           |
+
+### 2026-08-13 · EventStore 归因 + 自主优化
+
+专文：[08-autonomous-optimize-2026-08-13.md](08-autonomous-optimize-2026-08-13.md)
+
+| 项       | 结果                                                                                                                                     |
+| :------- | :--------------------------------------------------------------------------------------------------------------------------------------- |
+| 能读什么 | `refs/wanxiang/store` 树内 `events/<2-hex>/<EventId>.jsonl`；CanonicalEvent；Journal 的 Fact 个案（如 `RuntimeStarted`）                 |
+| 从哪读   | 工作区 git（hosted 现会 `git init`）；`npm run read:event-store`                                                                          |
+| 真跑     | **停**：Plugin 缺 `dist/Application/Prompting/PromptDispatcherSend.js`，无法在 hosted 里写出 store                                        |
+| 156/CI   | 仍不提交 156；CI 依赖未跟踪的 product-eval/console → **需人决策**是否提交或拆 CI                                                         |
 
 ---
 

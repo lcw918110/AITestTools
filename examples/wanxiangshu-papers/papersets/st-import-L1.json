@@ -1,6 +1,6 @@
 {
   "name": "st-import-L1",
-  "description": "ST-* 导入：≥10 条 L1 事件直测（Fold 面，非真宿主 e2e）",
+  "description": "已知失效：旧 Squad/WanEvent 词。现行 L1 最小面见 smoke-A-L1（foldEnvelope）。",
   "axis": "A",
   "room": "fold-wanxiangshu-v1",
   "items": [

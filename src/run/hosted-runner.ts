@@ -9,6 +9,7 @@ import {
   missingProtocolProbes,
   partitionHostedProtocolProbes,
 } from '../attribution/ndjson-probes.ts';
+import { ensureHostedGitRepo, readWanxiangEventStore } from '../attribution/event-store.ts';
 import { loadJournal, sealJournalToManifestFields } from '../drivers/cassette/journal.ts';
 import type { Attribution, ItemDoc, RoomDoc } from '../exam-engine/types.ts';
 import type { AxisItemResult } from './l2-runner.ts';
@@ -20,7 +21,7 @@ import { resolvePluginPath } from './plugin-path.ts';
  * B-hosted：真拉起本机 opencode。
  * - 拍板 D5：缺密钥 / 跑挂 → FAIL + 如实归因
  * - 若 room 声明 plugin / durable_log_glob：隔离工作区挂插件
- * - `.wanxiangshu.ndjson` / `assistant_completed` 在万象术 0.8+ 已失效，不再当挂载健康信号
+ * - 耐久归因读 `refs/wanxiang/store`（EventStore）；`.wanxiangshu.ndjson` / 旧 WanEvent 不当挂载信号
  */
 export async function runHostedSmokeItem(opts: {
   item: ItemDoc;
@@ -83,6 +84,13 @@ export async function runHostedSmokeItem(opts: {
 
   if (wantDurable) {
     writeFileSync(join(workDir, 'README.md'), '# proctor hosted workspace\n');
+    const gitInit = ensureHostedGitRepo(workDir);
+    if (!gitInit.ok && opts.artifactDir !== undefined) {
+      writeFileSync(
+        join(opts.artifactDir, 'hosted-git-init.json'),
+        `${JSON.stringify({ ok: false, error: gitInit.error ?? null }, null, 2)}\n`,
+      );
+    }
     const plugins: string[] = [];
     if (pluginPath !== undefined) plugins.push(pluginPath);
     if (recorderPlugin !== undefined) plugins.push(recorderPlugin);
@@ -126,12 +134,14 @@ export async function runHostedSmokeItem(opts: {
   });
 
   const ndjsonPath = join(workDir, '.wanxiangshu.ndjson');
-  // session.idle → assistant_completed 常为异步落盘；run 退出后短等再读
+  // 旧 ndjson 若偶然存在仍解析，但不作健康信号；主路径读 EventStore
   let ndjsonText = existsSync(ndjsonPath) ? readFileSync(ndjsonPath, 'utf8') : '';
-  let kinds = collectNdjsonKinds(ndjsonText);
+  let store = readWanxiangEventStore(workDir);
+  let kinds = mergeHostedKinds(ndjsonText, store.kinds);
   if (protocolProbes.length > 0 && missingProtocolProbes(kinds, protocolProbes).length > 0) {
-    const waited = awaitWaitForNdjsonProbes(ndjsonPath, protocolProbes, 5_000);
-    ndjsonText = waited.text;
+    const waited = awaitWaitForHostedProbes(workDir, ndjsonPath, protocolProbes, 5_000);
+    ndjsonText = waited.ndjsonText;
+    store = waited.store;
     kinds = waited.kinds;
   }
   const ndjsonExists = existsSync(ndjsonPath) || ndjsonText.length > 0;
@@ -143,10 +153,15 @@ export async function runHostedSmokeItem(opts: {
     agent: hostAgent ?? null,
     plugin: pluginPath ?? null,
     work_dir: workDir,
+    event_store_present: store.present,
+    event_store_reason: store.reason ?? null,
+    event_store_ref: 'refs/wanxiang/store',
+    event_store_kinds: store.kinds,
     ndjson_exists: ndjsonExists,
     ndjson_bytes: ndjsonText.length,
-    ndjson_kinds: [...kinds].sort(),
+    ndjson_kinds: [...collectNdjsonKinds(ndjsonText)].sort(),
     ndjson_health_signal: false,
+    attribution_kinds: [...kinds].sort(),
     stale_protocol_probes: staleProtocolProbes,
     stdout: (run.stdout || '').slice(0, 4000),
     stderr: (run.stderr || '').slice(0, 4000),
@@ -155,6 +170,20 @@ export async function runHostedSmokeItem(opts: {
     writeFileSync(
       join(opts.artifactDir, 'hosted-run.json'),
       `${JSON.stringify(runLog, null, 2)}\n`,
+    );
+    writeFileSync(
+      join(opts.artifactDir, 'event-store.json'),
+      `${JSON.stringify(
+        {
+          present: store.present,
+          reason: store.reason ?? null,
+          rootOid: store.rootOid ?? null,
+          kinds: store.kinds,
+          events: store.events,
+        },
+        null,
+        2,
+      )}\n`,
     );
     if (ndjsonExists) {
       writeFileSync(join(opts.artifactDir, 'wanxiangshu.ndjson'), ndjsonText);
@@ -193,10 +222,9 @@ export async function runHostedSmokeItem(opts: {
     );
   }
 
-  const ndjsonStaleNote =
-    wantDurable && pluginPath !== undefined && !ndjsonExists
-      ? '；.wanxiangshu.ndjson 未产生（万象术 0.8+ 改 EventStore，不再当插件未加载）'
-      : '';
+  const storeNote = store.present
+    ? `；EventStore kinds=${store.kinds.join('|') || '∅'}`
+    : `；EventStore 未写入（${store.reason ?? 'unknown'}；万象术 0.8+ 耐久为 refs/wanxiang/store，不再读 .wanxiangshu.ndjson 当挂载）`;
   const staleProbeNote =
     staleProtocolProbes.length > 0 ? `；已跳过失效探针 ${staleProtocolProbes.join(', ')}` : '';
 
@@ -207,7 +235,7 @@ export async function runHostedSmokeItem(opts: {
       return fail(
         opts.item,
         focus ?? d.attribution,
-        `协议探针缺失：${missing.join(', ')}（已见 kinds=${[...kinds].sort().join('|') || '∅'}）${sealNote}${ndjsonStaleNote}${staleProbeNote}`,
+        `协议探针缺失：${missing.join(', ')}（已见 kinds=${[...kinds].sort().join('|') || '∅'}）${sealNote}${storeNote}${staleProbeNote}`,
         opts.artifactDir,
         d.matched_rule,
       );
@@ -221,7 +249,7 @@ export async function runHostedSmokeItem(opts: {
     return fail(
       opts.item,
       focus ?? d.attribution,
-      `hosted run 退出码 0 但输出未含约定 ${token}${sealNote}${ndjsonStaleNote}${staleProbeNote}`,
+      `hosted run 退出码 0 但输出未含约定 ${token}${sealNote}${storeNote}${staleProbeNote}`,
       opts.artifactDir,
       d.matched_rule,
     );
@@ -287,15 +315,23 @@ function trySealRecordedCassette(opts: {
   }
 }
 
-/** 同步短等：仍读 .wanxiangshu.ndjson（若有）；失效探针已在上层跳过。 */
-function awaitWaitForNdjsonProbes(
+function mergeHostedKinds(ndjsonText: string, storeKinds: string[]): Set<string> {
+  const kinds = collectNdjsonKinds(ndjsonText);
+  for (const k of storeKinds) kinds.add(k);
+  return kinds;
+}
+
+/** 短等 EventStore tip（及偶然残留的 ndjson）；失效探针已在上层跳过。 */
+function awaitWaitForHostedProbes(
+  workTree: string,
   ndjsonPath: string,
   probes: string[],
   timeoutMs: number,
-): { text: string; kinds: Set<string> } {
+): { ndjsonText: string; store: ReturnType<typeof readWanxiangEventStore>; kinds: Set<string> } {
   const deadline = Date.now() + timeoutMs;
-  let text = existsSync(ndjsonPath) ? readFileSync(ndjsonPath, 'utf8') : '';
-  let kinds = collectNdjsonKinds(text);
+  let ndjsonText = existsSync(ndjsonPath) ? readFileSync(ndjsonPath, 'utf8') : '';
+  let store = readWanxiangEventStore(workTree);
+  let kinds = mergeHostedKinds(ndjsonText, store.kinds);
   while (missingProtocolProbes(kinds, probes).length > 0 && Date.now() < deadline) {
     spawnSync(
       process.execPath,
@@ -304,10 +340,11 @@ function awaitWaitForNdjsonProbes(
         timeout: 2_000,
       },
     );
-    text = existsSync(ndjsonPath) ? readFileSync(ndjsonPath, 'utf8') : '';
-    kinds = collectNdjsonKinds(text);
+    ndjsonText = existsSync(ndjsonPath) ? readFileSync(ndjsonPath, 'utf8') : '';
+    store = readWanxiangEventStore(workTree);
+    kinds = mergeHostedKinds(ndjsonText, store.kinds);
   }
-  return { text, kinds };
+  return { ndjsonText, store, kinds };
 }
 
 function fail(

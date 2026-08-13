@@ -55,6 +55,7 @@
     "smoke:coordinator": "node scripts/known-stale.mjs coordinator",
     "smoke:plugin-fakehost": "npm run proctor -- run --axis A --paperset smoke-A-L2-plugin --project examples/wanxiangshu-papers",
     "load:wanxiangshu-plugin": "node scripts/load-wanxiangshu-plugin.mjs",
+    "read:event-store": "node --experimental-strip-types --disable-warning=ExperimentalWarning scripts/read-event-store.mjs",
     "eval:model": "npm run proctor -- run --axis B --paperset eval-model --project examples/product-eval",
     "eval:paired": "bash scripts/eval-paired.sh",
     "eval:score-demo": "bash scripts/demo-score-paired.sh",

@@ -25,10 +25,12 @@ describe('resolveOpenCodePluginExport', () => {
 });
 
 describe('partitionHostedProtocolProbes', () => {
-  it('跳过 assistant_completed，保留其它探针', () => {
-    expect(partitionHostedProtocolProbes(['assistant_completed', 'loop_activated'])).toEqual({
-      active: ['loop_activated'],
-      skippedStale: ['assistant_completed'],
+  it('跳过旧 WanEvent 探针，保留 EventStore Fact 名', () => {
+    expect(
+      partitionHostedProtocolProbes(['assistant_completed', 'loop_activated', 'RuntimeStarted']),
+    ).toEqual({
+      active: ['RuntimeStarted'],
+      skippedStale: ['assistant_completed', 'loop_activated'],
     });
   });
 });

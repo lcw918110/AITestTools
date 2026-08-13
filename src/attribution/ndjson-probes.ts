@@ -22,10 +22,17 @@ export function missingProtocolProbes(kinds: Set<string>, probes: string[]): str
 }
 
 /**
- * 万象术 0.8+ 不再写 `.wanxiangshu.ndjson` / `assistant_completed`。
- * 这些探针不得再当「插件已挂上」的健康信号。
+ * 万象术 0.8+ 不再写 `.wanxiangshu.ndjson`；旧 WanEvent Kind 已消失。
+ * 这些探针不得再当「插件已挂上」。现行面见 EventStore：JournalEnvelope / RuntimeStarted。
  */
-export const STALE_HOSTED_PROTOCOL_PROBES = new Set(['assistant_completed']);
+export const STALE_HOSTED_PROTOCOL_PROBES = new Set([
+  'assistant_completed',
+  'loop_activated',
+  'tasks_created',
+  'nudge_dispatched',
+  'review_verdict',
+  'SessionSettledWithoutReview',
+]);
 
 export function partitionHostedProtocolProbes(probes: string[]): {
   active: string[];

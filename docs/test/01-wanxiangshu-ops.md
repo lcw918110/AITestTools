@@ -3,7 +3,7 @@
 | 字段   | 值                                       |
 | :----- | :--------------------------------------- |
 | 状态   | **现行（测试主入口）**                   |
-| 日期   | 2026-08-13（接入面止血 + L1 foldEnvelope） |
+| 日期   | 2026-08-13（止血 + L1 + EventStore 归因） |
 | 合并自 | `wanxiangshu-ops` + `product-eval-guide` |
 | 引擎   | `agent-proctor` / `proctor`              |
 
@@ -242,18 +242,21 @@ npm run proctor -- contract verify --host opencode@1.18.5
 export SUT_ROOT=/Users/Licw/Desktop/git/wanxiangshu
 npm run smoke:wanxiangshu          # 默认只跑 C 真 git（st-real-git）
 npm run smoke:wanxiangshu:l1       # Journal.foldEnvelope 最小面（需 dist/Journal/Fold.js）
+npm run read:event-store -- /path/to/git-worktree   # 只读 refs/wanxiang/store；无则退出 2
 npm run smoke:coordinator          # 已知失效：退出 2（PluginWanxiangzhen 已消失）
 npm run load:wanxiangshu-plugin    # 最小加载；Fable 产物不完整则退出 2
 npm run smoke:plugin-fakehost      # 需完整 dist；当前不宣称绿
 ```
 
-| 命令                                          | 2026-08-13 口径                                      |
-| :-------------------------------------------- | :--------------------------------------------------- |
-| `smoke:wanxiangshu`                           | **只** C 真 git；**不再**含旧 L1 ST                  |
-| `smoke:wanxiangshu:l1`                        | **可跑**：`foldEnvelope` + `RuntimeStarted`（2 题）  |
-| `smoke:coordinator`                           | 已知失效（万象阵已移除）                             |
-| `.wanxiangshu.ndjson` / `assistant_completed` | 已知失效；hosted 已跳过，不当挂载门禁                |
-| 旧 ST / Review / Nudge / Squad                | `st-import-L1` 仍引用旧词，调用旧入口即失败；未全改 |
+| 命令                                          | 2026-08-13 口径                                                          |
+| :-------------------------------------------- | :----------------------------------------------------------------------- |
+| `smoke:wanxiangshu`                           | **只** C 真 git；**不再**含旧 L1 ST                                      |
+| `smoke:wanxiangshu:l1`                        | **可跑**：`foldEnvelope` + `RuntimeStarted`（3 题）                      |
+| `read:event-store`                            | **可跑（只读）**：解析 `refs/wanxiang/store`；无 tip 退出 2              |
+| `hosted-smoke`                                | **真跑阻塞**：Plugin import 缺 `PromptDispatcherSend.js`                 |
+| `smoke:coordinator`                           | 已知失效（万象阵已移除）                                                 |
+| `.wanxiangshu.ndjson` / `assistant_completed` | 已知失效；hosted 改读 EventStore Fact（`RuntimeStarted` / `JournalEnvelope`） |
+| 旧 ST / Review / Nudge / Squad                | `st-import-L1` 标失效；未全改词                                          |
 
 **回归绿 ≠ 有插件效果更好。**
 
@@ -284,7 +287,7 @@ npm run smoke:plugin-fakehost      # 需完整 dist；当前不宣称绿
 
 - [ ] OFF / ON 两个 run
 - [ ] 读过 `effect_compare.md`
-- [ ] **不要**再用 on 侧 `.wanxiangshu.ndjson` / `assistant_completed` 当挂载验收
+- [ ] **不要**再用 on 侧 `.wanxiangshu.ndjson` / `assistant_completed` 当挂载验收；看 `event-store.json` / `refs/wanxiang/store`
 - [ ] （可选）参考分 + 二次 compare
 
 ---
@@ -302,7 +305,8 @@ npm run smoke:plugin-fakehost      # 需完整 dist；当前不宣称绿
 | 症状              | 操作                                             |
 | :---------------- | :----------------------------------------------- |
 | 无法执行 opencode | 修 PATH；`opencode --version`                    |
-| on 无 ndjson      | 查 Plugin 与 `hosted-run.json` 的 `plugin`       |
+| on 无 EventStore  | 查 `hosted-run.json` 的 `event_store_*`；Plugin 须能 import |
+| on 无 ndjson      | 预期：0.8+ 不再写 ndjson；勿当未挂载             |
 | off 也挂了插件    | `unset PROCTOR_HOSTED_PLUGIN`；确认 `paired-off` |
 | 鉴权失败          | 查 `.env`；归因 CONTEXT，勿改期望装绿            |
 | 解析不到 run 目录 | 看 `run 完成：` 行，改用手跑 §2.3                |

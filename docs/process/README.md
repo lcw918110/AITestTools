@@ -9,6 +9,7 @@
 | 05  | [05-backlog.md](05-backlog.md)                       | 待办与推进记录       |
 | 06  | [06-paired-live-11-effect-2026-07-27.md](06-paired-live-11-effect-2026-07-27.md) | 11 对 LIVE 效果结论口径 |
 | 07  | [07-bank-coverage-analysis.md](07-bank-coverage-analysis.md) | product-eval 题库覆盖与手动录题指引 |
+| 08  | [08-autonomous-optimize-2026-08-13.md](08-autonomous-optimize-2026-08-13.md) | EventStore 归因 + 多轮自主优化日志 |
 
 日记归档：[`../archive/process/`](../archive/process/)。  
 测试：[../test/01-wanxiangshu-ops.md](../test/01-wanxiangshu-ops.md)。  

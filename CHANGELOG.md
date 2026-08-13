@@ -21,7 +21,8 @@
 
 - 万象术 Plugin 路径改为 `dist/Infrastructure/OpenCode/Plugin/Plugin.js`（优先）；兼容 `{ id, server }` 导出
 - `smoke:wanxiangshu` 默认只跑 C 真 git；Coordinator 标为已知失效（退出 2）
-- L1：`fold-bridge` 改接 `Journal.foldEnvelope`；`smoke:wanxiangshu:l1` 跑 `RuntimeStarted` 最小面
+- L1：`fold-bridge` 改接 `Journal.foldEnvelope`；`smoke:wanxiangshu:l1` 跑 `RuntimeStarted` 最小面（含线格式）
+- hosted 归因改读 `refs/wanxiang/store`（EventStore）；旧 ndjson / WanEvent 探针不当挂载
 - hosted 不再把 `.wanxiangshu.ndjson` / `assistant_completed` 当插件挂载健康信号
 - 包名 `agent-proctor`（CLI `proctor`）；资产协议 `papers-v1`
 - `engines.node`：`>=22.22.0`；推荐 `.node-version` **24.18.0**

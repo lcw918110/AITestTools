@@ -1,0 +1,18 @@
+{
+  "name": "hosted-plugin-v1",
+  "kind": "hosted",
+  "description": "真 OpenCode + 万象术 Plugin（配对 treatment）。plugin 相对 SUT_ROOT。耐久为 EventStore（refs/wanxiang/store）。",
+  "model_driver": "live",
+  "network": true,
+  "secrets": ["env-only"],
+  "durable_log": "event-store",
+  "durable_log_glob": "**/.git/refs/wanxiang/store",
+  "attribution_tree": "attribution-tree-v1",
+  "host": {
+    "name": "opencode",
+    "version": "1.18.5",
+    "command": "opencode",
+    "model": "meituan/LongCat-2.0",
+    "plugin": "dist/Infrastructure/OpenCode/Plugin/Plugin.js"
+  }
+}

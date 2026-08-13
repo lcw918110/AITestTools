@@ -3,13 +3,13 @@
   "rev": 1,
   "axis": "B",
   "status": "active",
-  "title": "hosted：挂万象术 Plugin 并产生 durable NDJSON",
+  "title": "hosted：挂万象术 Plugin 并写入 EventStore RuntimeStarted",
   "owner": "wanxiangshu",
-  "tags": ["hosted", "plugin", "ndjson"],
+  "tags": ["hosted", "plugin", "event-store"],
   "intent": {
-    "statement": "真宿主加载万象术插件后应写出 .wanxiangshu.ndjson，且至少含 assistant_completed",
+    "statement": "真宿主加载万象术后应在工作区 git 写入 refs/wanxiang/store，且含 RuntimeStarted（不再要求 .wanxiangshu.ndjson）",
     "attribution_focus": "PROTOCOL",
-    "protocol_probes": ["assistant_completed"]
+    "protocol_probes": ["RuntimeStarted"]
   },
   "freeze": {
     "model_driver": "live",
