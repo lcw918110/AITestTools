@@ -1,7 +1,7 @@
 {
   "$schema": "https://github.com/agent-proctor/agent-proctor/schemas/exam.schema.json",
   "name": "wanxiangshu-papers",
-  "description": "万象术考卷库本地副本（权威源：邻仓 wanxiangshu/papers；引擎运行默认 --project 本目录）。",
+  "description": "万象术考卷库（L1 真 Fold + L2 opencode-v1 假宿主控流）。引擎：邻仓 AITestTools / agent-proctor。",
   "asset_protocol": "papers-v1",
   "engine": { "min_version": "0.1.0" },
   "system_under_test": {

@@ -15,6 +15,7 @@ SRC="$SUT/papers"
 DST="$ROOT/examples/wanxiangshu-papers"
 if [[ ! -d "$SRC" ]]; then
   echo "找不到题库：$SRC" >&2
+  echo "万象术 0.8+ 已不再提供 papers/；本仓 examples/wanxiangshu-papers 是 2026-07-27 冻结副本，勿当现行权威源。L1 重接前不要 sync。" >&2
   exit 1
 fi
 mkdir -p "$DST"

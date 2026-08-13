@@ -80,9 +80,11 @@ export interface ItemDoc {
     attribution_focus: Attribution;
     /** hosted：期望出现在 durable NDJSON 中的 Kind（设计 12 protocol probes） */
     protocol_probes?: string[];
+    /** 配对效果键：off/on 两侧相同，供 compare 分差对齐 */
+    effect_pair?: string;
   };
   freeze: FreezeA | FreezeBC;
-  stimulus: { kind: string; ref: string; notes?: string };
+  stimulus: { kind: string; ref: string; notes?: string; hosted_pass_token?: string };
   expect: { oracles: Oracle[] };
   metrics: { primary: string[]; secondary?: string[] };
   execution: {

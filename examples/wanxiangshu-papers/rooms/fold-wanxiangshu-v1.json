@@ -1,10 +1,18 @@
 {
   "name": "fold-wanxiangshu-v1",
   "kind": "fold",
-  "description": "A-L1：adapters/fold-bridge → Review / Nudge / Squad DAG。",
+  "description": "A-L1：adapters/fold-bridge → Journal.foldEnvelope（旧 Review/Nudge/Squad 入口保留但调用即失败）。",
   "model_driver": "none",
   "network": false,
   "fold_entries": {
+    "journal-fold": {
+      "module": "adapters/fold-bridge.mjs",
+      "export": "foldEnvelope",
+      "signature": "session_fold_v1",
+      "event_schema": "journal-envelope-v1",
+      "resolve_root": "project",
+      "normalize": "json_clone"
+    },
     "review-task": {
       "module": "adapters/fold-bridge.mjs",
       "export": "foldReviewTask",

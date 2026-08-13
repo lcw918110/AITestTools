@@ -1,0 +1,42 @@
+{
+  "id": "WX-A-JOURNAL-RUNTIME-01",
+  "rev": 1,
+  "axis": "A",
+  "status": "active",
+  "title": "RuntimeStarted 经 foldEnvelope 写入 RuntimeId 与计数",
+  "owner": "wanxiangshu",
+  "tags": ["l1", "journal", "fold"],
+  "intent": {
+    "statement": "一条 RuntimeStarted 折入后，投影 RuntimeId 与 RuntimeStartCount=1",
+    "attribution_focus": "PROTOCOL"
+  },
+  "freeze": {
+    "layer": "L1",
+    "model_driver": "none",
+    "fold_entry": "journal-fold",
+    "event_schema": "journal-envelope-v1",
+    "session_id": "sess-journal-1"
+  },
+  "stimulus": {
+    "kind": "event_sequence",
+    "ref": "materials/WX-A-JOURNAL-RUNTIME-01/stimulus.ndjson"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "id": "runtime-started",
+        "type": "event_fold",
+        "spec": "materials/WX-A-JOURNAL-RUNTIME-01/expected-fold.json"
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["a_case_pass_rate"],
+    "secondary": ["a_invariant_violations"]
+  },
+  "execution": {
+    "deadline_ms": 10000,
+    "requires_network": false,
+    "requires_durable_log": false
+  }
+}

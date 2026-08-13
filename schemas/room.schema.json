@@ -71,7 +71,7 @@
         },
         "plugin": {
           "type": "string",
-          "description": "相对 SUT_ROOT（或绝对路径）的 OpenCode 插件入口，如 build/src/Opencode/Plugin.js"
+          "description": "插件路径（相对 SUT_ROOT 或绝对路径）；\"auto\"=在 SUT_ROOT 探测。省略则不挂插件（配对 off 必需）"
         }
       }
     },
@@ -86,6 +86,15 @@
           "type": "string",
           "enum": ["demo-v1", "opencode-v1"],
           "description": "demo-v1=afterTurn/onToolAfter；opencode-v1=plugin(ctx)→官方 hook 名"
+        },
+        "workspace": {
+          "type": "string",
+          "enum": ["temp-git"],
+          "description": "L2 真 Plugin：在临时 git 仓加载（directory/workdir）"
+        },
+        "skip_hook_dispatch": {
+          "type": "boolean",
+          "description": "加载 plugin(ctx) 后不向真插件派发 hook（仅验加载；避免 WaitInit/MCP 挂起）"
         }
       }
     }

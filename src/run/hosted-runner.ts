@@ -4,15 +4,23 @@ import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import { diagnoseHostedFailure } from '../attribution/hosted-tree.ts';
-import { collectNdjsonKinds, missingProtocolProbes } from '../attribution/ndjson-probes.ts';
+import {
+  collectNdjsonKinds,
+  missingProtocolProbes,
+  partitionHostedProtocolProbes,
+} from '../attribution/ndjson-probes.ts';
 import { loadJournal, sealJournalToManifestFields } from '../drivers/cassette/journal.ts';
 import type { Attribution, ItemDoc, RoomDoc } from '../exam-engine/types.ts';
 import type { AxisItemResult } from './l2-runner.ts';
+import { escapeRegExp, hostedPassToken } from './hosted-pass-token.ts';
+import { resolveHostedPrompt } from './hosted-prompt.ts';
+import { resolvePluginPath } from './plugin-path.ts';
 
 /**
  * B-hosted：真拉起本机 opencode。
  * - 拍板 D5：缺密钥 / 跑挂 → FAIL + 如实归因
- * - 若 room 声明 plugin / durable_log_glob：隔离工作区挂插件并采集 .wanxiangshu.ndjson
+ * - 若 room 声明 plugin / durable_log_glob：隔离工作区挂插件
+ * - `.wanxiangshu.ndjson` / `assistant_completed` 在万象术 0.8+ 已失效，不再当挂载健康信号
  */
 export async function runHostedSmokeItem(opts: {
   item: ItemDoc;
@@ -22,9 +30,11 @@ export async function runHostedSmokeItem(opts: {
 }): Promise<AxisItemResult> {
   const focus = opts.item.intent.attribution_focus;
   const hostBin = typeof opts.room.host?.command === 'string' ? opts.room.host.command : 'opencode';
-  const protocolProbes = Array.isArray(opts.item.intent.protocol_probes)
+  const protocolProbesRaw = Array.isArray(opts.item.intent.protocol_probes)
     ? opts.item.intent.protocol_probes.map(String)
     : [];
+  const { active: protocolProbes, skippedStale: staleProtocolProbes } =
+    partitionHostedProtocolProbes(protocolProbesRaw);
 
   const version = spawnSync(hostBin, ['--version'], { encoding: 'utf8', timeout: 15_000 });
   const log = {
@@ -89,14 +99,11 @@ export async function runHostedSmokeItem(opts: {
     writeFileSync(join(cassetteOutDir, 'journal.ndjson'), '');
   }
 
-  const prompt =
-    typeof opts.item.stimulus.notes === 'string' && opts.item.stimulus.notes.length > 0
-      ? opts.item.stimulus.notes
-      : 'proctor hosted smoke: reply with exactly ok. Prefer not using tools.';
+  const prompt = resolveHostedPrompt(opts.item, opts.projectRoot);
 
   const runArgs = ['run'];
   if (wantDurable) runArgs.push('--dir', workDir);
-  // 禁止 --pure：会禁用外部 plugin，导致无 .wanxiangshu.ndjson
+  // 禁止 --pure：会禁用外部 plugin
   if (hostModel !== undefined && hostModel.length > 0) runArgs.push('-m', hostModel);
   if (hostAgent !== undefined && hostAgent.length > 0) runArgs.push('--agent', hostAgent);
   runArgs.push(prompt);
@@ -139,6 +146,8 @@ export async function runHostedSmokeItem(opts: {
     ndjson_exists: ndjsonExists,
     ndjson_bytes: ndjsonText.length,
     ndjson_kinds: [...kinds].sort(),
+    ndjson_health_signal: false,
+    stale_protocol_probes: staleProtocolProbes,
     stdout: (run.stdout || '').slice(0, 4000),
     stderr: (run.stderr || '').slice(0, 4000),
   };
@@ -184,16 +193,12 @@ export async function runHostedSmokeItem(opts: {
     );
   }
 
-  if (wantDurable && pluginPath !== undefined && !ndjsonExists) {
-    const d = diagnoseHostedFailure({ harnessFault: true });
-    return fail(
-      opts.item,
-      d.attribution,
-      `已挂万象术 plugin 但工作区未产生 .wanxiangshu.ndjson（插件可能未加载）${sealNote}`,
-      opts.artifactDir,
-      d.matched_rule,
-    );
-  }
+  const ndjsonStaleNote =
+    wantDurable && pluginPath !== undefined && !ndjsonExists
+      ? '；.wanxiangshu.ndjson 未产生（万象术 0.8+ 改 EventStore，不再当插件未加载）'
+      : '';
+  const staleProbeNote =
+    staleProtocolProbes.length > 0 ? `；已跳过失效探针 ${staleProtocolProbes.join(', ')}` : '';
 
   if (protocolProbes.length > 0) {
     const missing = missingProtocolProbes(kinds, protocolProbes);
@@ -202,20 +207,21 @@ export async function runHostedSmokeItem(opts: {
       return fail(
         opts.item,
         focus ?? d.attribution,
-        `协议探针缺失：${missing.join(', ')}（已见 kinds=${[...kinds].sort().join('|') || '∅'}）${sealNote}`,
+        `协议探针缺失：${missing.join(', ')}（已见 kinds=${[...kinds].sort().join('|') || '∅'}）${sealNote}${ndjsonStaleNote}${staleProbeNote}`,
         opts.artifactDir,
         d.matched_rule,
       );
     }
   }
 
-  const okish = /\bok\b/i.test(out);
-  if (!okish) {
+  const token = hostedPassToken(opts.item);
+  const tokenRe = new RegExp(`\\b${escapeRegExp(token)}\\b`, 'i');
+  if (!tokenRe.test(out)) {
     const d = diagnoseHostedFailure({ taskAssertFail: true });
     return fail(
       opts.item,
       focus ?? d.attribution,
-      `hosted run 退出码 0 但输出未含约定 ok${sealNote}`,
+      `hosted run 退出码 0 但输出未含约定 ${token}${sealNote}${ndjsonStaleNote}${staleProbeNote}`,
       opts.artifactDir,
       d.matched_rule,
     );
@@ -228,6 +234,9 @@ export async function runHostedSmokeItem(opts: {
     oracle_failures: [],
     metrics: { a_case_pass_rate: 1, a_invariant_violations: 0 },
     ...(opts.artifactDir !== undefined ? { artifact_dir: opts.artifactDir } : {}),
+    ...(opts.item.intent.effect_pair !== undefined
+      ? { effect_pair: opts.item.intent.effect_pair }
+      : {}),
   };
 }
 
@@ -278,39 +287,7 @@ function trySealRecordedCassette(opts: {
   }
 }
 
-function resolvePluginPath(room: RoomDoc, projectRoot: string): string | undefined {
-  const fromEnv = process.env.PROCTOR_HOSTED_PLUGIN;
-  if (fromEnv && fromEnv.length > 0) return resolve(fromEnv);
-
-  const fromRoom = room.host?.plugin;
-  if (typeof fromRoom === 'string' && fromRoom.length > 0) {
-    if (fromRoom.startsWith('/')) return fromRoom;
-    const sut = process.env.SUT_ROOT;
-    const base = sut ?? projectRoot;
-    const abs = resolve(base, fromRoom);
-    // 旧布局 Opencode/ 若与 Hosts/OpenCode 并存，优先重建后的 Hosts 路径
-    if (fromRoom.includes('Opencode/Plugin.js') && !fromRoom.includes('Hosts/')) {
-      const modern = resolve(base, 'build/src/Hosts/OpenCode/Plugin.js');
-      if (existsSync(modern)) return modern;
-    }
-    if (existsSync(abs)) return abs;
-    return abs;
-  }
-
-  const sut = process.env.SUT_ROOT;
-  if (sut) {
-    const candidates = [
-      join(sut, 'build/src/Hosts/OpenCode/Plugin.js'),
-      join(sut, 'build/src/Opencode/Plugin.js'),
-    ];
-    for (const c of candidates) {
-      if (existsSync(c)) return c;
-    }
-  }
-  return undefined;
-}
-
-/** 同步短等：插件异步 append assistant_completed 时避免误报 PROTOCOL。 */
+/** 同步短等：仍读 .wanxiangshu.ndjson（若有）；失效探针已在上层跳过。 */
 function awaitWaitForNdjsonProbes(
   ndjsonPath: string,
   probes: string[],
@@ -352,6 +329,7 @@ function fail(
       },
     ],
     metrics: { a_case_pass_rate: 0, a_invariant_violations: 0 },
+    ...(item.intent.effect_pair !== undefined ? { effect_pair: item.intent.effect_pair } : {}),
   };
   if (artifactDir !== undefined) r.artifact_dir = artifactDir;
   return r;

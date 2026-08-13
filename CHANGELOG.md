@@ -19,10 +19,19 @@
 
 ### Changed
 
+- 万象术 Plugin 路径改为 `dist/Infrastructure/OpenCode/Plugin/Plugin.js`（优先）；兼容 `{ id, server }` 导出
+- `smoke:wanxiangshu` 默认只跑 C 真 git；Coordinator 标为已知失效（退出 2）
+- L1：`fold-bridge` 改接 `Journal.foldEnvelope`；`smoke:wanxiangshu:l1` 跑 `RuntimeStarted` 最小面
+- hosted 不再把 `.wanxiangshu.ndjson` / `assistant_completed` 当插件挂载健康信号
 - 包名 `agent-proctor`（CLI `proctor`）；资产协议 `papers-v1`
 - `engines.node`：`>=22.22.0`；推荐 `.node-version` **24.18.0**
 - promptfoo：Node 达标走标准 CLI，否则 main.js 回退
+- 控制台题库：严格版（强制升版本、终态词⊂题干、录题回滚、删除 confirmId、录题题号 `PAIRED-TASK-NN`）
 
 ### Notes
 
-- 完整 Plugin 假宿主明确不做；密钥轮换 / npm 公开发布需使用方操作
+- Plugin 假宿主：stubbed-ctx MVP 已开（`smoke-A-L2-plugin`）；不宣称 FakeHost ≡ 真 OpenCode / MCP 全真
+- 真 Coordinator HTTP 最小面：`st-coordinator-e2e`（**已知失效**，万象术已无 PluginWanxiangzhen）
+- 密钥轮换 / npm 公开发布需使用方操作
+- CI 显式挂 `validate:product-eval`（无密钥）；product-eval 效果题扩至 16 对（+12～16：公开改编/启发自研）
+- product-eval 配对题库经 2h 采集流水线扩至 **156** 对（ROUND18 收束；见 `docs/process/bank-ingest-staging/PIPELINE-DONE.md`）

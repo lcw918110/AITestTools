@@ -20,3 +20,22 @@ export function collectNdjsonKinds(text: string): Set<string> {
 export function missingProtocolProbes(kinds: Set<string>, probes: string[]): string[] {
   return probes.filter((p) => !kinds.has(p));
 }
+
+/**
+ * 万象术 0.8+ 不再写 `.wanxiangshu.ndjson` / `assistant_completed`。
+ * 这些探针不得再当「插件已挂上」的健康信号。
+ */
+export const STALE_HOSTED_PROTOCOL_PROBES = new Set(['assistant_completed']);
+
+export function partitionHostedProtocolProbes(probes: string[]): {
+  active: string[];
+  skippedStale: string[];
+} {
+  const active: string[] = [];
+  const skippedStale: string[] = [];
+  for (const p of probes) {
+    if (STALE_HOSTED_PROTOCOL_PROBES.has(p)) skippedStale.push(p);
+    else active.push(p);
+  }
+  return { active, skippedStale };
+}

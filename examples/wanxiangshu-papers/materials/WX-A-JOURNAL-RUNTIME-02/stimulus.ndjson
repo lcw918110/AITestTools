@@ -1,0 +1,2 @@
+{"fact":"RuntimeStarted","runtime":"rt-a","seq":1,"eventId":"evt-1","observedAt":"2026-01-01T00:00:00.000Z","processId":1}
+{"fact":"RuntimeStarted","runtime":"rt-b","seq":2,"eventId":"evt-2","observedAt":"2026-01-01T00:00:01.000Z","processId":2}

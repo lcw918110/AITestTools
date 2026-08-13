@@ -4,7 +4,7 @@
  *
  * ── 接入万象术（WANXIANGSHU_HOOKUP）──
  * 1. 本文件的 `afterTurn` / `onToolAfter` 是 **demo 假接口**，不是 OpenCode 官方 Hooks。
- * 2. 真插件：`$SUT_ROOT/build/src/Opencode/Plugin.js`（或重建后 `Hosts/OpenCode/Plugin.js`）。
+ * 2. 真插件：`$SUT_ROOT/dist/Infrastructure/OpenCode/Plugin/Plugin.js`。
  * 3. L1 真 Fold 已接入：`examples/wanxiangshu-papers` + `adapters/fold-bridge.mjs`（见 design/21）。
  * 4. L2：须把 runner/假宿主改为触发 `event` / `tool.execute.after` / `chat.message`，
  *    或写薄适配层；不可把本 demo 导出名直接换成真 Plugin。

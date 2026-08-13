@@ -78,7 +78,14 @@ async function runOneItem(opts: {
       return [await runL1Item(l1opts)];
     }
     if (freeze.layer === 'L2') {
-      return [await runL2Item({ item, room, projectRoot, artifactDir })];
+      const l2opts: Parameters<typeof runL2Item>[0] = {
+        item,
+        room,
+        projectRoot,
+        artifactDir,
+      };
+      if (opts.sutRoot !== undefined) l2opts.sutRoot = opts.sutRoot;
+      return [await runL2Item(l2opts)];
     }
     if (freeze.layer === 'L3') {
       return [await runL3Item({ item, room, projectRoot, artifactDir })];

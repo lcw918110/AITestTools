@@ -1,7 +1,7 @@
 {
   "name": "hosted-wanxiangshu-v1",
   "kind": "hosted",
-  "description": "真 OpenCode + 万象术 Plugin；采集 .wanxiangshu.ndjson 做归因。",
+  "description": "真 OpenCode + 万象术 Plugin。0.8+ 耐久为 EventStore；.wanxiangshu.ndjson 不再当挂载健康信号。",
   "model_driver": "live",
   "network": true,
   "secrets": ["env-only"],
@@ -13,6 +13,6 @@
     "version": "1.18.5",
     "command": "opencode",
     "model": "meituan/LongCat-2.0",
-    "plugin": "papers/adapters/opencode-plugin-entry.mjs"
+    "plugin": "dist/Infrastructure/OpenCode/Plugin/Plugin.js"
   }
 }

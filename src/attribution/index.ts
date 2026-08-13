@@ -4,4 +4,9 @@ export {
   type AttributionDecision,
   type AttributionInput,
 } from './hosted-tree.ts';
-export { collectNdjsonKinds, missingProtocolProbes } from './ndjson-probes.ts';
+export {
+  collectNdjsonKinds,
+  missingProtocolProbes,
+  partitionHostedProtocolProbes,
+  STALE_HOSTED_PROTOCOL_PROBES,
+} from './ndjson-probes.ts';

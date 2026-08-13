@@ -1,28 +1,30 @@
 /**
- * 万象术 L1 Fold 桥接（考卷在本仓 papers/ 时，默认 SUT 根=仓库根）。
- * NDJSON → Fable WanEvent List → Review / Nudge / Squad DAG 投影。
+ * 万象术 L1 Fold 桥：Journal.Fold.foldEnvelope + typed Envelope/Fact。
+ * 需 SUT_ROOT 指向万象术仓根，且 dist/Journal/Fold.js 可 import。
+ * 旧 Review / Nudge / Squad / WanEvent 入口保留导出名，调用时诚实抛错。
  */
+import { existsSync, readdirSync } from 'node:fs';
+import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { readdirSync } from 'node:fs';
-
-const here = dirname(fileURLToPath(import.meta.url));
 
 function sutRoot() {
-  if (process.env.SUT_ROOT) return process.env.SUT_ROOT;
-  return join(here, '../..');
+  const fromEnv = process.env.SUT_ROOT;
+  if (typeof fromEnv === 'string' && fromEnv.length > 0) return fromEnv;
+  throw new Error('SUT_ROOT 未设置：L1 需指向万象术仓根（含 dist/Journal/Fold.js）');
 }
 
-function fableUrl(...parts) {
-  return pathToFileURL(join(sutRoot(), ...parts)).href;
+function fableUrl(root, ...parts) {
+  return pathToFileURL(join(root, ...parts)).href;
 }
 
 function resolveFableLibDir(root) {
-  const base = join(root, 'build/fable_modules');
+  const base = join(root, 'dist/fable_modules');
+  if (!existsSync(base)) {
+    throw new Error(`未找到 fable-library：${base}（先在万象术仓执行：dotnet tool restore && node scripts/build.mjs）`);
+  }
   const hit = readdirSync(base).find((n) => n.startsWith('fable-library-js.'));
   if (!hit) throw new Error(`未找到 fable-library-js：${base}`);
-  return `build/fable_modules/${hit}`;
+  return `dist/fable_modules/${hit}`;
 }
 
 let cached;
@@ -30,31 +32,21 @@ let cached;
 async function loadDeps() {
   if (cached) return cached;
   const root = sutRoot();
+  const foldJs = join(root, 'dist/Journal/Fold.js');
+  if (!existsSync(foldJs)) {
+    throw new Error(
+      `缺 dist/Journal/Fold.js（${foldJs}）。在万象术仓执行：dotnet tool restore && node scripts/build.mjs`,
+    );
+  }
   const lib = resolveFableLibDir(root);
-  const typesMod = await import(fableUrl('build/src/Kernel/EventSourcing/EventEnvelope.js'));
-  const mapMod = await import(fableUrl(lib, 'Map.js'));
-  const listMod = await import(fableUrl(lib, 'List.js'));
-  const setMod = await import(fableUrl(lib, 'Set.js'));
-  const utilMod = await import(fableUrl(lib, 'Util.js'));
-  const reviewMod = await import(fableUrl('build/src/Kernel/Review/ReviewProjection.js'));
-  const nudgeMod = await import(fableUrl('build/src/Kernel/Nudge/NudgeProjection.js'));
-  const squadProjMod = await import(fableUrl('build/src/Runtime/EventStore/EventLogSquadProjection.js'));
-  const dagMod = await import(fableUrl('build/src/Kernel/Wanxiangzhen/Dag.js'));
-  const taskMod = await import(fableUrl('build/src/Kernel/Wanxiangzhen/SquadTask.js'));
-  const schedMod = await import(fableUrl('build/src/Kernel/Wanxiangzhen/Scheduler.js'));
-  cached = {
-    typesMod,
-    mapMod,
-    listMod,
-    setMod,
-    utilMod,
-    reviewMod,
-    nudgeMod,
-    squadProjMod,
-    dagMod,
-    taskMod,
-    schedMod,
-  };
+  const [Fold, Envelope, Fact, Identity, DateOffset] = await Promise.all([
+    import(fableUrl(root, 'dist/Journal/Fold.js')),
+    import(fableUrl(root, 'dist/Journal/Envelope.js')),
+    import(fableUrl(root, 'dist/Kernel/Fact.js')),
+    import(fableUrl(root, 'dist/Kernel/Identity.js')),
+    import(fableUrl(root, lib, 'DateOffset.js')),
+  ]);
+  cached = { Fold, Envelope, Fact, Identity, DateOffset };
   return cached;
 }
 
@@ -65,152 +57,91 @@ function field(e, ...keys) {
   return undefined;
 }
 
-function toPayloadMap(raw, mapOfArray, comparePrimitives) {
-  const obj = raw && typeof raw === 'object' && !Array.isArray(raw) ? raw : {};
-  const entries = Object.entries(obj).map(([k, v]) => {
-    if (typeof v === 'string') return [String(k), v];
-    if (v == null) return [String(k), ''];
-    if (typeof v === 'object') return [String(k), JSON.stringify(v)];
-    return [String(k), String(v)];
-  });
-  return mapOfArray(entries, {
-    Compare: (a, b) => comparePrimitives(a, b) | 0,
-  });
+function unwrapResult(result, label) {
+  if (result == null || typeof result.tag !== 'number') {
+    throw new Error(`${label}：非 Fable Result`);
+  }
+  if (result.tag !== 0) {
+    const err = result.fields?.[0];
+    throw new Error(`${label}：${typeof err === 'string' ? err : JSON.stringify(err)}`);
+  }
+  return result.fields[0];
 }
 
-function toWanEventList(events, deps) {
-  const { typesMod, mapMod, listMod, utilMod } = deps;
-  const WanEvent = typesMod.WanEvent;
-  const mapped = events.map((e) => {
-    const session = String(field(e, 'Session', 'session') ?? '');
-    const kind = String(field(e, 'Kind', 'kind') ?? '');
-    const at = String(field(e, 'At', 'at') ?? '0');
-    const v = Number(field(e, 'V', 'v') ?? 1);
-    const payload = toPayloadMap(
-      field(e, 'Payload', 'payload') ?? {},
-      mapMod.ofArray,
-      utilMod.comparePrimitives,
+function isWireEnvelope(e) {
+  return (
+    e != null &&
+    typeof e === 'object' &&
+    (Array.isArray(e.RuntimeId) || Array.isArray(e.Fact) || Array.isArray(e.LocalSeq))
+  );
+}
+
+function toEnvelope(raw, deps) {
+  const { Envelope, Fact, Identity, DateOffset } = deps;
+  if (isWireEnvelope(raw)) {
+    return unwrapResult(Envelope.EnvelopeModule_deserialize(JSON.stringify(raw)), 'Envelope.deserialize');
+  }
+
+  const factName = String(field(raw, 'fact', 'Fact', 'kind', 'Kind') ?? '');
+  if (factName !== 'RuntimeStarted') {
+    throw new Error(
+      `不支持的 L1 刺激「${factName || '(空)'}」。现行最小面只折 RuntimeStarted（或 journal 线格式 Envelope JSON）。旧 loop_activated / tasks_created 已失效。`,
     );
-    // EventId/WriterId/Sequence/Checksum 可选
-    return new WanEvent(v, session, kind, at, payload, undefined, undefined, undefined, undefined);
-  });
-  return listMod.ofArray(mapped);
-}
-
-function optStr(v) {
-  if (v == null) return null;
-  return String(v);
-}
-
-function dagToJson(dag, deps) {
-  const { mapMod, listMod, taskMod, dagMod, schedMod } = deps;
-  const tasks = [...mapMod.toList(dag.Tasks)]
-    .map(([id, t]) => ({
-      id: String(id),
-      status: taskMod.statusToString(t.Status),
-      dependsOn: [...listMod.toArray(t.DependsOn)].map(String),
-      worktreePath: optStr(t.WorktreePath),
-      branchName: optStr(t.BranchName),
-      mergedSha: optStr(t.MergedSha),
-    }))
-    .sort((a, b) => a.id.localeCompare(b.id));
-  const ready = [...listMod.toArray(dagMod.readyTasks(dag))].map((t) => String(t.Id)).sort();
-  const decision = schedMod.decide(dag, 2);
-  return {
-    sessionId: String(dag.SessionId),
-    requirement: String(dag.RootRequirement),
-    tasks,
-    readyTaskIds: ready,
-    schedule: {
-      toStart: [...listMod.toArray(decision.TasksToStart)].map(String).sort(),
-      waiting: [...listMod.toArray(decision.TasksWaiting)].map(String).sort(),
-    },
-  };
-}
-
-function foldSquadProjection(sessionId, events, deps) {
-  let proj = deps.squadProjMod.emptyProjection();
-  const list = toWanEventList(events, deps);
-  for (const e of [...deps.listMod.toArray(list)]) {
-    proj = deps.squadProjMod.applyWanEvent(proj, e);
   }
-  return deps.squadProjMod.getDag(proj, sessionId);
+
+  const runtimeValue = String(field(raw, 'runtime', 'RuntimeId', 'runtimeId') ?? 'rt-l1');
+  const seqRaw = field(raw, 'seq', 'LocalSeq', 'localSeq') ?? 1;
+  const seq = typeof seqRaw === 'bigint' ? seqRaw : BigInt(seqRaw);
+  const eventValue = String(field(raw, 'eventId', 'EventId') ?? `evt-${seq}`);
+  const observedAt = String(field(raw, 'observedAt', 'ObservedAt', 'at') ?? '2026-01-01T00:00:00.000Z');
+  const processId = Number(field(raw, 'processId', 'ProcessId') ?? 1);
+
+  const runtime = Identity.RuntimeIdModule_create(runtimeValue);
+  const at = DateOffset.fromDate(new Date(observedAt), 0);
+  const fact = new Fact.Fact(0, [
+    new Fact.RuntimeFact({ RuntimeId: runtime, ProcessId: processId, StartedAt: at }),
+  ]);
+  return new Envelope.Envelope(
+    runtime,
+    Identity.LocalSeqModule_create(seq),
+    at,
+    Identity.EventIdModule_create(eventValue),
+    Envelope.StreamId.Workspace,
+    undefined,
+    fact,
+  );
 }
 
-export async function foldReviewTask(sessionId, events) {
-  const deps = await loadDeps();
-  const raw = deps.reviewMod.foldReviewTask(sessionId, toWanEventList(events, deps));
-  return raw == null ? null : String(raw);
-}
-
-/** 稳定 JSON：与 papers expected-fold 对齐（新语义：仅保留最近一次 dispatched）。 */
-export async function foldNudgeDedup(sessionId, events) {
-  const deps = await loadDeps();
-  const st = deps.nudgeMod.foldDedupStream(sessionId, toWanEventList(events, deps));
+function snapshot(sessionId, proj, deps) {
+  const runtimeId = proj.RuntimeId == null ? null : deps.Identity.RuntimeIdModule_value(proj.RuntimeId);
   return {
-    LastDispatchedAnchor: st.LastDispatchedAnchor == null ? null : String(st.LastDispatchedAnchor),
-    PendingNudge: st.PendingNudge == null ? null : String(st.PendingNudge[0]),
+    sessionId,
+    runtimeId,
+    runtimeStartCount: Number(proj.AgentProjections.RuntimeStartCount),
   };
 }
 
-/** Squad DAG 投影（ST-* 主路径 / 依赖 / 取消等）。 */
-export async function foldSquadDag(sessionId, events) {
+/** session_fold_v1：事件序列 → foldEnvelope → 稳定 JSON。 */
+export async function foldEnvelope(sessionId, events) {
   const deps = await loadDeps();
-  return dagToJson(foldSquadProjection(sessionId, events, deps), deps);
-}
-
-/**
- * 从 tasks_created 解析 dependsOn，跑 detectCycle。
- * 用于 ST-13：环依赖在写入前应被拒绝——本入口断言「若写入则能检出环」。
- */
-export async function foldSquadCycleCheck(sessionId, events) {
-  const deps = await loadDeps();
-  const list = [...deps.listMod.toArray(toWanEventList(events, deps))];
-  const pairs = [];
-  for (const e of list) {
-    if (e.Session !== sessionId) continue;
-    if (e.Kind !== 'tasks_created') continue;
-    const raw = deps.mapMod.tryFind('tasksJson', e.Payload) ?? '';
-    if (!raw) continue;
-    let rows;
-    try {
-      rows = JSON.parse(raw);
-    } catch {
-      continue;
-    }
-    if (!Array.isArray(rows)) continue;
-    for (const row of rows) {
-      const id = String(row.task_id ?? row.taskId ?? '');
-      const depsOn = row.depends_on ?? row.dependsOn ?? [];
-      pairs.push([id, deps.listMod.ofArray((Array.isArray(depsOn) ? depsOn : []).map(String))]);
-    }
+  let proj = deps.Fold.empty;
+  for (const e of events) {
+    const env = toEnvelope(e, deps);
+    proj = unwrapResult(deps.Fold.foldEnvelope(proj, env), 'foldEnvelope');
   }
-  const cycle = deps.dagMod.detectCycle(deps.listMod.ofArray(pairs));
-  if (cycle == null) {
-    return { hasCycle: false, cycle: [] };
-  }
-  return {
-    hasCycle: true,
-    cycle: [...deps.listMod.toArray(cycle)].map(String),
+  return snapshot(sessionId, proj, deps);
+}
+
+function stale(name) {
+  return async function staleFold() {
+    throw new Error(
+      `${name} 已失效：万象术 0.8 已无 ReviewProjection / NudgeProjection / Squad / WanEvent。请用 foldEnvelope（room entry journal-fold）。`,
+    );
   };
 }
 
-/**
- * ST-14：Strict 策略下非法转移被拒绝、合法转移可应用。
- * 不依赖事件流（stimulus 可空）；对拍 Kernel applyStatusOption。
- */
-export async function foldSquadStrictTransition(_sessionId, _events) {
-  const deps = await loadDeps();
-  const { taskMod, listMod } = deps;
-  const Strict = new taskMod.TransitionPolicy(0, []);
-  const Running = new taskMod.SquadTaskStatus(1, []);
-  const Merged = new taskMod.SquadTaskStatus(3, []);
-  const t = taskMod.create('t1', 'title', 'desc', listMod.empty, 'now');
-  const illegal = taskMod.applyStatusOption(Strict, t, Merged, 'later');
-  const legal = taskMod.applyStatusOption(Strict, t, Running, 'later');
-  return {
-    illegalRejected: illegal == null,
-    legalApplied: legal != null,
-    legalStatus: legal == null ? null : taskMod.statusToString(legal.Status),
-  };
-}
+export const foldReviewTask = stale('foldReviewTask');
+export const foldNudgeDedup = stale('foldNudgeDedup');
+export const foldSquadDag = stale('foldSquadDag');
+export const foldSquadCycleCheck = stale('foldSquadCycleCheck');
+export const foldSquadStrictTransition = stale('foldSquadStrictTransition');

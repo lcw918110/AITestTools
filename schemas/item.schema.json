@@ -42,6 +42,11 @@
           "type": "array",
           "items": { "type": "string", "minLength": 1 },
           "description": "hosted：durable NDJSON 中期望出现的 Kind（设计 12）"
+        },
+        "effect_pair": {
+          "type": "string",
+          "minLength": 1,
+          "description": "配对效果键：off/on 两侧相同，用于 compare 分差对齐（如 PAIRED-TASK-01）。缺省时可从题号 *-OFF/*-ON 推断。"
         }
       }
     },
@@ -59,7 +64,12 @@
           "minLength": 1,
           "description": "相对考卷库根的考材路径（materials/...）。"
         },
-        "notes": { "type": "string" }
+        "notes": { "type": "string" },
+        "hosted_pass_token": {
+          "type": "string",
+          "minLength": 1,
+          "description": "B-hosted 直播跑：stdout 须含该词（整词匹配，默认 ok）。"
+        }
       }
     },
     "expect": {

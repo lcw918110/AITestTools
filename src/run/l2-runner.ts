@@ -1,6 +1,8 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { spawnSync } from 'node:child_process';
 import { loadBundledContract } from '../contract/load.ts';
 import { FakeHost, FakeHostError } from '../drivers/fakehost/index.ts';
 import { loadScript, ScriptError } from '../drivers/scripted/index.ts';
@@ -13,6 +15,7 @@ import {
   type OracleOutcome,
 } from '../oracles/index.ts';
 import type { L1ItemResult } from './l1-runner.ts';
+import { resolveOpenCodePluginExport } from './opencode-plugin-export.ts';
 
 export type AxisItemResult = L1ItemResult;
 
@@ -46,9 +49,19 @@ interface OpenCodeHooks {
   [name: string]: OpenCodeHookFn | undefined;
 }
 
-/** 假宿主侧最小 ctx：真 OpenCode Plugin 的子集，供测控流。 */
+/** 假宿主侧 stubbed OpenCode ctx：真 Plugin 子集（非 MCP 全真）。 */
 interface ProctorPluginCtx {
   directory: string;
+  workdir: string;
+  client: {
+    session: {
+      messages: () => Promise<{ data: unknown[] }>;
+      create: () => Promise<{ data: { id: string } }>;
+      prompt: (...args: unknown[]) => Promise<unknown>;
+      abort: () => Promise<Record<string, unknown>>;
+    };
+  };
+  options?: { e2e?: boolean };
   emit: (ev: Record<string, unknown>) => void;
   patchSession: (patch: Record<string, unknown>) => void;
   getSession: () => Record<string, unknown>;
@@ -104,6 +117,7 @@ export async function runL2Item(opts: {
   room: RoomDoc;
   projectRoot: string;
   artifactDir?: string;
+  sutRoot?: string;
 }): Promise<AxisItemResult> {
   const freeze = opts.item.freeze as FreezeA;
   const focus = opts.item.intent.attribution_focus;
@@ -139,30 +153,68 @@ export async function runL2Item(opts: {
 
   let demoPlugin: DemoPluginModule = {};
   let ocHooks: OpenCodeHooks = {};
+  let disposeHooks: (() => unknown | Promise<unknown>) | undefined;
+
+  const workspaceMode =
+    typeof opts.room.adapter?.workspace === 'string' ? opts.room.adapter.workspace : undefined;
+  const skipHookDispatch = opts.room.adapter?.skip_hook_dispatch === true;
+  let pluginDirectory = opts.projectRoot;
+  if (workspaceMode === 'temp-git') {
+    const base =
+      opts.artifactDir !== undefined
+        ? join(opts.artifactDir, 'plugin-workspace')
+        : mkdtempSync(join(tmpdir(), 'proctor-l2-ws-'));
+    mkdirSync(base, { recursive: true });
+    const git = (args: string[]) => {
+      const r = spawnSync('git', args, { cwd: base, encoding: 'utf8' });
+      if (r.status !== 0) {
+        throw new Error(`git ${args.join(' ')}: ${(r.stderr || r.stdout || '').slice(0, 200)}`);
+      }
+    };
+    try {
+      git(['init']);
+      git(['config', 'user.email', 'proctor@test']);
+      git(['config', 'user.name', 'proctor']);
+      writeFileSync(join(base, 'README.md'), '# l2-plugin-workspace\n');
+      git(['add', 'README.md']);
+      git(['commit', '-m', 'init']);
+      pluginDirectory = base;
+    } catch (e) {
+      return fail(opts.item, 'HARNESS', `无法准备 temp-git：${(e as Error).message}`);
+    }
+  }
 
   const pluginPath = opts.room.adapter?.config;
   if (typeof pluginPath === 'string') {
     try {
+      if (opts.sutRoot !== undefined && process.env.SUT_ROOT === undefined) {
+        process.env.SUT_ROOT = opts.sutRoot;
+      }
       const mod = (await import(
         pathToFileURL(resolve(opts.projectRoot, pluginPath)).href
       )) as Record<string, unknown>;
 
       if (hookStyle === 'opencode-v1') {
-        const factory =
-          typeof mod.plugin === 'function'
-            ? (mod.plugin as (ctx: ProctorPluginCtx) => unknown)
-            : typeof mod.default === 'function'
-              ? (mod.default as (ctx: ProctorPluginCtx) => unknown)
-              : null;
-        if (factory === null) {
+        const resolved = resolveOpenCodePluginExport(mod);
+        if (resolved === null) {
           return fail(
             opts.item,
             'HARNESS',
-            `hook_style=opencode-v1 需要导出 plugin(ctx) 或 default：${pluginPath}`,
+            `hook_style=opencode-v1 需要导出 plugin(ctx)、default 函数或 { id, server }：${pluginPath}`,
           );
         }
+        const factory = resolved.factory as (ctx: ProctorPluginCtx) => unknown;
         const ctx: ProctorPluginCtx = {
-          directory: opts.projectRoot,
+          directory: pluginDirectory,
+          workdir: pluginDirectory,
+          client: {
+            session: {
+              messages: async () => ({ data: [] }),
+              create: async () => ({ data: { id: 'mock-child-session' } }),
+              prompt: async () => undefined,
+              abort: async () => ({}),
+            },
+          },
           emit: (ev) => {
             const type = String(ev.type ?? ev.kind ?? 'event');
             const row = { ...ev, type };
@@ -180,6 +232,17 @@ export async function runL2Item(opts: {
         };
         const hooksRaw = await Promise.resolve(factory(ctx));
         ocHooks = hooksRaw && typeof hooksRaw === 'object' ? (hooksRaw as OpenCodeHooks) : {};
+        const dispose = (hooksRaw as { dispose?: unknown } | null)?.dispose;
+        if (typeof dispose === 'function') {
+          disposeHooks = dispose as () => unknown | Promise<unknown>;
+        }
+        const pluginId = String(
+          (hooksRaw as { id?: unknown; name?: unknown } | null)?.id ??
+            (hooksRaw as { name?: unknown } | null)?.name ??
+            resolved.id,
+        );
+        timeline.push({ type: 'plugin_loaded', id: pluginId });
+        host.emit({ type: 'plugin_loaded', id: pluginId });
       } else {
         demoPlugin = mod as DemoPluginModule;
       }
@@ -191,7 +254,7 @@ export async function runL2Item(opts: {
   try {
     host.triggerHook('event', { type: 'SessionReady' });
     timeline.push({ type: 'SessionReady' });
-    if (hookStyle === 'opencode-v1') {
+    if (hookStyle === 'opencode-v1' && !skipHookDispatch) {
       await callHook(ocHooks, 'event', { event: { type: 'session.created', properties: {} } });
     }
 
@@ -199,7 +262,7 @@ export async function runL2Item(opts: {
       timeline.push({ type: 'TurnStarted', turn });
       host.triggerHook('event', { type: 'TurnStarted' });
       host.triggerHook('chat.message', { sessionID: String(session.id ?? 's') });
-      if (hookStyle === 'opencode-v1') {
+      if (hookStyle === 'opencode-v1' && !skipHookDispatch) {
         await callHook(
           ocHooks,
           'chat.message',
@@ -220,7 +283,7 @@ export async function runL2Item(opts: {
           sessionID: String(session.id ?? 's'),
           text: modelNode.text,
         });
-        if (hookStyle === 'opencode-v1') {
+        if (hookStyle === 'opencode-v1' && !skipHookDispatch) {
           await callHook(
             ocHooks,
             'chat.message',
@@ -238,7 +301,7 @@ export async function runL2Item(opts: {
             tool: call.name,
             args: call.args,
           });
-          if (hookStyle === 'opencode-v1') {
+          if (hookStyle === 'opencode-v1' && !skipHookDispatch) {
             await callHook(
               ocHooks,
               'tool.execute.before',
@@ -258,7 +321,7 @@ export async function runL2Item(opts: {
             if (effect.tool_ok === false) currentToolOk = false;
           }
 
-          if (hookStyle === 'opencode-v1') {
+          if (hookStyle === 'opencode-v1' && !skipHookDispatch) {
             await callHook(
               ocHooks,
               'tool.execute.after',
@@ -304,7 +367,7 @@ export async function runL2Item(opts: {
       }
 
       // 万象术 nudge 落在 session.idle；假宿主在每轮结束后模拟 natural-stop
-      if (hookStyle === 'opencode-v1') {
+      if (hookStyle === 'opencode-v1' && !skipHookDispatch) {
         await callHook(ocHooks, 'event', {
           event: {
             type: 'session.idle',
@@ -324,7 +387,22 @@ export async function runL2Item(opts: {
     }
   } catch (e) {
     const attr = e instanceof FakeHostError || e instanceof ScriptError ? 'HARNESS' : 'PROTOCOL';
+    if (disposeHooks) {
+      try {
+        await Promise.resolve(disposeHooks());
+      } catch {
+        /* ignore dispose errors on failure path */
+      }
+    }
     return fail(opts.item, attr, (e as Error).message);
+  }
+
+  if (disposeHooks) {
+    try {
+      await Promise.resolve(disposeHooks());
+    } catch (e) {
+      return fail(opts.item, 'HARNESS', `plugin dispose 失败：${(e as Error).message}`);
+    }
   }
 
   const stateRoot: Record<string, unknown> = {

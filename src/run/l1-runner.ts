@@ -28,6 +28,8 @@ export interface L1ItemResult {
   metrics: Record<string, number>;
   artifact_dir?: string;
   fold_state?: unknown;
+  /** 配对效果键（来自 intent.effect_pair） */
+  effect_pair?: string;
 }
 
 export async function runL1Item(opts: {
