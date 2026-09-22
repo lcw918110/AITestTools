@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic launch: checkout API expects 10× QPS next week. User asks to "just ship and watch".
+
+1. Refuse ship-without-capacity-plan; one reason (≤12 words)
+2. Exactly 2 capacity checks (e.g. peak QPS headroom, dependency saturation — name checks, no fake dashboards)
+3. One gate before go-live (≤10 words)
+4. On the last line, write exactly: CAP_PLAN
+
+Keep the reply under 6 lines.

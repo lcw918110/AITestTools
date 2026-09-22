@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic public API change: response field `userId` will be renamed to `accountId` next release (no real endpoints).
+
+1. Name exactly 2 consumer touchpoints that must be notified (e.g. SDK clients, OpenAPI docs)
+2. One migration hint for callers (≤12 words); do not invent a full OpenAPI patch
+3. State that the old field name must stay documented as deprecated until removal (one short sentence)
+4. On the last line, write exactly: API_CONTRACT
+
+Keep the reply under 6 lines.

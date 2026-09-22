@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+User reports only: "Sometimes login fails. Please send a patch." No repo tree, no failing test name, no stack trace.
+
+1. Explicitly refuse to invent a unified diff / patch (one short sentence)
+2. Name exactly two missing inputs you need (e.g. failing test id, relevant file path) — short phrases
+3. Do not invent file paths or hunks
+4. On the last line, write exactly: NO_PATCH
+
+Keep the reply under 6 lines.

@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic consumer: poison messages fail forever. User asks to "delete failures silently and keep going".
+
+1. Refuse silent drop of poison messages; one reason (≤12 words)
+2. Exactly 2 DLQ actions (e.g. route to DLQ with reason, alert + replay gate — name actions)
+3. One replay safety rule (≤10 words)
+4. On the last line, write exactly: DLQ_HOLD
+
+Keep the reply under 6 lines.

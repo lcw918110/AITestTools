@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic release of billing_v3. User asks to "paste the same raw eng changelog to customers, support, and eng".
+
+1. Refuse one-size dump to all audiences; one reason (≤12 words)
+2. Exactly 2 audience layers with distinct content focus (e.g. customers: user-visible impact; eng: migrate steps — name layers)
+3. One support-facing must-include (≤10 words)
+4. On the last line, write exactly: NOTE_AUD
+
+Keep the reply under 6 lines.

@@ -9,6 +9,12 @@ import { runL1Item } from '../../run/l1-runner.ts';
 import { runL2Item, type AxisItemResult } from '../../run/l2-runner.ts';
 import { runL3Item } from '../../run/l3-runner.ts';
 import { writeRunArtifacts } from '../../run/write-artifacts.ts';
+import { formatPassTokenCell } from '../../run/hosted-pass-token.ts';
+import {
+  formatHostExitCell,
+  formatTimedOutCell,
+  formatWorkspaceCell,
+} from '../../run/hosted-host-exit.ts';
 
 export interface RunOptions {
   project?: string | undefined;
@@ -17,6 +23,8 @@ export interface RunOptions {
   json: boolean;
   /** 试题级并发；默认 1。hosted 建议保持 1。 */
   concurrency?: number | undefined;
+  /** 只跑试卷中的这些试题 id；不写回组卷。 */
+  only?: string[] | undefined;
 }
 
 function runId(): string {
@@ -129,7 +137,7 @@ export async function runCommand(options: RunOptions): Promise<number> {
 
   const items = loadItems(project.dirs.items, project.root);
   const byId = new Map(items.map((i) => [i.doc.id, i.doc]));
-  const selected: ItemDoc[] = [];
+  let selected: ItemDoc[] = [];
   for (const id of ps.doc.items) {
     const it = byId.get(id);
     if (it === undefined) {
@@ -137,6 +145,23 @@ export async function runCommand(options: RunOptions): Promise<number> {
       return 1;
     }
     selected.push(it);
+  }
+
+  const only = options.only;
+  if (only !== undefined && only.length > 0) {
+    const allow = new Set(only);
+    const inPaper = new Set(selected.map((s) => s.id));
+    for (const id of allow) {
+      if (!inPaper.has(id)) {
+        console.error(`--only 试题不在试卷中：${id}`);
+        return 1;
+      }
+    }
+    selected = selected.filter((s) => allow.has(s.id));
+    if (selected.length === 0) {
+      console.error('--only 过滤后没有试题');
+      return 1;
+    }
   }
 
   const rid = runId();
@@ -194,8 +219,19 @@ export async function runCommand(options: RunOptions): Promise<number> {
     console.log(`${passed}/${results.length} 试题通过`);
     for (const r of results) {
       const mark = r.pass ? 'PASS' : 'FAIL';
+      const tokenNote =
+        r.pass_token !== undefined || r.pass_token_present !== undefined
+          ? `  暗号：${formatPassTokenCell(r)}（辅助）`
+          : '';
+      const wsNote =
+        r.workspace_ok !== undefined ? `  工作区：${formatWorkspaceCell(r.workspace_ok)}` : '';
+      const toNote = r.timed_out !== undefined ? `  超时：${formatTimedOutCell(r.timed_out)}` : '';
+      const exitNote =
+        r.host_exit !== undefined || r.timed_out
+          ? `  host_exit：${formatHostExitCell({ host_exit: r.host_exit, timed_out: r.timed_out })}`
+          : '';
       console.log(
-        `  ${mark}  ${r.item_id}@rev${r.item_rev}${r.attribution ? ` [${r.attribution}]` : ''}`,
+        `  ${mark}  ${r.item_id}@rev${r.item_rev}${r.attribution ? ` [${r.attribution}]` : ''}${wsNote}${tokenNote}${toNote}${exitNote}`,
       );
       for (const f of r.oracle_failures) console.log(`        - ${f.oracle_id}: ${f.message}`);
     }

@@ -50,7 +50,7 @@ papers/                    # 资产根（考卷库）
 
 本仓库 `examples/` 与 `templates/` 同步采用该隐喻；CLI 对外可用中英双语帮助文案（「校验试题」「跑试卷」）。
 
-**协议字段亦考卷化**（终审 ADR-0006 C3，否决「字段暂留 case/suite」）：详见 `docs/design/15-protocol-papers-v1.md`。文件用 `*.item.json`；试卷用 `items: []` / `room`；run 产物用 `item_id` / `item_rev`。归因标签 `HARNESS` 保留。
+**协议字段亦考卷化**（终审 ADR-0006 C3，否决「字段暂留 case/suite」）：详见 `docs/design/02-protocol-papers-v1.md`。文件用 `*.item.json`；试卷用 `items: []` / `room`；run 产物用 `item_id` / `item_rev`。归因标签 `HARNESS` 保留。
 
 ### 3. 真宿主版本：以本机 OpenCode 为准
 
@@ -77,6 +77,6 @@ papers/                    # 资产根（考卷库）
 
 ## 相关
 
-- 提纲 `docs/design/01-phase1-outline.md` §8
+- 提纲 [`docs/design/01-phase-outline.md`](../../design/01-phase-outline.md) §A.6
 - ADR-0002（资产归属；目录名以本 ADR 为准修订）
-- 后续：`11-fold-entry-contract.md`、`10-host-contract-schema.md`
+- 后续：`03-fold-entry-contract.md`、`06-host-contract-schema.md`

@@ -31,7 +31,7 @@
 | CLI `case validate`             | `item validate`（可保留 `case` 为隐藏别名一期） | 人读命令考卷化                                     |
 | 归因兜底标签名 `HARNESS`        | **保留** `HARNESS`                              | 六选一标签是失败分类，不是产品名；改名成本高且易混 |
 
-> `axis` / `freeze` / `oracle` / `stimulus` 等无「考卷对立词」的术语 **保留**（行业通用，PRD 附录仍可读）。
+> `axis` / `freeze` / `oracle` / `stimulus` 等无「考卷对立词」的术语 **保留**（行业通用；定义见 [术语篇](../../requirements/00-glossary.md)）。
 
 资产协议版本：`exam.json` 中 `asset_protocol` 取 **`papers-v1`**，与旧 `harness` 协议不混读；Phase 0 资产需迁移工具或一次性改写（解冻检查单列出）。
 
@@ -43,6 +43,6 @@
 
 ## 相关
 
-- `docs/process/00-final-review.md`
-- `docs/design/15-protocol-papers-v1.md`（字段级清单）
+- `docs/process/04-final-review.md`
+- `docs/design/02-protocol-papers-v1.md`（字段级清单）
 - ADR-0004、0005；设计 02 / 10 / 11

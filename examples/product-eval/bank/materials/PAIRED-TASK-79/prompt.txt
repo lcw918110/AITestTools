@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic client for POST /charges times out after sending; user says "just retry the same POST in a loop" (no real payments).
+
+1. Refuse blind retries without idempotency; one reason (≤12 words)
+2. Require exactly 1 idempotency mechanism (e.g. Idempotency-Key header or client request-id — name it, no full protocol)
+3. Exactly 1 safe retry rule (e.g. same key on timeout only) ≤12 words
+4. On the last line, write exactly: IDEMPOTENT
+
+Keep the reply under 6 lines.

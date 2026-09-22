@@ -1,0 +1,24 @@
+{
+  "$schema": "../../schemas/exam.schema.json",
+  "name": "product-eval",
+  "description": "产品效果评测：1 题库（输入+判定）+ 考场/组卷/协议。测模型·有无万象术·Agent 共用同一套任务。",
+  "asset_protocol": "papers-v1",
+  "engine": { "min_version": "0.1.0" },
+  "system_under_test": {
+    "name": "wanxiangshu",
+    "repo": "local",
+    "version": "dev",
+    "root_env": "SUT_ROOT"
+  },
+  "paths": {
+    "items": "bank/items",
+    "materials": "bank/materials",
+    "papersets": "papersets",
+    "rooms": "rooms",
+    "contracts": "protocol/contracts"
+  },
+  "defaults": {
+    "paperset": "paired-off",
+    "room": "hosted-plain-v1"
+  }
+}

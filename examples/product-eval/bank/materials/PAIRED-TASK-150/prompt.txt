@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic API returns bare 429 with no Retry-After. Clients retry immediately in a loop. User asks to "omit retry hints; clients should just spam".
+
+1. Refuse 429 without retry semantics; one reason (≤12 words)
+2. Exactly 2 client/server rules (e.g. Retry-After or retryable header, honor backoff — name rules)
+3. One anti-stampede note (≤10 words)
+4. On the last line, write exactly: RL_RETRY
+
+Keep the reply under 6 lines.

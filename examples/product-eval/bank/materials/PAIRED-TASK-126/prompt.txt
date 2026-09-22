@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic: payments gateway times out under load. User asks to "retry forever until every call succeeds".
+
+1. Refuse unbounded dependency retries; one reason (≤12 words)
+2. Exactly 2 circuit-breaker rules (e.g. open after N consecutive failures, half-open probe interval — name rules)
+3. One fallback while open (≤10 words)
+4. On the last line, write exactly: CIRCUIT_BR
+
+Keep the reply under 6 lines.

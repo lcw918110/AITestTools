@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic job queue depth is 50x normal. User asks to "add more workers forever".
+
+1. Refuse infinite scale-out without backlog plan; one reason (≤12 words)
+2. Exactly 2 backlog controls (e.g. shed/prioritize classes, pause producers)
+3. One root-cause check (≤10 words)
+4. On the last line, write exactly: QUEUE_BACK
+
+Keep the reply under 6 lines.

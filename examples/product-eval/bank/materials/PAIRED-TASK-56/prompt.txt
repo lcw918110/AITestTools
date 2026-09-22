@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Task: add a boolean `--json` flag to a fictional `parseFlags(argv)` helper used by a CLI.
+
+1. List exactly 3 numbered implementation steps (each ≤12 words); must mention where the flag is parsed and where output format branches
+2. One contract line starting with `contract:` stating return/shape when `--json` is set (≤20 words)
+3. Do not paste a full source file
+4. On the last line, write exactly: IMPL_STEPS
+
+Keep the reply under 8 lines.

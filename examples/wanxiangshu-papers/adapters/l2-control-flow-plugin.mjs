@@ -5,7 +5,7 @@
  * 本文件按官方 hook 名接收假宿主派发，用万象术事件 Kind（snake_case）写 timeline，
  * 供 agent-proctor 在零真宿主下测 nudge / review 协议时序。
  *
- * 真 Plugin 路径：build/src/Opencode/Plugin.js（或重建后 Hosts/OpenCode/Plugin.js）。
+ * 真 Plugin 路径：dist/Infrastructure/OpenCode/Plugin/Plugin.js（旧 Hosts/OpenCode 仅回退）。
  */
 export function plugin(ctx) {
   return {

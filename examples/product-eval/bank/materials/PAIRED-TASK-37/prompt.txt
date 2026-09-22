@@ -1,0 +1,9 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic change: CLI adds subcommand `score-write`.
+
+1. List exactly 2 documentation touchpoints that must stay in sync (e.g. README usage, --help text, CHANGELOG)
+2. State that merging code without those docs is not acceptable (one short sentence)
+3. On the last line, write exactly: DOC_SYNC
+
+Keep the reply under 6 lines.

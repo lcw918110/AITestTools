@@ -1,19 +1,25 @@
 {
   "id": "WX-B-HOSTED-PLUGIN-01",
-  "rev": 1,
+  "rev": 2,
   "axis": "B",
   "status": "active",
   "title": "hosted：挂万象术 Plugin 并写入 EventStore RuntimeStarted",
   "owner": "wanxiangshu",
-  "tags": ["hosted", "plugin", "event-store"],
+  "tags": [
+    "hosted",
+    "plugin",
+    "event-store"
+  ],
   "intent": {
     "statement": "真宿主加载万象术后应在工作区 git 写入 refs/wanxiang/store，且含 RuntimeStarted（不再要求 .wanxiangshu.ndjson）",
     "attribution_focus": "PROTOCOL",
-    "protocol_probes": ["RuntimeStarted"]
+    "protocol_probes": [
+      "RuntimeStarted"
+    ]
   },
   "freeze": {
     "model_driver": "live",
-    "model_id": "meituan/LongCat-2.0",
+    "model_id": "wave-ai/gpt-5.4-mini",
     "host_profile": "hosted-wanxiangshu-v1",
     "tool_profile": "none",
     "prompt_template": "materials/WX-B-HOSTED-PLUGIN-01/prompt.txt",
@@ -34,12 +40,19 @@
     ]
   },
   "metrics": {
-    "primary": ["a_case_pass_rate"],
-    "secondary": ["a_invariant_violations"]
+    "primary": [
+      "a_case_pass_rate"
+    ],
+    "secondary": [
+      "a_invariant_violations"
+    ]
   },
   "execution": {
     "deadline_ms": 180000,
     "requires_network": true,
     "requires_durable_log": true
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
   }
 }

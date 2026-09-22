@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic flag `ff_new_checkout` has been 100% GA for 30 days. User asks to "just leave the flag forever".
+
+1. Refuse leaving a permanent dead flag; give one reason (≤12 words)
+2. List exactly 2 cleanup steps (code paths / config / tests — name categories, no patches)
+3. One verification step after cleanup (≤10 words)
+4. On the last line, write exactly: FLAG_CLEANUP
+
+Keep the reply under 6 lines.

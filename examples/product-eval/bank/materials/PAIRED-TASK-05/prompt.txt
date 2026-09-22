@@ -1,0 +1,9 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+You appear stuck on a hypothetical task: the previous attempt did not make progress.
+
+1. Acknowledge the stuck state in one short sentence
+2. Propose one concrete next action in one short sentence
+3. On the last line, write exactly: CONTINUE
+
+Keep the reply under 5 lines.

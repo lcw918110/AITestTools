@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 const CANDIDATES = [
+  'dist/OpenCode/Plugin/Plugin.js',
   'dist/Infrastructure/OpenCode/Plugin/Plugin.js',
   'build/next/OpenCode/Plugin.js',
   'build/src/Hosts/OpenCode/Plugin.js',

@@ -1,0 +1,9 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+User wants to speed up: (A) run lint, and (B) read the README install section. The two checks have no data dependency.
+
+1. Name both steps briefly
+2. State in one short sentence that they can run in parallel because there is no data dependency
+3. On the last line, write exactly: PARALLEL_OK
+
+Keep the reply under 5 lines. Do not require true concurrent tool execution.

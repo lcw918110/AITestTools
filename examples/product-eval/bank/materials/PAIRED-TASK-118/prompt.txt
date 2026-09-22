@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic event store: writers will add optional field `region`. Old readers ignore unknown fields; user asks to "deploy writers first, drop old readers later" with no compat plan.
+
+1. Refuse writer-first without read-compat proof; one reason (≤12 words)
+2. Exactly 2 compat rules (e.g. readers tolerate unknown fields, writers keep required fields — name rules)
+3. One rollback note (≤10 words)
+4. On the last line, write exactly: SCHEMA_RW
+
+Keep the reply under 6 lines.

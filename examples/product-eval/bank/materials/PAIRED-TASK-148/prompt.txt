@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic API mixes strong-consistency writes with eventually-consistent reads without documenting which. User asks to "hide consistency details; just say it is consistent".
+
+1. Refuse undocumented mixed consistency; one reason (≤12 words)
+2. Exactly 2 declaration items (e.g. which ops are RYW/strong, which tolerate lag — name items)
+3. One client guidance line (≤10 words)
+4. On the last line, write exactly: RW_DECL
+
+Keep the reply under 6 lines.

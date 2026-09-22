@@ -17,6 +17,7 @@ import { runItemRetire } from './commands/item-retire.ts';
 import { runItemValidate } from './commands/item-validate.ts';
 import { runReportShow } from './commands/report-show.ts';
 import { runReportTrend } from './commands/report-trend.ts';
+import { runScoreWrite } from './commands/score-write.ts';
 import { runCommand } from './commands/run.ts';
 import { loadDotEnv } from './load-dotenv.ts';
 
@@ -36,6 +37,7 @@ const HELP = `agent-proctor — 第三方独立 Agent 监考/评测引擎
   proctor run --axis C --paperset <名>    C 轴 CLI 壳
   proctor compare --baseline <run> --candidate <run>
   proctor baseline pin --run <run> --name <别名>
+  proctor score write --run <run> --item <id> --value <分> [--max 5]
   proctor report show --run <run>
   proctor report trend [--paperset <名>] [--metric <名>] [--limit N]
   proctor contract verify --host opencode@1.18.5
@@ -45,12 +47,14 @@ const HELP = `agent-proctor — 第三方独立 Agent 监考/评测引擎
   --project <路径>     考卷库目录或 exam.json
   --check-fixtures     检查 stimulus.ref / L2 script 是否存在
   --strict / --json / --verbose / --force
-  --name <名称>        init / baseline / 变更说明
+  --name <名称>        init / baseline / 变更说明 / score 备注
   --id / --layer / --title / --map / --from / --contract / --script
   --axis / --paperset  run
+  --only <试题id>      run：只跑试卷中的这些题（可重复；不写回组卷）
   --concurrency <N>    run 试题并发（默认 1；hosted 建议 1）
   --metric / --limit   report trend
   --baseline / --candidate / --run / --host
+  --item / --value / --max   score write（参考分，不进硬门禁）
 
 别名：case → item；--suite → --paperset
 
@@ -85,9 +89,13 @@ export async function main(argv: string[]): Promise<number> {
         axis: { type: 'string' },
         paperset: { type: 'string' },
         suite: { type: 'string' },
+        only: { type: 'string', multiple: true },
         concurrency: { type: 'string' },
         metric: { type: 'string' },
         limit: { type: 'string' },
+        item: { type: 'string' },
+        value: { type: 'string' },
+        max: { type: 'string' },
         json: { type: 'boolean', default: false },
         strict: { type: 'boolean', default: false },
         'check-fixtures': { type: 'boolean', default: false },
@@ -133,6 +141,7 @@ export async function main(argv: string[]): Promise<number> {
       paperset,
       json: values.json === true,
       concurrency,
+      ...(values.only !== undefined ? { only: values.only } : {}),
     });
   }
 
@@ -141,6 +150,24 @@ export async function main(argv: string[]): Promise<number> {
     if (values.baseline !== undefined) cmp.baseline = values.baseline;
     if (values.candidate !== undefined) cmp.candidate = values.candidate;
     return runCompare(cmp);
+  }
+
+  if (group === 'score') {
+    const [sub] = rest;
+    if (sub !== 'write') {
+      console.error(
+        '用法错误：proctor score write --run <目录> --item <id> --value <分> [--max 5]',
+      );
+      return 2;
+    }
+    const scoreOpts: Parameters<typeof runScoreWrite>[0] = { json: values.json === true };
+    if (values.run !== undefined) scoreOpts.run = values.run;
+    const itemId = values.item ?? values.id;
+    if (itemId !== undefined) scoreOpts.item = itemId;
+    if (values.value !== undefined) scoreOpts.value = values.value;
+    if (values.max !== undefined) scoreOpts.max = values.max;
+    if (values.name !== undefined) scoreOpts.note = values.name;
+    return runScoreWrite(scoreOpts);
   }
 
   if (group === 'contract') {

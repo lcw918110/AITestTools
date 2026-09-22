@@ -1,7 +1,6 @@
 dist/
 coverage/
 node_modules/
-40-评测工具/
 tests/fixtures/invalid/
 examples/**/runs/
 # 外部题库本地副本：以被测仓格式为准，不经本仓 Prettier 改写

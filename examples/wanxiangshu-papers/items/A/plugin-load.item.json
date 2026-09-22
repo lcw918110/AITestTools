@@ -1,0 +1,44 @@
+{
+  "id": "WX-A-PLUGIN-LOAD-01",
+  "rev": 1,
+  "axis": "A",
+  "status": "active",
+  "title": "stubbed-ctx 加载真 Plugin.js 并跑通一轮剧本",
+  "owner": "wanxiangshu",
+  "tags": ["l2", "plugin", "fake-host", "stubbed-ctx"],
+  "intent": {
+    "statement": "假宿主以 stubbed OpenCode ctx 加载 Plugin.js 单工厂；断言 plugin_loaded 与一轮 TurnCompleted（skip_hook_dispatch：不向真插件派发 hook，避免 MCP/WaitInit 挂起；不宣称 MCP/真 session SDK）",
+    "attribution_focus": "PROTOCOL"
+  },
+  "freeze": {
+    "layer": "L2",
+    "model_driver": "scripted",
+    "contract": "opencode-hooks-v1",
+    "script": "scripts/plugin-load-once.json"
+  },
+  "stimulus": {
+    "kind": "hook_script",
+    "ref": "materials/WX-A-PLUGIN-LOAD-01/session.json"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "id": "loaded-then-turn",
+        "type": "event_subsequence",
+        "names": ["plugin_loaded", "SessionReady", "TurnStarted", "TurnCompleted"]
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["a_case_pass_rate"],
+    "secondary": ["a_invariant_violations"]
+  },
+  "execution": {
+    "deadline_ms": 60000,
+    "requires_network": false,
+    "requires_durable_log": true
+  },
+  "change_log": {
+    "rev1": "完整 Plugin 假宿主 MVP：stubbed-ctx 加载"
+  }
+}

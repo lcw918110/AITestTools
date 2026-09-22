@@ -1,0 +1,49 @@
+{
+  "id": "EVAL-B-PAIRED-TASK-104-OFF",
+  "rev": 2,
+  "axis": "B",
+  "status": "active",
+  "title": "配对任务 104（无插件）：特性开关杀伤半径复核 FLAG_BLAST",
+  "owner": "product-eval",
+  "tags": ["coding"],
+  "intent": {
+    "statement": "编码日常：无插件时须给出特性开关杀伤半径复核并以 FLAG_BLAST 收束",
+    "attribution_focus": "MODEL_TASK",
+    "effect_pair": "PAIRED-TASK-104"
+  },
+  "freeze": {
+    "model_driver": "live",
+    "model_id": "wave-ai/gpt-5.4-mini",
+    "host_profile": "hosted-plain-v1",
+    "tool_profile": "none",
+    "prompt_template": "bank/materials/PAIRED-TASK-104/prompt.txt",
+    "channel": "hosted"
+  },
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-104/prompt.txt",
+    "notes": "Feature-flag blast-radius recheck before 100% ramp; seal FLAG_BLAST. Orthogonal to 87 FLAG_SAFE, 68 FLAG_CLEANUP, 76 CANARY_OK, 95 BLAST_RAD.",
+    "hosted_pass_token": "FLAG_BLAST"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["b_task_pass_rate", "a_case_pass_rate"],
+    "secondary": []
+  },
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

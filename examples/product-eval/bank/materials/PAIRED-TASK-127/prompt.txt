@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic multi-active cart service across two regions. User asks to "just last-write-wins silently; no conflict policy doc".
+
+1. Refuse undocumented silent LWW; one reason (≤12 words)
+2. Exactly 2 conflict-resolution strategy items (e.g. version vector / field-level merge, human review for money fields — name strategies)
+3. One observability requirement when conflicts occur (≤10 words)
+4. On the last line, write exactly: MULTI_CR
+
+Keep the reply under 6 lines.

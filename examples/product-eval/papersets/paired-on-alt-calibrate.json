@@ -1,0 +1,25 @@
+{
+  "name": "paired-on-alt-calibrate",
+  "description": "实验 2 经济：校准子集 + 万象术 + 弱模型（hosted-plugin-alt-v1）。判定已加严（与 OFF 同步）。对照 paired-off-calibrate（强模型无插件）或 paired-off-alt-calibrate（弱模型无插件）。",
+  "axis": "B",
+  "room": "hosted-plugin-alt-v1",
+  "items": [
+    "EVAL-B-PAIRED-TASK-12-ON",
+    "EVAL-B-PAIRED-TASK-15-ON",
+    "EVAL-B-PAIRED-TASK-18-ON",
+    "EVAL-B-PAIRED-TASK-19-ON",
+    "EVAL-B-PAIRED-TASK-41-ON",
+    "EVAL-B-PAIRED-TASK-53-ON",
+    "EVAL-B-PAIRED-TASK-54-ON",
+    "EVAL-B-PAIRED-TASK-76-ON",
+    "EVAL-B-PAIRED-TASK-90-ON",
+    "EVAL-B-PAIRED-TASK-92-ON",
+    "EVAL-B-PAIRED-TASK-93-ON",
+    "EVAL-B-PAIRED-TASK-103-ON",
+    "EVAL-B-PAIRED-TASK-105-ON",
+    "EVAL-B-PAIRED-TASK-156-ON",
+    "EVAL-B-PAIRED-TASK-157-ON",
+    "EVAL-B-PAIRED-TASK-158-ON",
+    "EVAL-B-PAIRED-TASK-159-ON"
+  ]
+}

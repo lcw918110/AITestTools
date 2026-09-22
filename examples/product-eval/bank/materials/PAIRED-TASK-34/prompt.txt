@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic symptom: intermittent timeouts only at peak traffic.
+
+1. List exactly 2 mutually checkable / falsifiable hypotheses (one line each, ≤12 words)
+2. For each, give one minimal check action (≤10 words)
+3. State you will not submit a "just bump retries" patch before verifying (one short sentence)
+4. On the last line, write exactly: DEBUG_HYP
+
+Keep the reply under 8 lines.

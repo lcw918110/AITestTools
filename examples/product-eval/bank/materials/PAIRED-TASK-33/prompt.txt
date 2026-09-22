@@ -1,0 +1,9 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+User asks one PR to: fix a bug + rename across the repo + upgrade three dependencies + change CI.
+
+1. Refuse packing all into one PR (one short sentence)
+2. List exactly 3 independent split themes (each ≤8 words)
+3. On the last line, write exactly: SMALL_CL
+
+Keep the reply under 7 lines.

@@ -1,0 +1,255 @@
+{
+  "$schema": "https://opencode.ai/config.json",
+  "plugin": [
+    "@mrhisyammm/opencode-antigravity-auth@latest",
+    "@tarquinen/opencode-dcp@latest",
+    "/Users/Licw/Desktop/git/wanxiangshu/dist/OpenCode/Plugin/Plugin.js"
+  ],
+  "agent": {
+    "manager": {
+      "model": "ctyun/deepseek-v4-pro-0813-oc",
+      "variant": "fast"
+    },
+    "engineer": {
+      "model": "ctyun/deepseek-v4-pro-0813-oc",
+      "variant": "fast"
+    },
+    "orchestrator": {
+      "model": "ctyun/deepseek-v4-pro-0813-oc",
+      "variant": "fast"
+    },
+    "devops": {
+      "model": "kw92.cyou/google-antigravity/gemini-3.8-flash",
+      "variant": "fast"
+    },
+    "blogger": {
+      "model": "kw92.cyou/google-antigravity/gemini-3.8-flash",
+      "variant": "fast"
+    },
+    "title": {
+      "model": "kw92.cyou/google-antigravity/gemini-3.8-flash",
+      "variant": "fast"
+    },
+    "compaction": {
+      "model": "kw92.cyou/google-antigravity/gemini-3.8-flash",
+      "variant": "fast"
+    },
+    "summary": {
+      "disable": true
+    }
+  },
+  "lsp": false,
+  "permission": {
+    "*": "allow"
+  },
+  "provider": {
+    "openai": {
+      "npm": "@ai-sdk/openai",
+      "name": "OpenAI-compat (DeepSeek)",
+      "options": {
+        "baseURL": "https://api.deepseek.com",
+        "apiKey": "sk-7...96e6"
+      },
+      "models": {
+        "deepseek-chat": {
+          "name": "deepseek-chat"
+        },
+        "deepseek-reasoner": {
+          "name": "deepseek-reasoner"
+        }
+      }
+    },
+    "omniroute-ai": {
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "https://ai.kw92.cyou/v1",
+        "apiKey": "sk-7...c901",
+        "chunkTimeout": 300000,
+        "headerTimeout": 300000,
+        "timeout": 1000000
+      },
+      "models": {
+        "gc/grok-composer-2.5-fast": {
+          "limit": {
+            "context": 200000,
+            "output": 65536
+          },
+          "name": "Grok Composer 2.5 Fast",
+          "reasoning": true,
+          "temperature": false
+        },
+        "step/step-3.5-flash-2603": {
+          "limit": {
+            "context": 256000,
+            "output": 65536
+          },
+          "name": "Step 3.5 Flash 2603",
+          "reasoning": true,
+          "temperature": false,
+          "variants": {
+            "fast": {
+              "reasoning_effort": "low"
+            },
+            "high": {
+              "reasoning_effort": "high"
+            }
+          }
+        },
+        "qwen3.7-plus": {
+          "limit": {
+            "context": 1000000,
+            "input": 256000,
+            "output": 64000
+          },
+          "name": "Qwen3.7 Plus",
+          "reasoning": true,
+          "temperature": false,
+          "variants": {
+            "fast": {
+              "enable_thinking": false,
+              "reasoning_effort": "none",
+              "thinking": {
+                "type": "disabled"
+              }
+            },
+            "high": {
+              "reasoning_effort": "high"
+            },
+            "max": {
+              "reasoning_effort": "max"
+            }
+          }
+        }
+      }
+    },
+    "wave-anthropic": {
+      "npm": "@ai-sdk/anthropic",
+      "options": {
+        "apiKey": "sk-g...dU2Q",
+        "baseURL": "https://www.ai-wave.org/claude/v1",
+        "chunkTimeout": 300000,
+        "headerTimeout": 300000,
+        "timeout": 1000000
+      },
+      "models": {
+        "claude-sonnet-5": {
+          "limit": {
+            "context": 200000,
+            "output": 128000
+          },
+          "name": "Claude Sonnet 5",
+          "reasoning": true,
+          "temperature": false
+        }
+      }
+    },
+    "rc-anthropic": {
+      "npm": "@ai-sdk/anthropic",
+      "options": {
+        "apiKey": "sk-7...d7d2",
+        "baseURL": "https://www.right.codes/claude-aws/v1",
+        "chunkTimeout": 300000,
+        "headerTimeout": 300000,
+        "timeout": 1000000
+      },
+      "models": {
+        "claude-sonnet-5": {
+          "limit": {
+            "context": 200000,
+            "output": 128000
+          },
+          "name": "Claude Sonnet 5",
+          "reasoning": true,
+          "temperature": false
+        }
+      }
+    },
+    "kw92.cyou": {
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "https://ai.kw92.cyou:20000/v1",
+        "apiKey": "xBzB...qClk",
+        "chunkTimeout": 300000,
+        "headerTimeout": 300000,
+        "timeout": 1000000
+      },
+      "models": {
+        "google-antigravity/gemini-3.8-flash": {
+          "name": "Gemini 3.8 Flash (via Kunwei's Proxy)",
+          "limit": {
+            "context": 1000000,
+            "output": 131072
+          },
+          "reasoning": true,
+          "temperature": false
+        },
+        "google-antigravity/gemini-3.7-flash": {
+          "name": "Gemini 3.7 Flash (via Kunwei's Proxy)",
+          "limit": {
+            "context": 1000000,
+            "output": 131072
+          },
+          "reasoning": true,
+          "temperature": false
+        }
+      }
+    },
+    "ctyun": {
+      "npm": "@ai-sdk/openai-compatible",
+      "options": {
+        "baseURL": "https://eaichat.ctyun.cn/ai/platform/v2/cp",
+        "apiKey": "eyJr...B4tQ",
+        "chunkTimeout": 300000,
+        "headerTimeout": 300000,
+        "timeout": 1000000
+      },
+      "models": {
+        "glm-5.3-oc": {
+          "name": "GLM 5.3",
+          "limit": {
+            "context": 1000000,
+            "output": 131072
+          },
+          "reasoning": true,
+          "temperature": false,
+          "variants": {
+            "fast": {
+              "reasoning_effort": "low"
+            },
+            "high": {
+              "reasoning_effort": "high"
+            },
+            "max": {
+              "reasoning_effort": "max"
+            }
+          }
+        },
+        "deepseek-v4-pro-0813-oc": {
+          "name": "DeepSeek V4 Pro 0813",
+          "limit": {
+            "context": 1000000,
+            "output": 384000
+          },
+          "reasoning": true,
+          "temperature": false,
+          "variants": {
+            "fast": {
+              "reasoning_effort": "low"
+            },
+            "high": {
+              "reasoning_effort": "high"
+            },
+            "max": {
+              "reasoning_effort": "max"
+            }
+          }
+        }
+      }
+    }
+  },
+  "compaction": {
+    "auto": true,
+    "prune": false,
+    "reserved": 8192
+  }
+}

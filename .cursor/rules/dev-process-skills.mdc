@@ -1,0 +1,19 @@
+---
+description: 本仓开发过程 skills：Grill、设计落盘、编码规范、自测、代码审查
+alwaysApply: true
+---
+
+# 开发过程 skills（本仓）
+
+非琐碎任务（含 T1–T7）按序遵守，**不要**写进功能任务表：
+
+1. `.cursor/skills/grill-me/SKILL.md`
+2. 改产品口径 → `.cursor/skills/design-current-state/SKILL.md`
+3. 写 TS/JS → `.cursor/skills/coding-standards/SKILL.md`
+4. 完成前 → `.cursor/skills/sdlc-self-check/SKILL.md`
+5. 改了引擎/控制台代码 → `.cursor/skills/code-review/SKILL.md`
+
+- 简体中文
+- 文档只留当前态；旧稿在 git
+- 不改万象术业务逻辑
+- 对话里本地文件用 `file:///` + 绝对路径，中文不要预先百分号编码

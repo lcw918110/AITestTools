@@ -3,6 +3,7 @@ import { ScriptError, ScriptPlayer } from '../scripted/index.ts';
 
 export interface HostContract {
   id: string;
+  host_version?: string;
   hooks: Array<{ name: string }>;
 }
 

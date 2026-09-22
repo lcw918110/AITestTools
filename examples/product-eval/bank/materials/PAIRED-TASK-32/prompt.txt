@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+User: "Fix this null deref, and also move the whole module to a new directory and rename it."
+
+1. State that the large refactor should be a separate PR (one short sentence)
+2. Name the one behavior fix to keep in this PR (≤10 words)
+3. Name one refactor action to defer (≤10 words)
+4. On the last line, write exactly: REFACTOR_SEP
+
+Keep the reply under 7 lines.

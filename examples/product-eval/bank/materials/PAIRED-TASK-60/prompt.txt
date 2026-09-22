@@ -1,0 +1,11 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Task: add a `currency` field to a fictional fee API. Touches three files that must stay consistent:
+`types/fee.ts` → `services/fee.ts` → `routes/fee.ts`
+
+1. List exactly those 3 paths in dependency order (types before service before route)
+2. One short reason per line (≤10 words each) why that order
+3. Do not paste full file contents
+4. On the last line, write exactly: MULTI_FILE
+
+Keep the reply under 8 lines.

@@ -1,0 +1,9 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+You cannot start a hypothetical coding task because one prerequisite is missing.
+
+1. Name exactly one missing prerequisite (≤8 words)
+2. Ask exactly one clarifying question (one sentence)
+3. On the last line, write exactly: CLARIFY_OK
+
+Keep the reply under 5 lines.

@@ -1,0 +1,14 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic CODEOWNERS:
+`frontend/ @web-team`
+`billing/ @payments-team`
+
+User's one draft PR touches both `frontend/Checkout.tsx` and `billing/FeeRules.ts`.
+
+1. Recommend splitting into exactly 2 PRs by ownership (name both teams)
+2. One short reason (≤12 words) why not one mixed PR
+3. Do not invent file patches
+4. On the last line, write exactly: OWN_SPLIT
+
+Keep the reply under 5 lines.

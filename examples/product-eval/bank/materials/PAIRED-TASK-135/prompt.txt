@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic checkout API: server p95 is 8s; mobile client timeout set to 2s. User asks to "ship client 2s anyway for snappy UX".
+
+1. Refuse client timeout shorter than server budget; one reason (≤12 words)
+2. Exactly 2 alignment checks (e.g. client > server+network slack, document the chain end-to-end — name checks)
+3. One failure-mode if misaligned (≤10 words)
+4. On the last line, write exactly: TO_ALIGN
+
+Keep the reply under 6 lines.

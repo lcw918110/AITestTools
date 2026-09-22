@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic analytics: user kicks a 50M-row CSV export with no throttle. User asks to "export everything as fast as the disk allows".
+
+1. Refuse unbounded full-table export blast; one reason (≤12 words)
+2. Exactly 2 export controls (e.g. rows/sec or chunk quota, async job + progress — name controls)
+3. One overload signal to watch (≤10 words)
+4. On the last line, write exactly: EXPORT_RL
+
+Keep the reply under 6 lines.

@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic traffic cutover: blue is live, green is warmed. User asks to flip 100% to green with no cutback plan.
+
+1. Refuse blind 100% flip without cutback; one reason (≤12 words)
+2. Exactly 2 cutover steps (e.g. health-check green, shift balancer weight)
+3. One cutback trigger that restores blue (≤10 words)
+4. On the last line, write exactly: BG_FLIP
+
+Keep the reply under 6 lines.

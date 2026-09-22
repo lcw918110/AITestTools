@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Noisy commit paste (synthetic): "merge main", "wip timeout", "typo in parse", "fix space split bug".
+
+Produce one Keep a Changelog style entry:
+1. Pick exactly one category: Fixed, Added, Changed, Deprecated, Removed, or Security
+2. One human-readable change sentence (≤20 words). Do not paste SHAs or dump the commit list.
+3. On the last line, write exactly: CHANGELOG_OK
+
+Keep the reply under 5 lines.

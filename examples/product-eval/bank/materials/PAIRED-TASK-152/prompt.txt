@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic ops: team treats /health returning 200 as "fully healthy" and skips dependency/readiness depth. User asks to "just keep the ping endpoint".
+
+1. Refuse liveness-only as sole production health signal; one reason (≤12 words)
+2. Exactly 2 deeper checks (e.g. dependency readiness, critical path probe — name checks)
+3. One failure interpretation note (≤10 words)
+4. On the last line, write exactly: HC_DEPTH
+
+Keep the reply under 6 lines.

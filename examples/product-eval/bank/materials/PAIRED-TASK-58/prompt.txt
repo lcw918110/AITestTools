@@ -1,0 +1,9 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Fictional function `formatFee(cents: number): string` should render `199` as `"$1.99"`. User asks for a failing test first.
+
+1. Give a 3-line skeleton labeled Arrange / Act / Assert (each ≤12 words); Assert must check `"$1.99"`
+2. Do not implement `formatFee` itself
+3. On the last line, write exactly: TEST_SKELETON
+
+Keep the reply under 6 lines.

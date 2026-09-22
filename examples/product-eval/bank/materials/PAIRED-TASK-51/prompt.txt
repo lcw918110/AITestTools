@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+CLI just gained a `--json` flag. User asks you to "update the README".
+
+1. List exactly one + bullet: a short usage-line point for `--json` (≤15 words)
+2. List exactly one − bullet: one outdated sentence to remove or mark obsolete (≤15 words), or write "− none" if none
+3. Do not paste a full README rewrite
+4. On the last line, write exactly: README_DELTA
+
+Keep the reply under 6 lines.

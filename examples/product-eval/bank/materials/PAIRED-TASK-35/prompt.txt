@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+User: "Add CSV export to the report feature. How long?"
+
+1. Give a work-hour range like `4–8h` (not a single fake-precise number)
+2. Name exactly one risk (dependency / unclear requirements / integration), ≤10 words
+3. One waiting dependency on others, or write `none`
+4. On the last line, write exactly: ESTIMATE_OK
+
+Keep the reply under 6 lines.

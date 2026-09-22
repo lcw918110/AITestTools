@@ -1,13 +1,18 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { runPromptfooAdapter, type EvalJob } from '../drivers/model-adapter/index.ts';
-import type { Attribution, ItemDoc, RoomDoc } from '../exam-engine/types.ts';
+import type {
+  ItemDoc,
+  OracleSchemaObedience,
+  OracleToolTrace,
+  RoomDoc,
+} from '../exam-engine/types.ts';
 import {
-  runMetricThresholdOracle,
   runSchemaObedienceOracle,
   runToolTraceOracle,
   type OracleOutcome,
 } from '../oracles/index.ts';
+import { fail, applyMetricThresholdPass } from './runner-shared.ts';
 import type { ToolCallTrace } from '../oracles/tool-trace.ts';
 import type { AxisItemResult } from './l2-runner.ts';
 
@@ -43,8 +48,12 @@ export async function runBDirectItem(opts: {
   const focus = opts.item.intent.attribution_focus;
   const repeats = opts.item.execution.repeats ?? roomRepeats(opts.room) ?? 1;
 
-  const mustCallOracle = opts.item.expect.oracles.find((o) => o.type === 'tool_trace');
-  const schemaOracle = opts.item.expect.oracles.find((o) => o.type === 'schema_obedience');
+  const mustCallOracle = opts.item.expect.oracles.find(
+    (o): o is OracleToolTrace => o.type === 'tool_trace',
+  );
+  const schemaOracle = opts.item.expect.oracles.find(
+    (o): o is OracleSchemaObedience => o.type === 'schema_obedience',
+  );
 
   const jobItem: EvalJob['items'][number] = {
     id: opts.item.id,
@@ -77,7 +86,7 @@ export async function runBDirectItem(opts: {
     raw = await runPromptfooAdapter(job, adapterOpts);
   } catch (e) {
     return [
-      fail(opts.item, 'HARNESS', `B-direct adapter 失败：${(e as Error).message}`, opts.models[0]),
+      fail(opts.item, 'HARNESS', `B-direct adapter 失败：${(e as Error).message}`, { invariantViolationsExplicit: 0, extraMetrics: { b_schema_obedience_rate: 0 }, ...(opts.models[0] !== undefined ? { modelSuffix: opts.models[0] } : {}) }),
     ];
   }
 
@@ -137,18 +146,7 @@ export async function runBDirectItem(opts: {
       a_case_pass_rate: draftPass ? 1 : 0,
       a_invariant_violations: 0,
     };
-    for (const [i, oracle] of opts.item.expect.oracles.entries()) {
-      if (oracle.type !== 'metric_threshold') continue;
-      const oid = typeof oracle.id === 'string' ? oracle.id : `${oracle.type}#${i}`;
-      failures.push(
-        runMetricThresholdOracle({
-          oracle_id: oid,
-          oracle,
-          metrics: draftMetrics,
-          attribution: focus,
-        }),
-      );
-    }
+    applyMetricThresholdPass(opts.item.expect.oracles, draftMetrics, focus, (o) => failures.push(o));
     const failed = failures.filter((o): o is Extract<OracleOutcome, { pass: false }> => !o.pass);
     const pass = failed.length === 0 && row.pass;
     const attribution = pass ? undefined : (failed[0]?.attribution ?? 'MODEL_SCHEMA');
@@ -178,21 +176,7 @@ export async function runBDirectItem(opts: {
   return results;
 }
 
-function fail(
-  item: ItemDoc,
-  attribution: Attribution,
-  message: string,
-  model?: string,
-): AxisItemResult {
-  return {
-    item_id: model !== undefined ? `${item.id}::${model}` : item.id,
-    item_rev: item.rev,
-    pass: false,
-    attribution,
-    oracle_failures: [{ oracle_id: 'harness', message }],
-    metrics: { a_case_pass_rate: 0, a_invariant_violations: 0, b_schema_obedience_rate: 0 },
-  };
-}
+
 
 function sanitize(model: string): string {
   return model.replace(/[^A-Za-z0-9._-]+/g, '_');

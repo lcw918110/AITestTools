@@ -2,12 +2,12 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import type { Attribution, ItemDoc, RoomDoc } from '../exam-engine/types.ts';
+import type { ItemDoc, RoomDoc } from '../exam-engine/types.ts';
 import {
-  runMetricThresholdOracle,
   runToolSideEffectOracle,
   runWorkspaceAssertOracle,
 } from '../oracles/index.ts';
+import { fail, applyMetricThresholdPass } from './runner-shared.ts';
 import { deepEqual } from '../oracles/deep-equal.ts';
 import type { AxisItemResult } from './l2-runner.ts';
 interface ShellStimulus {
@@ -39,7 +39,7 @@ export async function runCItem(opts: {
     (typeof opts.room.host?.command === 'string' ? opts.room.host.command : undefined);
 
   if (shellRel === undefined) {
-    return fail(opts.item, 'HARNESS', 'C 轴考场需 adapter.config 指向 shells/<tool>.mjs');
+    return fail(opts.item, 'HARNESS', 'C 轴考场需 adapter.config 指向 shells/<tool>.mjs', { extraMetrics: { c_contract_pass_rate: 0 } });
   }
 
   let stimulus: ShellStimulus;
@@ -48,7 +48,7 @@ export async function runCItem(opts: {
       readFileSync(resolve(opts.projectRoot, opts.item.stimulus.ref), 'utf8'),
     ) as ShellStimulus;
   } catch (e) {
-    return fail(opts.item, 'HARNESS', `无法加载 stimulus：${(e as Error).message}`);
+    return fail(opts.item, 'HARNESS', `无法加载 stimulus：${(e as Error).message}`, { extraMetrics: { c_contract_pass_rate: 0 } });
   }
 
   const workspace = mkdtempSync(join(tmpdir(), 'proctor-c-ws-'));
@@ -87,11 +87,28 @@ export async function runCItem(opts: {
     );
   }
 
-  if (r.status !== 0 && r.status !== null) {
+  const failures: Array<{ oracle_id: string; message: string }> = [];
+
+  // exit_code oracle：独立于 stdout 解析与非 0 bail，先按实际退出码判定。
+  let exitCodeHonored = false;
+  for (const [i, oracle] of opts.item.expect.oracles.entries()) {
+    if (oracle.type !== 'exit_code') continue;
+    const oid = typeof oracle.id === 'string' ? oracle.id : `${oracle.type}#${i}`;
+    const want = Number(oracle.equals ?? 0);
+    const got = r.status ?? 1;
+    if (got === want) {
+      exitCodeHonored = true;
+    } else {
+      failures.push({ oracle_id: oid, message: `exit_code 期望 ${want} 实际 ${got}` });
+    }
+  }
+
+  if (r.status !== 0 && r.status !== null && !exitCodeHonored) {
     return fail(
       opts.item,
       'HARNESS',
       `CLI 壳非 0 退出（status=${String(r.status)}）：${(r.stderr || r.stdout || '').slice(0, 200)}`,
+      { extraMetrics: { c_contract_pass_rate: 0 } },
     );
   }
 
@@ -99,11 +116,10 @@ export async function runCItem(opts: {
   try {
     parsed = JSON.parse((r.stdout || '').trim()) as typeof parsed;
   } catch (e) {
-    return fail(opts.item, 'HARNESS', `壳 stdout 非 JSON：${(e as Error).message}`);
+    return fail(opts.item, 'HARNESS', `壳 stdout 非 JSON：${(e as Error).message}`, { extraMetrics: { c_contract_pass_rate: 0 } });
   }
 
   const exp = stimulus.expect ?? {};
-  const failures: Array<{ oracle_id: string; message: string }> = [];
 
   if (exp.ok !== undefined && parsed.ok !== exp.ok) {
     failures.push({
@@ -146,16 +162,10 @@ export async function runCItem(opts: {
     }
   }
 
-  // 试题 oracles：exit_code / workspace_assert / tool_result_equals / tool_side_effect / metric_threshold
+  // 试题 oracles（exit_code 已前置判定）：workspace_assert / tool_result_equals / tool_side_effect / metric_threshold
   for (const [i, oracle] of opts.item.expect.oracles.entries()) {
     const oid = typeof oracle.id === 'string' ? oracle.id : `${oracle.type}#${i}`;
-    if (oracle.type === 'exit_code') {
-      const want = Number(oracle.equals ?? 0);
-      const got = r.status ?? 1;
-      if (got !== want) {
-        failures.push({ oracle_id: oid, message: `exit_code 期望 ${want} 实际 ${got}` });
-      }
-    } else if (oracle.type === 'workspace_assert') {
+    if (oracle.type === 'workspace_assert') {
       const outcome = runWorkspaceAssertOracle({
         oracle_id: oid,
         oracle,
@@ -183,6 +193,9 @@ export async function runCItem(opts: {
     } else if (oracle.type === 'metric_threshold') {
       // 草稿 metrics 后再判
       continue;
+    } else if (oracle.type === 'exit_code') {
+      // 上面已独立判定 exit_code
+      continue;
     } else {
       failures.push({
         oracle_id: oid,
@@ -197,19 +210,11 @@ export async function runCItem(opts: {
     a_invariant_violations: draftPass ? 0 : 1,
     c_contract_pass_rate: draftPass ? 1 : 0,
   };
-  for (const [i, oracle] of opts.item.expect.oracles.entries()) {
-    if (oracle.type !== 'metric_threshold') continue;
-    const oid = typeof oracle.id === 'string' ? oracle.id : `${oracle.type}#${i}`;
-    const outcome = runMetricThresholdOracle({
-      oracle_id: oid,
-      oracle,
-      metrics: draftMetrics,
-      attribution: focus ?? 'TOOL',
-    });
-    if (!outcome.pass) {
-      failures.push({ oracle_id: outcome.oracle_id, message: outcome.message });
+  applyMetricThresholdPass(opts.item.expect.oracles, draftMetrics, focus ?? 'TOOL', (o) => {
+    if (!o.pass) {
+      failures.push({ oracle_id: o.oracle_id, message: o.message });
     }
-  }
+  });
 
   const pass = failures.length === 0;
   const result: AxisItemResult = {
@@ -228,17 +233,4 @@ export async function runCItem(opts: {
   return result;
 }
 
-function fail(item: ItemDoc, attribution: Attribution, message: string): AxisItemResult {
-  return {
-    item_id: item.id,
-    item_rev: item.rev,
-    pass: false,
-    attribution,
-    oracle_failures: [{ oracle_id: 'harness', message }],
-    metrics: {
-      a_case_pass_rate: 0,
-      a_invariant_violations: attribution === 'PROTOCOL' || attribution === 'CONTEXT' ? 1 : 0,
-      c_contract_pass_rate: 0,
-    },
-  };
-}
+

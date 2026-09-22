@@ -32,7 +32,13 @@ function room(plugin: string): RoomDoc {
 describe('WANXIANGSHU_PLUGIN_CANDIDATES', () => {
   it('新 dist 路径排第一', () => {
     expect(WANXIANGSHU_PLUGIN_CANDIDATES[0]).toBe(WANXIANGSHU_PLUGIN_REL);
-    expect(WANXIANGSHU_PLUGIN_REL).toBe('dist/Infrastructure/OpenCode/Plugin/Plugin.js');
+    expect(WANXIANGSHU_PLUGIN_REL).toBe('dist/OpenCode/Plugin/Plugin.js');
+  });
+
+  it('保留 Infrastructure 旧布局作回退', () => {
+    expect(WANXIANGSHU_PLUGIN_CANDIDATES).toContain(
+      'dist/Infrastructure/OpenCode/Plugin/Plugin.js',
+    );
   });
 });
 
@@ -56,5 +62,16 @@ describe('resolvePluginPath', () => {
     writeFileSync(modern, 'export default {}\n');
     process.env.SUT_ROOT = root;
     expect(resolvePluginPath(room('build/src/Hosts/OpenCode/Plugin.js'), root)).toBe(modern);
+  });
+
+  it('显式 Infrastructure 旧路径回退到现行 dist', () => {
+    const root = mkdtempSync(join(tmpdir(), 'proctor-plugin-'));
+    const modern = join(root, WANXIANGSHU_PLUGIN_REL);
+    mkdirSync(join(modern, '..'), { recursive: true });
+    writeFileSync(modern, 'export default {}\n');
+    process.env.SUT_ROOT = root;
+    expect(resolvePluginPath(room('dist/Infrastructure/OpenCode/Plugin/Plugin.js'), root)).toBe(
+      modern,
+    );
   });
 });

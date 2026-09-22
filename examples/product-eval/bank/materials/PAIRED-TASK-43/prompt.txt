@@ -1,0 +1,9 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic decision topic: whether evaluation assets should live in the system-under-test repo or the engine repo.
+
+1. Write exactly three labeled lines: Background / Decision / Consequences — one sentence each
+2. State status as "proposed" (one short phrase)
+3. On the last line, write exactly: ADR_DRAFT
+
+Keep the reply under 7 lines. Do not paste real unpublished ADR text.

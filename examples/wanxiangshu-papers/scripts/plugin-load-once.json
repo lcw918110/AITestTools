@@ -1,0 +1,8 @@
+{
+  "name": "plugin-load-once",
+  "description": "单轮 assistant_text 后终止（真 Plugin 加载冒烟）",
+  "steps": [
+    { "assistant_text": "hello from stubbed fake-host", "tool_calls": [] },
+    { "terminal": true }
+  ]
+}

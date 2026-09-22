@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic pipeline: upstream keeps producing while downstream is slow. In-process buffer grows unboundedly. User asks to "buffer everything in memory".
+
+1. Refuse unbounded in-memory buffering; one reason (≤12 words)
+2. Exactly 2 backpressure actions (e.g. block/slow producers, drop or spill with policy — name actions)
+3. One saturation signal (≤10 words)
+4. On the last line, write exactly: BACKPRESS
+
+Keep the reply under 6 lines.

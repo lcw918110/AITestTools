@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+User wants to add synthetic npm package `fast-parser-gpl` whose declared license is GPL-3.0 into a proprietary app.
+
+1. Hold: do not approve blind add; name the license risk in ≤12 words
+2. One required next step (legal/compliance review or find MIT/Apache alternative), ≤12 words
+3. Do not paste any real license text verbatim
+4. On the last line, write exactly: LICENSE_NOTE
+
+Keep the reply under 5 lines.

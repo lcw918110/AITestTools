@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic bug: CI fails only when `CI=1` is set (local runs pass).
+
+Write a PR description:
+1. First line: imperative summary of What (≤12 words). Do not write bare "Fix bug" or "Update".
+2. Blank line, then one Why sentence (motivation/background, ≤20 words)
+3. On the last line, write exactly: PR_DESC
+
+Keep the reply under 6 lines.

@@ -1,0 +1,11 @@
+{
+  "name": "eval-model",
+  "description": "测模型：最小效果集（schema 服从；fixture 可 CI；live 需 PROCTOR_PROMPTFOO_LIVE=1）",
+  "axis": "B",
+  "room": "model-direct-v1",
+  "matrix_env": "MATRIX_SUBJECTS",
+  "items": ["DEMO-B-TOOL-SCHEMA-01", "DEMO-B-TOOL-SCHEMA-02"],
+  "gates": {
+    "b_schema_obedience_rate": { "min": 0.9 }
+  }
+}

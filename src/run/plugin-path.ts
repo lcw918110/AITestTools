@@ -2,18 +2,20 @@ import { existsSync } from 'node:fs';
 import { join, resolve } from 'node:path';
 import type { RoomDoc } from '../exam-engine/types.ts';
 
-/** 万象术 0.8+ 现行入口（相对 SUT 根）。 */
-export const WANXIANGSHU_PLUGIN_REL = 'dist/Infrastructure/OpenCode/Plugin/Plugin.js';
+/** 万象术现行入口（相对 SUT 根）。2026-08-31 重构：Infrastructure 前缀已去掉。 */
+export const WANXIANGSHU_PLUGIN_REL = 'dist/OpenCode/Plugin/Plugin.js';
 
 /** auto 探测：新路径优先，旧布局仅回退。 */
 export const WANXIANGSHU_PLUGIN_CANDIDATES = [
   WANXIANGSHU_PLUGIN_REL,
+  'dist/Infrastructure/OpenCode/Plugin/Plugin.js',
   'build/next/OpenCode/Plugin.js',
   'build/src/Hosts/OpenCode/Plugin.js',
   'build/src/Opencode/Plugin.js',
 ] as const;
 
 const STALE_REL_ALIASES: Record<string, string> = {
+  'dist/Infrastructure/OpenCode/Plugin/Plugin.js': WANXIANGSHU_PLUGIN_REL,
   'build/src/Hosts/OpenCode/Plugin.js': WANXIANGSHU_PLUGIN_REL,
   'build/src/Opencode/Plugin.js': WANXIANGSHU_PLUGIN_REL,
   'build/next/OpenCode/Plugin.js': WANXIANGSHU_PLUGIN_REL,

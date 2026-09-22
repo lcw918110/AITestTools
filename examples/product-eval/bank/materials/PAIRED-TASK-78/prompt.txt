@@ -1,0 +1,12 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic change: product price field moves from cents int to decimal string in the DB. Edge CDN + Redis still cache old JSON shapes.
+
+User asks to "just deploy the API" with no cache plan.
+
+1. Hold deploy-without-invalidation; one reason (≤12 words)
+2. Exactly 2 invalidation steps in order (name layers: Redis key namespace / CDN purge — no real keys)
+3. One post-check (≤10 words)
+4. On the last line, write exactly: CACHE_INV
+
+Keep the reply under 6 lines.

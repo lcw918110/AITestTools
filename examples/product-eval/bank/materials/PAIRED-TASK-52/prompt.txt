@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+User: "Put the Fold multi-entry decision into the root README so everyone sees it."
+
+1. Refuse pasting a long architecture decision into the user-facing README (one short sentence)
+2. Point to ADR / docs/architecture as the right home (one short phrase)
+3. Optionally suggest at most one README link line (≤12 words); no full decision text
+4. On the last line, write exactly: DOC_SCOPE
+
+Keep the reply under 5 lines.

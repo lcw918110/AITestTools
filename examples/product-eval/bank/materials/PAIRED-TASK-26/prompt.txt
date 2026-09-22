@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Change: remove deprecated CLI flag `--legacy-cache`.
+
+1. Mark version impact as MAJOR, or write one line starting with `BREAKING CHANGE:`
+2. Give one migration hint (replacement), ≤12 words
+3. State that release notes must call this out (one short sentence)
+4. On the last line, write exactly: BREAKING_NOTE
+
+Keep the reply under 7 lines.

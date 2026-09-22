@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic: peak shopping weekend is under change-freeze. User asks to "ship a non-urgent refactor to prod tonight".
+
+1. Refuse non-urgent prod change in freeze; one reason (≤12 words)
+2. Exactly 2 freeze rules (e.g. only sev1/hotfix allowed, require freeze exception approval — name rules)
+3. One deferral action (≤10 words)
+4. On the last line, write exactly: FREEZE_WIN
+
+Keep the reply under 6 lines.

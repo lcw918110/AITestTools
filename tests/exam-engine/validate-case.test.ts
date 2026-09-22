@@ -96,7 +96,7 @@ describe('B/C 轴 freeze 形状', () => {
       axis: 'B',
       freeze: bFreeze,
       stimulus: { kind: 'task_prompt', ref: 'fixtures/x/task.md' },
-      expect: { oracles: [{ type: 'schema_obedience', tool: 'todowrite' }] },
+      expect: { oracles: [{ type: 'schema_obedience', tool: 'todowrite', required_fields: ['todos', 'select_methodology'] }] },
       metrics: { primary: ['b_schema_obedience_rate'] },
       execution: { deadline_ms: 60000, requires_network: true },
     });
@@ -116,7 +116,7 @@ describe('时间无关原则（PRD 附录 D）', () => {
     const doc = baseCase({
       expect: { oracles: [{ type: 'state_predicate', expr: 'x == 1', sleep_ms: 100 }] },
     });
-    expect(codesOf(validateCase(asAsset(doc)))).toContain('SLEEP_FORBIDDEN');
+    expect(codesOf(validateCase(asAsset(doc)))).toContain('SCHEMA_ITEM');
   });
 
   it('标注 harness_internal 的 debounce 放行', () => {

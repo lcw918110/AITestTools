@@ -3,13 +3,12 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { loadBundledContract } from '../contract/load.ts';
+import { loadContract, fail, computeAxisDraftMetrics, applyMetricThresholdPass, finalizeAxisResult } from './runner-shared.ts';
 import { FakeHost, FakeHostError } from '../drivers/fakehost/index.ts';
 import { loadScript, ScriptError } from '../drivers/scripted/index.ts';
-import type { Attribution, FreezeA, ItemDoc, RoomDoc } from '../exam-engine/types.ts';
+import type { FreezeA, ItemDoc, RoomDoc } from '../exam-engine/types.ts';
 import {
   runEventSubsequenceOracle,
-  runMetricThresholdOracle,
   runNoEventOracle,
   runStatePredicateOracle,
   type OracleOutcome,
@@ -61,27 +60,12 @@ interface ProctorPluginCtx {
       abort: () => Promise<Record<string, unknown>>;
     };
   };
-  options?: { e2e?: boolean };
+  options?: { e2e?: boolean; sutRoot?: string };
   emit: (ev: Record<string, unknown>) => void;
   patchSession: (patch: Record<string, unknown>) => void;
   getSession: () => Record<string, unknown>;
   /** 当前 tool.execute.after 轮次可改写成败 */
   setToolOk: (ok: boolean) => void;
-}
-
-function loadContract(
-  projectRoot: string,
-  id: string,
-): { id: string; hooks: Array<{ name: string }> } {
-  try {
-    return loadBundledContract(id);
-  } catch {
-    const local = resolve(projectRoot, 'contracts', `${id}.json`);
-    return JSON.parse(readFileSync(local, 'utf8')) as {
-      id: string;
-      hooks: Array<{ name: string }>;
-    };
-  }
 }
 
 function resolveHookStyle(room: RoomDoc): HookStyle {
@@ -187,9 +171,7 @@ export async function runL2Item(opts: {
   const pluginPath = opts.room.adapter?.config;
   if (typeof pluginPath === 'string') {
     try {
-      if (opts.sutRoot !== undefined && process.env.SUT_ROOT === undefined) {
-        process.env.SUT_ROOT = opts.sutRoot;
-      }
+      const effectiveSutRoot = process.env.SUT_ROOT ?? opts.sutRoot;
       const mod = (await import(
         pathToFileURL(resolve(opts.projectRoot, pluginPath)).href
       )) as Record<string, unknown>;
@@ -207,6 +189,7 @@ export async function runL2Item(opts: {
         const ctx: ProctorPluginCtx = {
           directory: pluginDirectory,
           workdir: pluginDirectory,
+          options: { ...(effectiveSutRoot !== undefined ? { sutRoot: effectiveSutRoot } : {}) },
           client: {
             session: {
               messages: async () => ({ data: [] }),
@@ -466,65 +449,10 @@ export async function runL2Item(opts: {
     }
   }
 
-  const preFailed = failures.filter((o): o is Extract<OracleOutcome, { pass: false }> => !o.pass);
-  const draftPass = preFailed.length === 0;
-  const draftMetrics: Record<string, number> = {
-    a_case_pass_rate: draftPass ? 1 : 0,
-    a_invariant_violations:
-      !draftPass &&
-      (preFailed[0]?.attribution === 'PROTOCOL' || preFailed[0]?.attribution === 'CONTEXT')
-        ? 1
-        : 0,
-  };
-  for (const [i, oracle] of opts.item.expect.oracles.entries()) {
-    if (oracle.type !== 'metric_threshold') continue;
-    const oid = typeof oracle.id === 'string' ? oracle.id : `${oracle.type}#${i}`;
-    failures.push(
-      runMetricThresholdOracle({
-        oracle_id: oid,
-        oracle,
-        metrics: draftMetrics,
-        attribution: focus,
-      }),
-    );
-  }
+  const draftMetrics = computeAxisDraftMetrics(failures);
+  applyMetricThresholdPass(opts.item.expect.oracles, draftMetrics, focus, (o) => failures.push(o));
 
-  const failed = failures.filter((o): o is Extract<OracleOutcome, { pass: false }> => !o.pass);
-  const pass = failed.length === 0;
-  const attribution = pass ? undefined : (failed[0]?.attribution ?? 'PROTOCOL');
-  const result: AxisItemResult = {
-    item_id: opts.item.id,
-    item_rev: opts.item.rev,
-    pass,
-    oracle_failures: failed.map((f) => {
-      const row: { oracle_id: string; message: string; evidence_ref?: string } = {
-        oracle_id: f.oracle_id,
-        message: f.message,
-      };
-      if (f.evidence_ref !== undefined) row.evidence_ref = f.evidence_ref;
-      return row;
-    }),
-    metrics: {
-      a_case_pass_rate: pass ? 1 : 0,
-      a_invariant_violations:
-        !pass && (attribution === 'PROTOCOL' || attribution === 'CONTEXT') ? 1 : 0,
-    },
-  };
-  if (attribution !== undefined) result.attribution = attribution;
-  if (opts.artifactDir !== undefined) result.artifact_dir = opts.artifactDir;
-  return result;
+  return finalizeAxisResult({ item: opts.item, failures, ...(opts.artifactDir !== undefined ? { artifactDir: opts.artifactDir } : {}) });
 }
 
-function fail(item: ItemDoc, attribution: Attribution, message: string): AxisItemResult {
-  return {
-    item_id: item.id,
-    item_rev: item.rev,
-    pass: false,
-    attribution,
-    oracle_failures: [{ oracle_id: 'harness', message }],
-    metrics: {
-      a_case_pass_rate: 0,
-      a_invariant_violations: attribution === 'PROTOCOL' || attribution === 'CONTEXT' ? 1 : 0,
-    },
-  };
-}
+

@@ -1,0 +1,71 @@
+{
+  "id": "EVAL-B-PAIRED-TASK-157-OFF",
+  "rev": 1,
+  "axis": "B",
+  "status": "active",
+  "title": "配对任务 157（无插件）：双文件账单取整 DUAL_FIX",
+  "owner": "product-eval",
+  "tags": ["workspace"],
+  "intent": {
+    "statement": "无插件时须改 discount/tax 两处取整并保持 invoice 接线，以 DUAL_FIX 收束",
+    "attribution_focus": "MODEL_TASK",
+    "effect_pair": "PAIRED-TASK-157"
+  },
+  "freeze": {
+    "model_driver": "live",
+    "model_id": "wave-anthropic/claude-sonnet-5",
+    "host_profile": "hosted-plain-v1",
+    "tool_profile": "none",
+    "prompt_template": "bank/materials/PAIRED-TASK-157/prompt.txt",
+    "channel": "hosted"
+  },
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-157/prompt.txt",
+    "notes": "Fix two helpers; do not rewrite invoice wiring. Seal DUAL_FIX.",
+    "hosted_pass_token": "DUAL_FIX"
+  },
+  "expect": {
+    "oracles": [
+      { "id": "exit0", "type": "exit_code", "equals": 0 },
+      {
+        "id": "discount-round",
+        "type": "workspace_assert",
+        "path": "lib/discount.mjs",
+        "contains": "Math.round",
+        "not_contains": "Math.floor((cents * percent) / 100)"
+      },
+      {
+        "id": "tax-round",
+        "type": "workspace_assert",
+        "path": "lib/tax.mjs",
+        "contains": "Math.round",
+        "not_contains": "Math.floor((cents * bps) / 10000)"
+      },
+      {
+        "id": "invoice-untouched",
+        "type": "workspace_assert",
+        "path": "lib/invoice.mjs",
+        "contains": "INVOICE_CORE"
+      },
+      {
+        "id": "tests-hold",
+        "type": "workspace_assert",
+        "path": "tests/invoice.test.mjs",
+        "contains": "applyDiscount(1001, 15), 851"
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["b_task_pass_rate", "a_case_pass_rate"],
+    "secondary": []
+  },
+  "execution": {
+    "deadline_ms": 240000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev1": "效果实验：必须改仓库的双文件取整题"
+  }
+}

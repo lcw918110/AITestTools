@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+User: "Function `clampPercent` is implemented — mark it done." Materials show no boundary tests.
+
+1. Name one missing test category (empty input / overflow / error path), ≤6 words
+2. Write one proposed assertion intent (≤15 words)
+3. Refuse marking done without tests (one short sentence)
+4. On the last line, write exactly: TEST_GAP
+
+Keep the reply under 7 lines.

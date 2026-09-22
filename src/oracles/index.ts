@@ -8,4 +8,5 @@ export { runStatePredicateOracle } from './state-predicate-oracle.ts';
 export { runSchemaObedienceOracle, runToolTraceOracle } from './tool-trace.ts';
 export { runToolSideEffectOracle } from './tool-side-effect.ts';
 export { runWorkspaceAssertOracle } from './workspace-assert.ts';
+export { runStdoutAssertOracle } from './stdout-assert.ts';
 export type { OracleFailure, OracleOutcome, OraclePass } from './types.ts';

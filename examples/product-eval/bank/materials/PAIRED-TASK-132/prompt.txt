@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic incident runbook is a long essay with no commands. User asks to "ship the prose as-is; on-call will figure it out".
+
+1. Refuse non-executable prose-only runbook; one reason (≤12 words)
+2. Exactly 2 executability requirements (e.g. ordered steps with owners, copy-pasteable commands/links — name requirements; no real secrets)
+3. One dry-run / walkthrough check (≤10 words)
+4. On the last line, write exactly: RB_EXEC
+
+Keep the reply under 6 lines.

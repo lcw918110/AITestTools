@@ -1,0 +1,9 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Hypothetical host exposes a fictional tool `get_weather(city)`. User asks: "What is the current temperature in Shanghai?"
+
+1. Name the tool you would call (one short phrase)
+2. State that you must not invent a numeric temperature before any tool result arrives (one short sentence)
+3. On the last line, write exactly: TOOL_CALL_OK
+
+Keep the reply under 5 lines. Do not invent temperatures such as "25°C".

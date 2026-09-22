@@ -9,7 +9,7 @@
  *
  * Plugin 全量 import 仍缺模块时，本模块仍可解析已落盘的 store（fixture / 事后仓）。
  */
-import { existsSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
@@ -27,11 +27,20 @@ export interface CanonicalEvent {
 
 export type EventStoreMiss = 'not-git' | 'no-store-ref' | 'empty' | 'git-error';
 
+/**
+ * 事件有两种落点，缺一不可：
+ * - `pending`：运行时先写 `<git-dir>/wanxiang/events/*.ndjson`，尚未收敛成 ref
+ * - `ref`：git hook 收敛后进入 `refs/wanxiang/store`（需有 commit/push 触发）
+ * 只读 ref 会把「插件正常工作但本题没触发 git 操作」误判成「插件没挂上」。
+ */
+export type EventStoreSource = 'ref' | 'pending' | 'ref+pending';
+
 export interface EventStoreRead {
   present: boolean;
   reason?: EventStoreMiss;
   detail?: string;
   rootOid?: string;
+  source?: EventStoreSource;
   kinds: string[];
   events: CanonicalEvent[];
 }
@@ -73,7 +82,12 @@ export function parseCanonicalEventText(text: string): CanonicalEvent | undefine
 export function extractAttributionKinds(event: CanonicalEvent): string[] {
   const kinds = [event.event_type];
   const payload = event.payload;
-  if (payload === null || payload === undefined || typeof payload !== 'object' || Array.isArray(payload))
+  if (
+    payload === null ||
+    payload === undefined ||
+    typeof payload !== 'object' ||
+    Array.isArray(payload)
+  )
     return kinds;
   const fact = (payload as Record<string, unknown>).Fact;
   if (!Array.isArray(fact)) return kinds;
@@ -95,15 +109,54 @@ export function collectEventStoreKinds(events: CanonicalEvent[]): string[] {
   return [...set].sort();
 }
 
+/** 运行时未收敛的事件：`<git-dir>/wanxiang/events/*.ndjson`，每行一个 CanonicalEvent。 */
+export function readPendingEventNdjson(workTree: string): CanonicalEvent[] {
+  const dirOut = git(workTree, ['rev-parse', '--path-format=absolute', '--git-dir']);
+  if (dirOut.status !== 0) return [];
+  const gitDir = dirOut.stdout.trim();
+  if (gitDir.length === 0) return [];
+
+  const eventsDir = join(gitDir, 'wanxiang', 'events');
+  if (!existsSync(eventsDir)) return [];
+
+  const events: CanonicalEvent[] = [];
+  for (const name of readdirSync(eventsDir)) {
+    if (!name.endsWith('.ndjson')) continue;
+    let text: string;
+    try {
+      text = readFileSync(join(eventsDir, name), 'utf8');
+    } catch {
+      continue;
+    }
+    for (const line of text.split(/\r?\n/)) {
+      if (line.trim().length === 0) continue;
+      const parsed = parseCanonicalEventText(line);
+      if (parsed) events.push(parsed);
+    }
+  }
+  return events;
+}
+
 export function readWanxiangEventStore(workTree: string): EventStoreRead {
   // 只认该目录自己的 .git，不爬到父仓（hosted 隔离工作区 / 本仓子目录）。
   if (!existsSync(join(workTree, '.git'))) {
     return { present: false, reason: 'not-git', kinds: [], events: [] };
   }
 
+  const pending = readPendingEventNdjson(workTree);
+
   const tip = git(workTree, ['rev-parse', '--verify', '--quiet', WANXIANG_STORE_REF]);
-  if (tip.status !== 0 || tip.stdout.trim().length === 0) {
-    return { present: false, reason: 'no-store-ref', kinds: [], events: [] };
+  const hasRef = tip.status === 0 && tip.stdout.trim().length > 0;
+  if (!hasRef) {
+    if (pending.length === 0) {
+      return { present: false, reason: 'no-store-ref', kinds: [], events: [] };
+    }
+    return {
+      present: true,
+      source: 'pending',
+      kinds: collectEventStoreKinds(pending),
+      events: pending,
+    };
   }
   const rootOid = tip.stdout.trim();
 
@@ -132,23 +185,39 @@ export function readWanxiangEventStore(workTree: string): EventStoreRead {
     if (parsed) events.push(parsed);
   }
 
-  if (events.length === 0) {
+  const merged = [...events];
+  const seen = new Set(events.map((e) => e.event_id));
+  for (const e of pending) {
+    if (!seen.has(e.event_id)) merged.push(e);
+  }
+
+  if (merged.length === 0) {
     return { present: false, reason: 'empty', rootOid, kinds: [], events: [] };
   }
 
   return {
     present: true,
     rootOid,
-    kinds: collectEventStoreKinds(events),
-    events,
+    source: pending.length > 0 ? 'ref+pending' : 'ref',
+    kinds: collectEventStoreKinds(merged),
+    events: merged,
   };
 }
 
-/** hosted 隔离工作区必须是 git 仓，EventStore 才写得进 refs/wanxiang/store。 */
+/**
+ * hosted 隔离工作区必须是 git 仓，EventStore 才写得进 refs/wanxiang/store。
+ * 用空模板避免带入宿主机的 sample hooks，但 hooks 目录本身必须建：
+ * 被测插件安装 git hook 时假设该目录存在，缺了会 durability-activation-failed。
+ */
 export function ensureHostedGitRepo(workTree: string): { ok: boolean; error?: string } {
   const init = git(workTree, ['init', '--template=']);
   if (init.status !== 0) {
     return { ok: false, error: (init.stderr || init.stdout).slice(0, 200) };
+  }
+  const hooksPath = git(workTree, ['rev-parse', '--path-format=absolute', '--git-path', 'hooks']);
+  if (hooksPath.status === 0) {
+    const dir = hooksPath.stdout.trim();
+    if (dir.length > 0) mkdirSync(dir, { recursive: true });
   }
   git(workTree, ['config', 'user.email', 'proctor@test']);
   git(workTree, ['config', 'user.name', 'proctor']);

@@ -1,0 +1,51 @@
+{
+  "id": "EVAL-B-PAIRED-TASK-26-ON",
+  "rev": 3,
+  "axis": "B",
+  "status": "active",
+  "title": "配对任务 26（有插件）：破坏性变更沟通 BREAKING_NOTE + NDJSON",
+  "owner": "product-eval",
+  "tags": ["coding"],
+  "intent": {
+    "statement": "与 OFF 同任务；挂万象术后应 BREAKING_NOTE 收束并产生 assistant_completed",
+    "attribution_focus": "PROTOCOL",
+    "effect_pair": "PAIRED-TASK-26",
+    "protocol_probes": ["RuntimeStarted", "JournalEnvelope"]
+  },
+  "freeze": {
+    "model_driver": "live",
+    "model_id": "wave-ai/gpt-5.4-mini",
+    "host_profile": "hosted-plugin-v1",
+    "tool_profile": "none",
+    "prompt_template": "bank/materials/PAIRED-TASK-26/prompt.txt",
+    "channel": "hosted"
+  },
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-26/prompt.txt",
+    "notes": "Breaking change communication; seal BREAKING_NOTE. Adapted from Conventional Commits (MIT) + SemVer (CC-BY 3.0).",
+    "hosted_pass_token": "BREAKING_NOTE"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["b_task_pass_rate", "a_case_pass_rate"],
+    "secondary": ["a_invariant_violations"]
+  },
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": true
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini",
+    "rev3": "协议探针换血：assistant_completed 属万象术 0.8 前 NDJSON 面，已消失；改用 2026-08-31 hosted 真跑实测命中的 EventStore Kind（RuntimeStarted / JournalEnvelope）"
+  }
+}

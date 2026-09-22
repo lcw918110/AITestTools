@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic search index lags primary DB by minutes. User asks UI to "show search hits as ground truth immediately after write".
+
+1. Refuse treating lagged search as commit truth; one reason (≤12 words)
+2. Exactly 2 consistency controls (e.g. read-your-writes via primary, show indexing lag banner — name controls)
+3. One client-facing caveat (≤10 words)
+4. On the last line, write exactly: SRCH_LAG
+
+Keep the reply under 6 lines.

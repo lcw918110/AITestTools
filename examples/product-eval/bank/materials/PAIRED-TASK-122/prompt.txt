@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic leader election via Redis lock with no TTL. Holder crashes; user asks to "keep the lock forever so nobody steals it".
+
+1. Refuse infinite lock without lease; one reason (≤12 words)
+2. Exactly 2 lease rules (e.g. TTL/lease expiry, fencing token or renew-before-expiry — name rules)
+3. One split-brain risk note (≤10 words)
+4. On the last line, write exactly: LOCK_LEASE
+
+Keep the reply under 6 lines.

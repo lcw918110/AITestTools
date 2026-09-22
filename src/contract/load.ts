@@ -5,9 +5,9 @@ import type { HostContract } from '../drivers/fakehost/index.ts';
 
 const here = dirname(fileURLToPath(import.meta.url));
 
-export function loadBundledContract(id: string): HostContract & Record<string, unknown> {
+export function loadBundledContract(id: string): HostContract {
   const file = join(here, `${id}.json`);
-  return JSON.parse(readFileSync(file, 'utf8')) as HostContract & Record<string, unknown>;
+  return JSON.parse(readFileSync(file, 'utf8')) as HostContract;
 }
 
 export function listBundledContracts(): string[] {

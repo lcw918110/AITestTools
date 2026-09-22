@@ -1,0 +1,11 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic diff under review: (a) possible null dereference on `user.name`; (b) local variable named `tmp2`.
+
+As reviewer:
+1. Write one substantive comment naming the risk (≤15 words)
+2. Write one style comment prefixed with `nit:` (≤12 words)
+3. State that a nit alone should not block merge (one short sentence)
+4. On the last line, write exactly: REVIEW_NOTE
+
+Keep the reply under 8 lines.

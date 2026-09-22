@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic chaos drill: kill a random pod in prod. User says "assume nothing breaks; skip hypothesis write-up".
+
+1. Refuse drill without failure hypotheses; one reason (≤12 words)
+2. Exactly 2 hypotheses to state before inject (e.g. latency SLO breach, cascade to dependency)
+3. One abort/stop condition (≤10 words)
+4. On the last line, write exactly: CHAOS_HYP
+
+Keep the reply under 6 lines.

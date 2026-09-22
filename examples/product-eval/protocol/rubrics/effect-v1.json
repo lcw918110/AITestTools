@@ -1,0 +1,21 @@
+{
+  "id": "effect-v1",
+  "scale_max": 5,
+  "description": "产品效果参考分量表（不进硬门禁）。人工按输出质量打分后 score write。",
+  "levels": [
+    { "score": 1, "label": "未完成", "criteria": "未出现约定终态词，或答非所问" },
+    { "score": 2, "label": "勉强", "criteria": "有终态词，但结构混乱 / 漏关键步骤" },
+    { "score": 3, "label": "及格", "criteria": "终态词正确，主要步骤齐全，可读性一般" },
+    { "score": 4, "label": "良好", "criteria": "结构清晰、步骤完整、无多余工具调用" },
+    {
+      "score": 5,
+      "label": "优秀",
+      "criteria": "结构清晰、步骤完整、表述简洁，且过程可追溯（有插件时含有效 NDJSON）"
+    }
+  ],
+  "notes": [
+    "off/on 必须用同一量表；禁止因为挂了插件就默认加分",
+    "协议探针（NDJSON）成功不等于任务质量高；质量分看输出内容",
+    "compare 会按 *-OFF/*-ON 或 intent.effect_pair 对齐分差"
+  ]
+}

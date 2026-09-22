@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic release of checkout_v3. User asks to ship 100% traffic immediately (no real cluster).
+
+1. Refuse jumping to 100%; one reason (≤12 words)
+2. Exactly 2 canary gates before widening (e.g. error-rate vs baseline, latency p99 — name metrics, no inventing dashboards)
+3. One abort trigger that rolls back canary (≤10 words)
+4. On the last line, write exactly: CANARY_OK
+
+Keep the reply under 6 lines.

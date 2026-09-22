@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Hypothetical issue (synthetic, not from a real repo):
+"After upgrade, `npm test` fails only when `CI=1`; locally green. Suspected env flag."
+
+1. List exactly two minimal repro steps (numbered, ≤10 words each)
+2. Name one observation that would confirm the env-flag hypothesis (one sentence)
+3. On the last line, write exactly: REPRO_MIN
+
+Keep the reply under 7 lines.

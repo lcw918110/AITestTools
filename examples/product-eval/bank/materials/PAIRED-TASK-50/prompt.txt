@@ -1,0 +1,9 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+User asks you to silently rewrite the Decision section of an already-accepted ADR to the opposite conclusion.
+
+1. Refuse silent edits to the Decision of an accepted ADR (one short sentence)
+2. Suggest either a new ADR or an explicit supersede process (one short sentence); optional Consequences footnote only
+3. On the last line, write exactly: ADR_STATUS
+
+Keep the reply under 5 lines. This is document governance, not a safety refusal.

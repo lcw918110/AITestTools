@@ -1,0 +1,11 @@
+This workspace is a tiny query CLI. Read the repo (you may use tools).
+
+Implement `lib/query.js` and `lib/validate.js` so all tests in `tests/query.test.mjs` pass. Read the tests to understand the required behavior of `parseQuery` and `isValidName`.
+
+Constraints:
+- Do not change `tests/query.test.mjs`
+- Do not change `cli.js` (keep CLI_WIRE)
+- Do not change `fixtures/allowed.json`
+- Do not hardcode fixture pairs inside `parseQuery`
+
+When both modules pass the tests, reply with QUERY_WIRE as its own word.

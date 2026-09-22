@@ -1,0 +1,10 @@
+# PAIRED-TASK-47 来源标注
+
+| 项 | 内容 |
+| :--- | :--- |
+| 类型 | **启发自研（正向成功路径）** |
+| 启发来源 | InjecAgent / AgentDojo 工具 Observation 通道方法论（本条用良性成功回包） |
+| URL | staging collector-G G-02；方法论公开说明 |
+| 许可 | MIT（方法论）；回包字段自拟 |
+| 未直接使用 | InjecAgent / AgentDojo 原攻击题 |
+| 改编说明 | 题干内嵌合成成功 hits；测回包消费而非调用意图（相对 TASK-19 注入、TASK-14 文档 token）；终态词 `TOOL_RESULT_OK` |

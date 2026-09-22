@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic release: user wants to ship a container with no SBOM artifact "to save time".
+
+1. Hold ship without SBOM; one reason (≤12 words)
+2. Exactly 2 SBOM checklist items (e.g. generate SPDX/CycloneDX, attach to release)
+3. One gate: block release if critical CVE unmatched (≤10 words)
+4. On the last line, write exactly: SBOM_OK
+
+Keep the reply under 6 lines.

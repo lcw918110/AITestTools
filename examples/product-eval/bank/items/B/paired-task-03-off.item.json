@@ -1,0 +1,49 @@
+{
+  "id": "EVAL-B-PAIRED-TASK-03-OFF",
+  "rev": 2,
+  "axis": "B",
+  "status": "active",
+  "title": "配对任务 03（无插件）：审查清单终态 DONE",
+  "owner": "product-eval",
+  "tags": ["review-checklist"],
+  "intent": {
+    "statement": "贴近万象术 review 场景的多行终态任务；无插件基线须以 DONE 收束",
+    "attribution_focus": "MODEL_TASK",
+    "effect_pair": "PAIRED-TASK-03"
+  },
+  "freeze": {
+    "model_driver": "live",
+    "model_id": "wave-ai/gpt-5.4-mini",
+    "host_profile": "hosted-plain-v1",
+    "tool_profile": "none",
+    "prompt_template": "bank/materials/PAIRED-TASK-03/prompt.txt",
+    "channel": "hosted"
+  },
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-03/prompt.txt",
+    "notes": "Inspired by wanxiangshu review/hosted smoke; seal word DONE",
+    "hosted_pass_token": "DONE"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["b_task_pass_rate", "a_case_pass_rate"],
+    "secondary": []
+  },
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

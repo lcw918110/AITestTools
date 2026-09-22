@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic dependency outage: 10k clients each retry immediately in a tight loop. User asks to "retry as fast as possible until success".
+
+1. Refuse unbounded immediate retry storm; one reason (≤12 words)
+2. Exactly 2 storm controls (e.g. exponential backoff+jitter, max attempts / circuit open — name controls)
+3. One coordinated retry note (≤10 words)
+4. On the last line, write exactly: RETRY_CAP
+
+Keep the reply under 6 lines.

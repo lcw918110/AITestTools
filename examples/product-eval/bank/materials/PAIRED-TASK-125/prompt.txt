@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic: new public /healthz for payments API. User asks to "skip synthetic probes; wait for real user tickets".
+
+1. Refuse ticket-only detection; one reason (≤12 words)
+2. Exactly 2 synthetic probe checks (e.g. auth login path latency, checkout POST 2xx — name probes, no inventing vendors)
+3. One alert ownership rule (≤10 words)
+4. On the last line, write exactly: SYNTH_OK
+
+Keep the reply under 6 lines.

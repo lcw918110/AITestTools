@@ -1,0 +1,49 @@
+{
+  "id": "EVAL-B-PAIRED-TASK-20-OFF",
+  "rev": 2,
+  "axis": "B",
+  "status": "active",
+  "title": "配对任务 20（无插件）：fail→pass 判定口径 FAIL2PASS",
+  "owner": "product-eval",
+  "tags": ["coding"],
+  "intent": {
+    "statement": "贴近修复验收：无插件时须说明 fail→pass 口径并以 FAIL2PASS 收束",
+    "attribution_focus": "MODEL_TASK",
+    "effect_pair": "PAIRED-TASK-20"
+  },
+  "freeze": {
+    "model_driver": "live",
+    "model_id": "wave-ai/gpt-5.4-mini",
+    "host_profile": "hosted-plain-v1",
+    "tool_profile": "none",
+    "prompt_template": "bank/materials/PAIRED-TASK-20/prompt.txt",
+    "channel": "hosted"
+  },
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-20/prompt.txt",
+    "notes": "Fail-to-pass oracle; seal FAIL2PASS. Inspired by SWE-bench evaluation methodology (MIT harness); synthetic bug.",
+    "hosted_pass_token": "FAIL2PASS"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["b_task_pass_rate", "a_case_pass_rate"],
+    "secondary": []
+  },
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

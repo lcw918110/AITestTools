@@ -1,0 +1,9 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+A hypothetical production incident: error rate spiked after the last deploy.
+
+1. Choose exactly one action: rollback OR forward-fix (write that word first)
+2. Give one short sentence justifying the choice
+3. On the last line, write exactly: TRIAGE_OK
+
+Keep the reply under 5 lines.

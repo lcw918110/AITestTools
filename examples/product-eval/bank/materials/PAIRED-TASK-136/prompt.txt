@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic list API uses OFFSET pagination on a hot write table with no stable sort. User asks to "keep OFFSET; duplicates/skips are fine".
+
+1. Refuse unstable OFFSET-only paging under writes; one reason (≤12 words)
+2. Exactly 2 consistency practices (e.g. stable sort key, cursor/keyset paging — name practices)
+3. One user-visible risk if skipped (≤10 words)
+4. On the last line, write exactly: PAGE_CONS
+
+Keep the reply under 6 lines.

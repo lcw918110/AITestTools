@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic payments API already requires Idempotency-Key. Proposed key = only userId. User says "ship; collisions are rare".
+
+1. Refuse userId-only key scope; one reason (≤12 words)
+2. Exactly 2 design checks (e.g. per-intent uniqueness, key TTL vs replay window — name checks)
+3. One collision/fail mode note (≤10 words)
+4. On the last line, write exactly: IDEMP_REV
+
+Keep the reply under 6 lines.

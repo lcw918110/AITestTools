@@ -1,0 +1,12 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+A synthetic successful Observation is already available:
+`{"tool":"run_tests","exit_code":0,"failed":0,"sha":"abc1234"}`
+
+User asks: "Are the tests green on this change?"
+
+1. Answer yes/no by citing `exit_code`, `failed`, and `sha` from the Observation (do not invent values)
+2. Do not claim green without those three fields
+3. On the last line, write exactly: RESULT_CITE
+
+Keep the reply under 5 lines.

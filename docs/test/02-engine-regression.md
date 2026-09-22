@@ -203,7 +203,7 @@ npm run proctor -- run --axis A --paperset st-import-L1 --project "$PROJECT"
 | 1   | `SUT_ROOT` 指向被测仓；room `hosted-*` 能拉起真宿主 + 插件                                  | 宿主二进制可用                                                                       |
 | 2   | 试题 `channel=hosted`，`requires_network=true`，`requires_durable_log=true`                 | 不进默认离线 CI                                                                      |
 | 3   | `npm run proctor -- run --axis B --paperset hosted-smoke --project "$PROJECT"`              | exit 与 oracle（常为进程/`exit_code`）一致                                           |
-| 4   | 检查 artifacts 中 `.wanxiangshu.ndjson`（或约定日志）含协议探针（如 `assistant_completed`） | 无日志 → 归因 **CONTEXT**；有日志但协议错 → **PROTOCOL**；协议正常仍错 → **MODEL_*** |
+| 4   | 检查 `hosted-run.json` 的 `event_store_present` / `event_store_source` + `event_store_kinds`；确认含探针 `RuntimeStarted` / `JournalEnvelope`（EventStore 读 `refs/wanxiang/store` + `pending` events） | 无 EventStore → 归因 **CONTEXT**（插件可能未挂或未触发 git）；有 EventStore 但缺探针 → **PROTOCOL**；探针正常仍错 → **MODEL_*** |
 | 5   | 按设计 `12-hosted-attribution-tree` 分诊；**不得**把 hosted 聚合率写进 paperset 硬 gates    | `b_hosted_attribution_share` 仅报告                                                  |
 
 #### 情况 B3：模型对比实验（操作约定）

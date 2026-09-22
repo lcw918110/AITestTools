@@ -1,6 +1,6 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
-import { loadBundledContract } from '../contract/load.ts';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { loadContract, fail } from './runner-shared.ts';
 import {
   CassetteError,
   eventTypesFromJournal,
@@ -13,21 +13,6 @@ import { loadScript, ScriptError, type ScriptDoc } from '../drivers/scripted/ind
 import type { Attribution, FreezeA, ItemDoc, RoomDoc } from '../exam-engine/types.ts';
 import { runEventSubsequenceOracle } from '../oracles/index.ts';
 import type { AxisItemResult } from './l2-runner.ts';
-
-function loadContract(
-  projectRoot: string,
-  id: string,
-): { id: string; hooks: Array<{ name: string }> } {
-  try {
-    return loadBundledContract(id);
-  } catch {
-    const local = resolve(projectRoot, 'contracts', `${id}.json`);
-    return JSON.parse(readFileSync(local, 'utf8')) as {
-      id: string;
-      hooks: Array<{ name: string }>;
-    };
-  }
-}
 
 function subsequenceOk(haystack: string[], needle: string[]): boolean {
   let i = 0;
@@ -317,16 +302,4 @@ function scoreReplay(opts: {
   return result;
 }
 
-function fail(item: ItemDoc, attribution: Attribution, message: string): AxisItemResult {
-  return {
-    item_id: item.id,
-    item_rev: item.rev,
-    pass: false,
-    attribution,
-    oracle_failures: [{ oracle_id: 'harness', message }],
-    metrics: {
-      a_case_pass_rate: 0,
-      a_invariant_violations: attribution === 'PROTOCOL' || attribution === 'CONTEXT' ? 1 : 0,
-    },
-  };
-}
+

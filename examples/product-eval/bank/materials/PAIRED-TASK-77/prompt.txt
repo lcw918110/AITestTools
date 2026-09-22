@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic SLO: payments API availability 99.9%/30d. Error budget is already 95% burned this window. User asks to push a non-urgent schema tweak to prod now.
+
+1. Hold the change while budget is nearly exhausted; one reason (≤12 words)
+2. Name exactly 1 SLO signal to re-check (availability or burn rate — no fake numbers beyond the given)
+3. Exactly 1 safer next step (e.g. wait for budget recovery, feature-flag off-peak) ≤12 words
+4. On the last line, write exactly: ERR_BUDGET
+
+Keep the reply under 6 lines.

@@ -1,11 +1,12 @@
 # Agent 评测工具最终 PRD
 
-| 字段 | 值 |
-| :--- | :--- |
-| 状态 | **已冻结（v2）** · 可进入详细设计与 Phase 1 开发 |
-| 前身 | `01-需求规格.md`（分析底稿，已并入本文附录后删除） |
-| v1 → v2 | 架构评审后修订 D2/D3：A 轴由整盘录制回放改为**三层结构**；B 轴 direct 通道由自研改为**适配成熟评测框架**；hosted 通道由黑箱参考分升级为**轨迹归因** |
-| 决策日期 | 2026-07-25 |
+| 字段     | 值                                                                                                                                                  |
+| :------- | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 状态     | **已冻结（v2）** · 可进入详细设计与 Phase 1 开发                                                                                                    |
+| 路径     | **`docs/requirements/01-prd.md`**（唯一正文）                                                                                                       |
+| 前身     | `01-需求规格.md`（分析底稿，已并入本文附录后删除）                                                                                                  |
+| v1 → v2  | 架构评审后修订 D2/D3：A 轴由整盘录制回放改为**三层结构**；B 轴 direct 通道由自研改为**适配成熟评测框架**；hosted 通道由黑箱参考分升级为**轨迹归因** |
+| 决策日期 | 2026-07-25                                                                                                                                          |
 
 ---
 
@@ -17,13 +18,13 @@
 
 ## 1. 冻结决策（v2）
 
-| # | 决策点 | 结论 | 说明 |
-| --- | --- | --- | --- |
-| D1 | Runner 形态 | **Node/TS 独立 npm 包**，独立仓库；用例/夹具资产留在被测仓库 | v1 保持 |
-| D2 | A 轴宿主 | **三层结构**：L1 事件直测（主体）→ L2 契约假宿主（控制流）→ L3 cassette 对拍（宿主边界） | v2 修订（原：整盘录制回放） |
-| D3 | B 轴模型通道 | **direct = 适配 promptfoo / Inspect-AI 等成熟框架**（主指标、门禁挂靠）；**hosted = 经真宿主 + NDJSON 轨迹归因**（对照指标） | v2 修订（原：自研双通道） |
-| D4 | C 轴工具入口 | 每工具独立 CLI 壳，子进程调用；协议现在冻结，二期实现 | v1 保持 |
-| D5 | 分期 | Phase 1 = A + B 轴；C 轴二期 | v1 保持 |
+| #   | 决策点       | 结论                                                                                                                         | 说明                        |
+| --- | ------------ | ---------------------------------------------------------------------------------------------------------------------------- | --------------------------- |
+| D1  | Runner 形态  | **Node/TS 独立 npm 包**，独立仓库；用例/夹具资产留在被测仓库                                                                 | v1 保持                     |
+| D2  | A 轴宿主     | **三层结构**：L1 事件直测（主体）→ L2 契约假宿主（控制流）→ L3 cassette 对拍（宿主边界）                                     | v2 修订（原：整盘录制回放） |
+| D3  | B 轴模型通道 | **direct = 适配 promptfoo / Inspect-AI 等成熟框架**（主指标、门禁挂靠）；**hosted = 经真宿主 + NDJSON 轨迹归因**（对照指标） | v2 修订（原：自研双通道）   |
+| D4  | C 轴工具入口 | 每工具独立 CLI 壳，子进程调用；协议现在冻结，二期实现                                                                        | v1 保持                     |
+| D5  | 分期         | Phase 1 = A + B 轴；C 轴二期                                                                                                 | v1 保持                     |
 
 ### 1.1 D2 修订理由（记录在案）
 
@@ -39,13 +40,13 @@
 
 ### 2.1 目标
 
-| ID | 目标 | 验收信号 |
-| --- | --- | --- |
-| G1 | 三轴评测可分离 | 一次 run 单一主变化因子；交叉轴显式标注 |
-| G2 | 用例可变可更新 | `id+rev` 绑定结果；改 expect/stimulus 必升 rev |
-| G3 | 结果可指标化 | `metrics.json` 机器可读；`compare` 出漂移三分类 |
-| G4 | 时间无关可重放 | 禁裸 sleep；L1/L2 确定性重放 |
-| G5 | 失败必归因 | PROTOCOL / CONTEXT / MODEL_SCHEMA / MODEL_TASK / TOOL / HARNESS 六选一主标签 |
+| ID  | 目标           | 验收信号                                                                     |
+| --- | -------------- | ---------------------------------------------------------------------------- |
+| G1  | 三轴评测可分离 | 一次 run 单一主变化因子；交叉轴显式标注                                      |
+| G2  | 用例可变可更新 | `id+rev` 绑定结果；改 expect/stimulus 必升 rev                               |
+| G3  | 结果可指标化   | `metrics.json` 机器可读；`compare` 出漂移三分类                              |
+| G4  | 时间无关可重放 | 禁裸 sleep；L1/L2 确定性重放                                                 |
+| G5  | 失败必归因     | PROTOCOL / CONTEXT / MODEL_SCHEMA / MODEL_TASK / TOOL / HARNESS 六选一主标签 |
 
 ### 2.2 非目标
 
@@ -73,8 +74,8 @@ agent-harness（独立 npm 包）
   ├─ metrics/           # 原子→聚合、门禁、通道分列
   └─ report/            # run 产物、compare、矩阵
 
-被测仓库资产目录：cases/ suites/ profiles/ fixtures/ cassettes/ shells/
-（本仓库当前暂存于 systenstest/40-评测工具/harness/；独立项目建立后迁出）
+被测仓库资产目录：`items/` `papersets/` `rooms/` `materials/` …
+（引擎仓样例见 `examples/`；Phase 0 历史样例见 `tests/fixtures/legacy-phase0/`）
 ```
 
 关键复用：`attribution/` 的事件折叠分诊器同时服务 A 轴 oracle 与 B-hosted 归因——一套基建两处受益。
@@ -202,15 +203,15 @@ exit 0 = 壳正常（含工具业务失败）；非 0 = 壳/环境故障 → HAR
 
 ### Phase 1：A（L1+L2）+ B（direct 适配 + hosted smoke）
 
-| 序 | 交付 | 验收 |
-| --- | --- | --- |
-| 1 | 引擎仓库初始化 + case-engine（validate/rev/digest） | 取代本仓库临时校验脚本，行为一致 |
-| 2 | **L1 fold 驱动 + 三类 oracle** | ≥5 条事件直测用例全绿；人为改坏 Fold 一条不变量 → 红灯 + PROTOCOL |
-| 3 | 宿主契约文件初稿（自 host-docs 提炼）+ fakehost 最小面 | ≥2 条 L2 用例（nudge 时机、review 闭环）通过 |
-| 4 | `contract verify` 对真宿主跑通一次 | 契约验证 suite 全绿并留档 |
-| 5 | B-direct 适配层（选型 + 转换 + 收编） | 2 模型 × ≥5 case × repeats=3 矩阵产出 |
-| 6 | B-hosted smoke + 轨迹归因分诊 | 1 模型跑通；失败条目带分诊归因 |
-| 7 | `run` / `compare` / `baseline pin` | compare 三分类：新失败 / 修复 / 资产升版漂移 |
+| 序  | 交付                                                   | 验收                                                              |
+| --- | ------------------------------------------------------ | ----------------------------------------------------------------- |
+| 1   | 引擎仓库初始化 + case-engine（validate/rev/digest）    | 取代本仓库临时校验脚本，行为一致                                  |
+| 2   | **L1 fold 驱动 + 三类 oracle**                         | ≥5 条事件直测用例全绿；人为改坏 Fold 一条不变量 → 红灯 + PROTOCOL |
+| 3   | 宿主契约文件初稿（自 host-docs 提炼）+ fakehost 最小面 | ≥2 条 L2 用例（nudge 时机、review 闭环）通过                      |
+| 4   | `contract verify` 对真宿主跑通一次                     | 契约验证 suite 全绿并留档                                         |
+| 5   | B-direct 适配层（选型 + 转换 + 收编）                  | 2 模型 × ≥5 case × repeats=3 矩阵产出                             |
+| 6   | B-hosted smoke + 轨迹归因分诊                          | 1 模型跑通；失败条目带分诊归因                                    |
+| 7   | `run` / `compare` / `baseline pin`                     | compare 三分类：新失败 / 修复 / 资产升版漂移                      |
 
 出口门禁：smoke-A（L1+L2）全绿且重跑逐字节一致；direct 矩阵一次跑通；契约验证有真宿主通过记录。
 
@@ -228,7 +229,7 @@ exit 0 = 壳正常（含工具业务失败）；非 0 = 壳/环境故障 → HAR
 
 ## 8. 验收清单（Phase 1 DoD，v2）
 
-> 勾选状态：见 `docs/process/20-phase1-dod-closure-2026-07-26.md`（2026-07-26）。
+> 勾选状态：见 `docs/process/03-phase1-dod.md`（2026-07-26）。
 
 - [x] 引擎独立包可运行，不依赖被测仓库构建链（本地 `bin`/`dist`；registry `npx` 发布另议）
 - [x] L1：import Fold 产物直测成立；zero-host 用例 ≥5 条
@@ -244,14 +245,14 @@ exit 0 = 壳正常（含工具业务失败）；非 0 = 壳/环境故障 → HAR
 
 ## 9. 风险登记（v2）
 
-| 风险 | 等级 | 对策 |
-| --- | --- | --- |
-| 契约文件与真宿主漂移未被发现 | 高 | `contract verify` 双触发（宿主升级时 + 每周定时）；验证红一律阻断 L2 结果发布 |
-| Fold 产物接口随重构变动，L1 大面积失效 | 中 | profile 声明 fold_entry + 事件 schema 版本；变动走 `case migrate`，compare 归为资产升版漂移 |
-| 评测框架选型绑架（导出格式/许可证变化） | 中 | 适配层隔离：harness 只依赖「配置输入 + JSON 输出」两个面；换框架只改 adapter |
-| hosted 分诊判定树误归因 | 中 | 判定树规则版本化；抽样人工复核；`b_hosted_attribution_share` 异常波动告警 |
-| fakehost 面覆盖不足（插件用了契约外 hook） | 中 | fakehost 收到契约外调用一律 fail-fast 报 HARNESS，禁止静默兜底 |
-| 观察者效应（录制器影响被录行为） | 低（L3 已边缘化） | 录制器只读旁路；对拍时双向核对 |
+| 风险                                       | 等级              | 对策                                                                                        |
+| ------------------------------------------ | ----------------- | ------------------------------------------------------------------------------------------- |
+| 契约文件与真宿主漂移未被发现               | 高                | `contract verify` 双触发（宿主升级时 + 每周定时）；验证红一律阻断 L2 结果发布               |
+| Fold 产物接口随重构变动，L1 大面积失效     | 中                | profile 声明 fold_entry + 事件 schema 版本；变动走 `case migrate`，compare 归为资产升版漂移 |
+| 评测框架选型绑架（导出格式/许可证变化）    | 中                | 适配层隔离：harness 只依赖「配置输入 + JSON 输出」两个面；换框架只改 adapter                |
+| hosted 分诊判定树误归因                    | 中                | 判定树规则版本化；抽样人工复核；`b_hosted_attribution_share` 异常波动告警                   |
+| fakehost 面覆盖不足（插件用了契约外 hook） | 中                | fakehost 收到契约外调用一律 fail-fast 报 HARNESS，禁止静默兜底                              |
+| 观察者效应（录制器影响被录行为）           | 低（L3 已边缘化） | 录制器只读旁路；对拍时双向核对                                                              |
 
 ---
 
@@ -268,44 +269,45 @@ exit 0 = 壳正常（含工具业务失败）；非 0 = 壳/环境故障 → HAR
 
 ## 11. v1 → v2 变更对照
 
-| 项 | v1 | v2 |
-| --- | --- | --- |
-| A 轴主载体 | 整盘 cassette 录制回放 | L1 事件直测 ≫ L2 契约假宿主 > L3 cassette 对拍 |
-| cassette 角色 | 每用例一盘、测试载体 | 每宿主版本 3~5 盘、契约对拍证据 |
-| drift 成本 | O(用例数) 重录 | O(1) 修契约 |
-| B-direct | 自研 OpenAI 兼容客户端 | 适配 promptfoo/Inspect-AI |
-| B-hosted | 黑箱参考分 | NDJSON 轨迹归因分诊 + `b_hosted_attribution_share` |
-| Phase 1 录制器 | 必须交付 | 移至 Phase 2（随 L3） |
+| 项             | v1                     | v2                                                 |
+| -------------- | ---------------------- | -------------------------------------------------- |
+| A 轴主载体     | 整盘 cassette 录制回放 | L1 事件直测 ≫ L2 契约假宿主 > L3 cassette 对拍     |
+| cassette 角色  | 每用例一盘、测试载体   | 每宿主版本 3~5 盘、契约对拍证据                    |
+| drift 成本     | O(用例数) 重录         | O(1) 修契约                                        |
+| B-direct       | 自研 OpenAI 兼容客户端 | 适配 promptfoo/Inspect-AI                          |
+| B-hosted       | 黑箱参考分             | NDJSON 轨迹归因分诊 + `b_hosted_attribution_share` |
+| Phase 1 录制器 | 必须交付               | 移至 Phase 2（随 L3）                              |
 
 ---
 
 ## 附录 A：用例更新铁律（可变用例）
 
-| 变更类型 | 是否升 `rev` | 是否允许静默改 | 对 baseline 影响 |
-| --- | --- | --- | --- |
-| 改 `expect` / `oracles` | 必须 | 否 | 旧 baseline 比对需 `--allow-case-rev-drift` 或重钉 |
-| 改 `stimulus` 语义 | 必须 | 否 | 同上 |
-| 改 `title`/`owner` 文案 | 可不升 | 是 | 无 |
-| `status=deprecated` | 必须记原因 | 否 | 默认 suite 排除 |
-| 仅修 harness bug | 不改 case | — | 应用同 case_rev 重跑对比 |
+| 变更类型                | 是否升 `rev` | 是否允许静默改 | 对 baseline 影响                                   |
+| ----------------------- | ------------ | -------------- | -------------------------------------------------- |
+| 改 `expect` / `oracles` | 必须         | 否             | 旧 baseline 比对需 `--allow-case-rev-drift` 或重钉 |
+| 改 `stimulus` 语义      | 必须         | 否             | 同上                                               |
+| 改 `title`/`owner` 文案 | 可不升       | 是             | 无                                                 |
+| `status=deprecated`     | 必须记原因   | 否             | 默认 suite 排除                                    |
+| 仅修 harness bug        | 不改 case    | —              | 应用同 case_rev 重跑对比                           |
 
 验收不变式：任意两次 run，若 `case_id+rev` 相同，则 stimulus/expect 字节级一致（或 digest 一致）。
 
 ## 附录 B：Oracle 类型目录
 
-| type | 适用轴 | 输入 | 通过条件 |
-| --- | --- | --- | --- |
-| `event_fold` | A | 事件序列 + 期望折叠态 | Fold(events)=expected |
-| `event_subsequence` | A | 期望事件名有序子序列 | 子序列匹配 |
-| `state_predicate` | A | 布尔表达式（白名单字段） | 为真 |
-| `no_event` | A | 禁止出现的事件名 | 未出现 |
-| `tool_trace` | B/C | 期望调用名/参数子集 | 轨迹包含 |
-| `schema_obedience` | B | 必填工具与 required 字段 | 全部满足 |
-| `workspace_assert` | B/C | 文件存在/内容/测试命令 | 断言通过 |
-| `tool_result_equals` | C | 期望结构化输出 | 深度相等或 JSONPath |
-| `tool_side_effect` | C | 文件系统/进程副作用描述 | 符合 |
-| `exit_code` | C | 期望码 | 相等 |
-| `metric_threshold` | 全 | 单 case 产出指标 | 落在阈值内 |
+| type                 | 适用轴 | 输入                     | 通过条件              |
+| -------------------- | ------ | ------------------------ | --------------------- |
+| `event_fold`         | A      | 事件序列 + 期望折叠态    | Fold(events)=expected |
+| `event_subsequence`  | A      | 期望事件名有序子序列     | 子序列匹配            |
+| `state_predicate`    | A      | 布尔表达式（白名单字段） | 为真                  |
+| `no_event`           | A      | 禁止出现的事件名         | 未出现                |
+| `tool_trace`         | B/C    | 期望调用名/参数子集      | 轨迹包含              |
+| `schema_obedience`   | B      | 必填工具与 required 字段 | 全部满足              |
+| `workspace_assert`   | B/C    | 文件存在/内容/测试命令   | 断言通过              |
+| `tool_result_equals` | C      | 期望结构化输出           | 深度相等或 JSONPath   |
+| `tool_side_effect`   | C      | 文件系统/进程副作用描述  | 符合                  |
+| `exit_code`          | C      | 期望码                   | 相等                  |
+| `metric_threshold`   | 全     | 单 case 产出指标         | 落在阈值内            |
+| `stdout_assert`      | B-hosted | 回复文本包含/不含/正则 | 断言通过              |
 
 实现约束：Oracle 纯判定或只读检查，禁止在 Oracle 内发 prompt；表达式白名单字段，禁止任意代码执行；每次失败返回 `oracle_id` / `message` / `evidence_ref`。
 
@@ -315,36 +317,36 @@ exit 0 = 壳正常（含工具业务失败）；非 0 = 壳/环境故障 → HAR
 
 A 轴：
 
-| name | 含义 | 聚合 | 建议门禁 |
-| --- | --- | --- | --- |
-| `a_case_pass_rate` | active case 通过率 | mean | ≥ 1.0（smoke）/ ≥ 0.98（full） |
-| `a_invariant_violations` | PROTOCOL/CONTEXT 归因数 | sum | = 0 |
-| `a_recovery_pass_rate` | 重启/重放类通过率 | mean | ≥ 1.0 |
-| `a_concurrency_pass_rate` | 竞争类通过率 | mean | ≥ 1.0 |
-| `a_flaky_rerun_delta` | 同配置重跑不一致数 | sum | = 0 |
+| name                      | 含义                    | 聚合 | 建议门禁                       |
+| ------------------------- | ----------------------- | ---- | ------------------------------ |
+| `a_case_pass_rate`        | active case 通过率      | mean | ≥ 1.0（smoke）/ ≥ 0.98（full） |
+| `a_invariant_violations`  | PROTOCOL/CONTEXT 归因数 | sum  | = 0                            |
+| `a_recovery_pass_rate`    | 重启/重放类通过率       | mean | ≥ 1.0                          |
+| `a_concurrency_pass_rate` | 竞争类通过率            | mean | ≥ 1.0                          |
+| `a_flaky_rerun_delta`     | 同配置重跑不一致数      | sum  | = 0                            |
 
 B 轴（direct 为主指标，hosted 为对照，见 §5）：
 
-| name | 含义 | 聚合 | 建议门禁 |
-| --- | --- | --- | --- |
-| `b_task_pass_rate` | 任务断言通过率（按通道分列） | mean | 选型用；不设绝对门禁 |
-| `b_schema_obedience_rate` | schema/必调工具服从率 | mean | 可设 ≥ 0.9（仅 direct） |
-| `b_required_tool_call_rate` | 必选工具实际调用率 | mean | 按题库 |
-| `b_invalid_args_rate` | 工具参数非法率 | mean | lower better |
-| `b_avg_steps_to_success` | 成功路径平均步数 | mean | 信息性 |
-| `b_cost_tokens_per_pass` | 每成功 case 平均 token | mean | 信息性 |
-| `b_refusal_or_empty_rate` | 拒答/空输出率 | mean | lower better |
-| `b_hosted_attribution_share` | hosted 失败归因占比分布 | mean | 信息性（v2 新增） |
+| name                         | 含义                         | 聚合 | 建议门禁                |
+| ---------------------------- | ---------------------------- | ---- | ----------------------- |
+| `b_task_pass_rate`           | 任务断言通过率（按通道分列） | mean | 选型用；不设绝对门禁    |
+| `b_schema_obedience_rate`    | schema/必调工具服从率        | mean | 可设 ≥ 0.9（仅 direct） |
+| `b_required_tool_call_rate`  | 必选工具实际调用率           | mean | 按题库                  |
+| `b_invalid_args_rate`        | 工具参数非法率               | mean | lower better            |
+| `b_avg_steps_to_success`     | 成功路径平均步数             | mean | 信息性                  |
+| `b_cost_tokens_per_pass`     | 每成功 case 平均 token       | mean | 信息性                  |
+| `b_refusal_or_empty_rate`    | 拒答/空输出率                | mean | lower better            |
+| `b_hosted_attribution_share` | hosted 失败归因占比分布      | mean | 信息性（v2 新增）       |
 
 C 轴（二期）：
 
-| name | 含义 | 聚合 | 建议门禁 |
-| --- | --- | --- | --- |
-| `c_contract_pass_rate` | 直调契约通过率 | mean | = 1.0 |
-| `c_boundary_pass_rate` | 边界/非法输入通过率 | mean | = 1.0 |
-| `c_idempotent_pass_rate` | 幂等类通过率 | mean | = 1.0 |
-| `c_timeout_truncate_correct` | 超时/截断标记正确率 | mean | = 1.0 |
-| `c_via_agent_discover_rate` | 经 Agent 发现并正确调用率 | mean | 可选 |
+| name                         | 含义                      | 聚合 | 建议门禁 |
+| ---------------------------- | ------------------------- | ---- | -------- |
+| `c_contract_pass_rate`       | 直调契约通过率            | mean | = 1.0    |
+| `c_boundary_pass_rate`       | 边界/非法输入通过率       | mean | = 1.0    |
+| `c_idempotent_pass_rate`     | 幂等类通过率              | mean | = 1.0    |
+| `c_timeout_truncate_correct` | 超时/截断标记正确率       | mean | = 1.0    |
+| `c_via_agent_discover_rate`  | 经 Agent 发现并正确调用率 | mean | 可选     |
 
 ## 附录 D：CLI 命令面与 Run 产物契约
 
@@ -369,21 +371,10 @@ runs/<run_id>/
 
 时间无关执行：等待原语仅允许事件谓词、状态谓词、有界 deadline、计数器；用例出现裸 `sleep_ms` → validate 失败（夹具内部 debounce 需标 `harness_internal`）；需网用例标 `requires_network=true` 且不进默认 CI suite。
 
-## 附录 E：术语表
+## 附录 E：术语
 
-| 术语 | 定义 |
-| --- | --- |
-| axis | 评测轴 A/B/C 或显式交集（AB/AC/BC） |
-| layer | A 轴内层级 L1/L2/L3（v2） |
-| case_rev | 用例修订号；与结果绑定 |
-| freeze | 一次 run 钉死的因子快照 |
-| oracle | 机器判定器 |
-| suite | 用例集合 + profile 绑定 |
-| baseline | 命名的历史 run，用于 compare |
-| attribution | 失败主因标签（六选一） |
-| scripted model | 预置回复/工具调用的剧本模型驱动 |
-| contract verify | 对真宿主运行契约验证 suite（v2） |
+名词与逻辑概念只在 [00-glossary.md](00-glossary.md) 定义。本附录不再列表。
 
 ---
 
-*本 PRD 为需求终稿 v2。实现状态以 Phase DoD 勾选为准，禁止提前声称完成。*
+_本 PRD 为需求终稿 v2。实现状态以 Phase DoD 勾选为准，禁止提前声称完成。_

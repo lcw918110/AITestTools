@@ -1,0 +1,9 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+You are helping plan a small hypothetical coding task.
+
+1. Write exactly 3 short todo lines, each starting with "- [ ] "
+2. After the todos, write one sentence explaining the order
+3. On the last line, write exactly: PLAN_OK
+
+Keep the reply under 8 lines.

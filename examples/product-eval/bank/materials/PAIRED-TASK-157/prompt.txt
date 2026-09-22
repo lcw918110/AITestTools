@@ -1,0 +1,10 @@
+This workspace is a small billing helper. Read the repo (you may use tools).
+
+The tests in `tests/invoice.test.mjs` currently fail. Read the tests, then read `lib/discount.mjs` and `lib/tax.mjs`, and fix the production code so all tests pass.
+
+Constraints:
+- Do not change `tests/invoice.test.mjs`
+- Do not rewrite `lib/invoice.mjs` (keep the INVOICE_CORE wiring)
+- Do not hardcode fixture totals in the helpers
+
+When all tests pass, reply with the token DUAL_FIX as its own word.

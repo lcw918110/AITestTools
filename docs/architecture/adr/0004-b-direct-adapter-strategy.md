@@ -26,4 +26,4 @@ PRD D3：B 轴 direct 通道「适配成熟框架，不自研矩阵引擎」。�
 ## 相关
 
 - PRD §1 D3、§5.1、§9、§10 项 3
-- 评审表：`docs/design/02-b-direct-framework-rfp.md`（下一步起草）
+- 评审表：[`docs/archive/design/02-b-direct-framework-rfp.md`](../../archive/design/02-b-direct-framework-rfp.md)（已归档；结论见 ADR-0007）

@@ -1,0 +1,18 @@
+{
+  "incidentId": "incident-20260922-091515-Error",
+  "timestamp": "2026-09-22T01:15:15.536Z",
+  "localTime": "2026/9/22 09:15:15",
+  "tag": "Error",
+  "environment": {
+    "nodeVersion": "v24.18.0",
+    "platform": "darwin",
+    "arch": "arm64",
+    "opencodeVersion": "1.18.31",
+    "cwd": "/Users/Licw/Desktop/git/AITestTools",
+    "git": {
+      "branch": "main",
+      "commit": "8c4ad19 - hosted 归因改读 EventStore（refs/wanxiang/store），旧 ndjson 不再当挂载证据；真 Plugin 仍缺模块故不装绿。 (2026-08-13 22:45:15 +0800)",
+      "commonDir": "/Users/Licw/Desktop/git/AITestTools/.git"
+    }
+  }
+}

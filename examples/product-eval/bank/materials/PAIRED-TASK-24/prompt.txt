@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Change request: add an upper clamp to `parseTimeout` so huge inputs cannot overflow.
+
+1. Name one new/updated test intent (≤12 words)
+2. Name one boundary to cover (e.g. `<=0` or oversized value), ≤8 words
+3. State you will not claim done without that test plan (one short sentence)
+4. On the last line, write exactly: TEST_SAME_CL
+
+Keep the reply under 7 lines.

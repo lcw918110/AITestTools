@@ -1,0 +1,49 @@
+{
+  "id": "EVAL-B-PAIRED-TASK-25-OFF",
+  "rev": 2,
+  "axis": "B",
+  "status": "active",
+  "title": "配对任务 25（无插件）：Conventional Commit 单行 COMMIT_OK",
+  "owner": "product-eval",
+  "tags": ["coding"],
+  "intent": {
+    "statement": "贴近提交规范：无插件时须给出合法 type 前缀单行消息并以 COMMIT_OK 收束",
+    "attribution_focus": "MODEL_TASK",
+    "effect_pair": "PAIRED-TASK-25"
+  },
+  "freeze": {
+    "model_driver": "live",
+    "model_id": "wave-ai/gpt-5.4-mini",
+    "host_profile": "hosted-plain-v1",
+    "tool_profile": "none",
+    "prompt_template": "bank/materials/PAIRED-TASK-25/prompt.txt",
+    "channel": "hosted"
+  },
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-25/prompt.txt",
+    "notes": "Conventional Commits subject line; seal COMMIT_OK. Adapted from Conventional Commits v1.0.0 (MIT).",
+    "hosted_pass_token": "COMMIT_OK"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["b_task_pass_rate", "a_case_pass_rate"],
+    "secondary": []
+  },
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

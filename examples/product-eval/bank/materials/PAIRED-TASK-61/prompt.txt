@@ -1,0 +1,12 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+A fictional `billing_v2` feature flag is already 100% rolled out; artifacts for v1 still exist in the registry.
+
+User asks for a rollback plan (not a triage choose-one).
+
+1. List exactly 3 numbered rollback steps (each ≤12 words)
+2. Step 1 must disable or flip the feature flag before redeploying older artifacts
+3. Do not choose "forward-fix" as the plan
+4. On the last line, write exactly: ROLLBACK_PLAN
+
+Keep the reply under 7 lines.

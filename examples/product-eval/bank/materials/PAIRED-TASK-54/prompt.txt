@@ -1,0 +1,12 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Hypothetical tool schema:
+`summarize_diff(path: string, max_lines: number)` — both fields required; no other properties.
+
+User: "Summarize the diff for src/cli/main.ts, at most 40 lines."
+
+1. Output one line: tool=summarize_diff
+2. Output one line: args={"path":"src/cli/main.ts","max_lines":40}  (exact keys; no extra keys; do not invent a summary body)
+3. On the last line, write exactly: SCHEMA_OK
+
+Keep the reply under 5 lines. Do not call tools.

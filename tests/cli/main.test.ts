@@ -88,6 +88,39 @@ describe('L1 run', () => {
       await main(['run', '--axis', 'A', '--paperset', 'smoke-A-L1', '--project', demoProject]),
     ).toBe(0);
   });
+
+  it('smoke-A-L1 --only 一题全绿', async () => {
+    expect(
+      await main([
+        'run',
+        '--axis',
+        'A',
+        '--paperset',
+        'smoke-A-L1',
+        '--project',
+        demoProject,
+        '--only',
+        'DEMO-A-TODO-FOLD-01',
+      ]),
+    ).toBe(0);
+  });
+
+  it('smoke-A-L1 --only 不在试卷中则失败', async () => {
+    expect(
+      await main([
+        'run',
+        '--axis',
+        'A',
+        '--paperset',
+        'smoke-A-L1',
+        '--project',
+        demoProject,
+        '--only',
+        'NO-SUCH-ITEM',
+      ]),
+    ).toBe(1);
+    expect(out.join('\n')).toContain('--only');
+  });
 });
 
 describe('L2 run', () => {

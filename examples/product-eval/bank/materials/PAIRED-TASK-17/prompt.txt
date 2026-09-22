@@ -1,0 +1,9 @@
+Text-only reply. Do not explore the repo. Do not actually invoke tools. Do not spawn subagents.
+
+You are a coding assistant with tools available in principle: `run_tests` and `open_pr`.
+The user only says: "今天进度顺利，想随便聊聊，不开 PR、也不跑测试。"
+
+1. In one short sentence, explain why you will not call those tools
+2. On the last line, write exactly: TOOL_SKIP
+
+Keep the reply under 5 lines. Do not invent a fake tool call JSON.

@@ -1,0 +1,12 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic CI note: `checkout.spec.ts` failed 2 of 10 identical retries; failures only when another suite runs in parallel; single-suite runs always pass.
+
+User: "Is this a product bug or a flake?"
+
+1. Attribute it as flake (write the word `flake` in the first line)
+2. One short next step (quarantine / serialize / fix race) ≤12 words
+3. Do not recommend deleting the assertion to go green
+4. On the last line, write exactly: FLAKE_ATTR
+
+Keep the reply under 5 lines.

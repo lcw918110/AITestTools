@@ -1,0 +1,8 @@
+{
+  "args": {
+    "tool": "st-coordinator-http",
+    "taskId": "proctor-coord-task",
+    "pid": 4242
+  },
+  "expect": { "ok": true }
+}

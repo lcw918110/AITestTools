@@ -1,0 +1,9 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+You are assisting a short code-review checklist for a hypothetical one-line change.
+
+1. On the first line, write exactly one word: READY or BLOCKED
+2. On the second line, give one short reason (one sentence)
+3. On the last line, write exactly: DONE
+
+Keep the whole reply under 5 lines.

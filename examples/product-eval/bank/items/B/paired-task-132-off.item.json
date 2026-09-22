@@ -1,0 +1,49 @@
+{
+  "id": "EVAL-B-PAIRED-TASK-132-OFF",
+  "rev": 2,
+  "axis": "B",
+  "status": "active",
+  "title": "配对任务 132（无插件）：runbook 可执行性 RB_EXEC",
+  "owner": "product-eval",
+  "tags": ["coding"],
+  "intent": {
+    "statement": "编码日常：无插件时须给出runbook 可执行性并以 RB_EXEC 收束",
+    "attribution_focus": "MODEL_TASK",
+    "effect_pair": "PAIRED-TASK-132"
+  },
+  "freeze": {
+    "model_driver": "live",
+    "model_id": "wave-ai/gpt-5.4-mini",
+    "host_profile": "hosted-plain-v1",
+    "tool_profile": "none",
+    "prompt_template": "bank/materials/PAIRED-TASK-132/prompt.txt",
+    "channel": "hosted"
+  },
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-132/prompt.txt",
+    "notes": "Runbook executability; seal RB_EXEC. Orthogonal to 83 DR_DRILL, 61 ROLLBACK_PLAN, 56 IMPL_STEPS, 72 KEY_ROTATE.",
+    "hosted_pass_token": "RB_EXEC"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["b_task_pass_rate", "a_case_pass_rate"],
+    "secondary": []
+  },
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

@@ -1,0 +1,15 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Task: change fictional helper `formatFee(amount)` to `formatFee(amount, currency)` (breaking arity).
+
+Known synthetic call sites:
+- `src/cart/summary.ts`
+- `src/invoice/print.ts`
+- `scripts/demo-fee.ts`
+
+1. List at least 2 of those call-site paths that must be updated
+2. One sentence: do not ship the helper change alone without updating callers
+3. Do not paste a full patch
+4. On the last line, write exactly: CALLSITE_OK
+
+Keep the reply under 6 lines.

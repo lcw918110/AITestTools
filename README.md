@@ -5,6 +5,7 @@
 
 - 开源：https://github.com/lcw918110/AITestTools
 - 仓库地图：[docs/00-repo-structure.md](docs/00-repo-structure.md)
+- 术语：[docs/requirements/00-glossary.md](docs/requirements/00-glossary.md)
 - 需求：[docs/requirements/01-prd.md](docs/requirements/01-prd.md)
 - **测万象术**：[docs/test/01-wanxiangshu-ops.md](docs/test/01-wanxiangshu-ops.md)
 - 文档总索引（阅读序）：[docs/README.md](docs/README.md)

@@ -1,0 +1,9 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Task: look up a synthetic ticket status, then write a one-sentence summary. Step 2 depends on step 1's result.
+
+1. Name both steps with fictional tool names in order
+2. State that step 2 depends on step 1's return (one short sentence); do not invent intermediate results
+3. On the last line, write exactly: TOOL_CHAIN_OK
+
+Keep the reply under 6 lines.

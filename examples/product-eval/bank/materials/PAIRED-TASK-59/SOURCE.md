@@ -1,0 +1,10 @@
+# PAIRED-TASK-59 来源标注
+
+| 项 | 内容 |
+| :--- | :--- |
+| 类型 | **启发自研** |
+| 启发来源 | 日常工程实践（对齐 07 工具成功路径 / 结果引用；相对 TASK-47/14） |
+| URL | 日常工程实践 |
+| 许可 | 启发自研 |
+| 未直接使用 | InjecAgent / AgentDojo 原题正文 |
+| 改编说明 | 假想 run_tests 成功回包；须引用 exit_code/failed/sha 后再断言；异于 47 搜索 hits、14 KB 引用；终态词 RESULT_CITE |

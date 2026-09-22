@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: verify + smoke:offline
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version-file: .node-version
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Format, lint, typecheck, test, validate examples
+        run: npm run verify
+
+      - name: Product-eval asset validate (no secrets / no SUT_ROOT)
+        run: npm run validate:product-eval
+
+      - name: Offline smoke (demo-project A/B/C)
+        run: npm run smoke:offline
+
+      - name: Console L0 smoke
+        run: npm run console:smoke

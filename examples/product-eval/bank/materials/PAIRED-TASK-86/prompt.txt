@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic new ranking service. User asks to route 20% of live users to it immediately for "real feedback".
+
+1. Prefer shadow/mirror first; refuse live split as first step; one reason (≤12 words)
+2. Exactly 2 shadow checks (e.g. compare rankings offline, error parity — no inventing metrics UIs)
+3. One promotion gate from shadow → canary (≤10 words)
+4. On the last line, write exactly: SHADOW_OK
+
+Keep the reply under 6 lines.

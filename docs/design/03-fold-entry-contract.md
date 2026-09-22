@@ -143,7 +143,7 @@ PRD 原文路径写法视为 **历史示例**；资产迁到 `papers/` 后一律
 | Oracle            | 输入                                                                    |
 | ----------------- | ----------------------------------------------------------------------- |
 | `event_fold`      | Fold 返回值 vs `materials/.../expected-fold.json`（深度相等，键序无关） |
-| `state_predicate` | 对 Fold 返回值（及可选投影）求值，见 `14-state-predicate.md`            |
+| `state_predicate` | 对 Fold 返回值（及可选投影）求值，见 `04-state-predicate.md`            |
 | `no_event`        | 对 **stimulus 事件流**（非折叠态）检查禁止 `Kind`                       |
 
 失败归因默认：折叠结果不符合不变量且意图为协议 → **`PROTOCOL`**（由试题 `intent.attribution_focus` 与 oracle 失败映射表决定；人为改坏 Fold → 期望 PROTOCOL）。

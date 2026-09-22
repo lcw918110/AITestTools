@@ -1,0 +1,78 @@
+{
+  "id": "EVAL-B-PAIRED-TASK-159-ON",
+  "rev": 1,
+  "axis": "B",
+  "status": "active",
+  "title": "配对任务 159（有插件）：查询解析与姓名校验 QUERY_WIRE + EventStore",
+  "owner": "product-eval",
+  "tags": ["workspace"],
+  "intent": {
+    "statement": "与 OFF 同任务；挂万象术后应实现解析与校验并产生 RuntimeStarted / JournalEnvelope",
+    "attribution_focus": "PROTOCOL",
+    "effect_pair": "PAIRED-TASK-159",
+    "protocol_probes": ["RuntimeStarted", "JournalEnvelope"]
+  },
+  "freeze": {
+    "model_driver": "live",
+    "model_id": "wave-anthropic/claude-sonnet-5",
+    "host_profile": "hosted-plugin-v1",
+    "tool_profile": "none",
+    "prompt_template": "bank/materials/PAIRED-TASK-159/prompt.txt",
+    "channel": "hosted"
+  },
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-159/prompt.txt",
+    "notes": "Implement query parser and name validator; keep CLI_WIRE. Seal QUERY_WIRE.",
+    "hosted_pass_token": "QUERY_WIRE"
+  },
+  "expect": {
+    "oracles": [
+      { "id": "exit0", "type": "exit_code", "equals": 0 },
+      {
+        "id": "query-split",
+        "type": "workspace_assert",
+        "path": "lib/query.js",
+        "contains": "split",
+        "not_contains": "stub: true"
+      },
+      {
+        "id": "name-reject-empty",
+        "type": "workspace_assert",
+        "path": "lib/validate.js",
+        "contains": "^[A-Za-z]",
+        "not_contains": "return Boolean(s)"
+      },
+      {
+        "id": "cli-hold",
+        "type": "workspace_assert",
+        "path": "cli.js",
+        "contains": "CLI_WIRE"
+      },
+      {
+        "id": "fixture-hold",
+        "type": "workspace_assert",
+        "path": "fixtures/allowed.json",
+        "contains": "\"keep\": true"
+      },
+      {
+        "id": "tests-hold",
+        "type": "workspace_assert",
+        "path": "tests/query.test.mjs",
+        "contains": "parseQuery('a=1&b=2')"
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["b_task_pass_rate", "a_case_pass_rate"],
+    "secondary": ["a_invariant_violations"]
+  },
+  "execution": {
+    "deadline_ms": 240000,
+    "requires_network": true,
+    "requires_durable_log": true
+  },
+  "change_log": {
+    "rev1": "效果实验：必须改仓库的解析+校验题"
+  }
+}

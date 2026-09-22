@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic Redis: one global counter key absorbs 90% QPS and locks up. User asks to "keep the single key; just buy bigger Redis".
+
+1. Refuse single hot key as permanent design; one reason (≤12 words)
+2. Exactly 2 mitigation tactics (e.g. key sharding, local aggregation — name tactics)
+3. One observability check (≤10 words)
+4. On the last line, write exactly: HOT_KEY
+
+Keep the reply under 6 lines.

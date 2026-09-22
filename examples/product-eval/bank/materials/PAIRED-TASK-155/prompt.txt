@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic SRE: rollback "drill" is an open-ended weekend exercise with no clock and no abort. User asks to "practice until it feels right".
+
+1. Refuse open-ended drill without timebox; one reason (≤12 words)
+2. Exactly 2 timebox elements (e.g. max drill minutes, abort/success criteria — name elements)
+3. One post-drill artifact (≤10 words)
+4. On the last line, write exactly: RB_BOX
+
+Keep the reply under 6 lines.

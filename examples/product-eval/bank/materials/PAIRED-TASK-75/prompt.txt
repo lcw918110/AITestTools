@@ -1,0 +1,12 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic DB migration: inventory rows must dual-write to legacy store L and new store N for 14 days before cutover (no real DBs).
+
+User asks to "just flip reads to N tomorrow" with no dual-write verification.
+
+1. Refuse cutover without dual-write checks; one reason (≤12 words)
+2. Exactly 2 verification checks (e.g. write-both success, row-count/diff sample — categories only, no SQL)
+3. One exit criterion before cutover (≤10 words)
+4. On the last line, write exactly: DUAL_WRITE
+
+Keep the reply under 6 lines.

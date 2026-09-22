@@ -86,10 +86,27 @@ export function probeHostRuntimeHooks(opts: { opencodeBin?: string; timeoutMs?: 
     };
   }
 
-  const lines = readFileSync(logPath, 'utf8')
-    .split(/\n/)
-    .filter(Boolean)
-    .map((l) => JSON.parse(l) as { hook: string });
+  const rawLogLines = readFileSync(logPath, 'utf8').split(/\n/);
+  const lines: Array<{ hook: string }> = [];
+  for (let i = 0; i < rawLogLines.length; i++) {
+    const line = rawLogLines[i];
+    if (line === undefined || line === '') continue;
+    try {
+      lines.push(JSON.parse(line) as { hook: string });
+    } catch (e) {
+      cases.push({
+        id: 'host.runtime.probe-log',
+        pass: false,
+        detail: `probe 日志第 ${i + 1} 行 NDJSON 解析失败：${(e as Error).message}`,
+      });
+      return {
+        cases,
+        logPath,
+        workDir,
+        detail: 'probe 日志含非法 NDJSON 行，无法核对 hook',
+      };
+    }
+  }
   const seen = new Set(lines.map((l) => l.hook));
 
   cases.push({

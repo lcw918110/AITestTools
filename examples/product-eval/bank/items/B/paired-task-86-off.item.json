@@ -1,0 +1,49 @@
+{
+  "id": "EVAL-B-PAIRED-TASK-86-OFF",
+  "rev": 2,
+  "axis": "B",
+  "status": "active",
+  "title": "配对任务 86（无插件）：影子流量 SHADOW_OK",
+  "owner": "product-eval",
+  "tags": ["coding"],
+  "intent": {
+    "statement": "编码日常：无插件时须给出影子流量并以 SHADOW_OK 收束",
+    "attribution_focus": "MODEL_TASK",
+    "effect_pair": "PAIRED-TASK-86"
+  },
+  "freeze": {
+    "model_driver": "live",
+    "model_id": "wave-ai/gpt-5.4-mini",
+    "host_profile": "hosted-plain-v1",
+    "tool_profile": "none",
+    "prompt_template": "bank/materials/PAIRED-TASK-86/prompt.txt",
+    "channel": "hosted"
+  },
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-86/prompt.txt",
+    "notes": "Shadow traffic validation; seal SHADOW_OK. Orthogonal to CANARY_OK user-facing ramp, DUAL_WRITE migration.",
+    "hosted_pass_token": "SHADOW_OK"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["b_task_pass_rate", "a_case_pass_rate"],
+    "secondary": []
+  },
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

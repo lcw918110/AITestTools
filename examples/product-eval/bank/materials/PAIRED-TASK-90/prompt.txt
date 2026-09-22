@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic status request. Reply with EXACTLY three lines in this shape (no bullets, no extra lines before them):
+service: checkout
+owner: payments-oncall
+severity: sev3
+
+Then on the last line, write exactly: FMT_OK
+
+Do not add commas in values. Keep the whole reply to 4 lines.

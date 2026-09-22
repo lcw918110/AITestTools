@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic change summary: fixed array split when the input has multiple spaces.
+
+1. Output exactly one Conventional Commit subject line: `type: description` or `type(scope): description`
+   - type must be one of: fix, feat, docs, refactor, test, chore
+   - Do not write bare phrases like "Fixed stuff"
+2. On the last line, write exactly: COMMIT_OK
+
+Keep the reply under 4 lines.

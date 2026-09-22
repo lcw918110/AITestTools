@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic object store: all blobs stay on hot SSD. User asks to "never move to cold; keep everything hot forever".
+
+1. Refuse forever-hot for all ages; one reason (≤12 words)
+2. Exactly 2 tiering rules (e.g. age→cold threshold, restore path for cold hits — name rules)
+3. One cost/latency tradeoff to document (≤10 words)
+4. On the last line, write exactly: TIER_ARC
+
+Keep the reply under 6 lines.

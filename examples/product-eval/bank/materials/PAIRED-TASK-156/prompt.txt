@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic incident: on-call plans to DM a vague "we have issues" to a major customer without a template. User asks to "just ping them casually".
+
+1. Refuse ad-hoc vague customer ping as sole channel; one reason (≤12 words)
+2. Exactly 2 required template fields (e.g. impact window, next update ETA — name fields)
+3. One channel hygiene note (≤10 words)
+4. On the last line, write exactly: CUST_TMPL
+
+Keep the reply under 6 lines.

@@ -1,0 +1,10 @@
+# PAIRED-TASK-51 来源标注
+
+| 项 | 内容 |
+| :--- | :--- |
+| 类型 | **启发自研** |
+| 启发来源 | 见 URL |
+| URL | https://github.com/google/eng-practices（文档/评审心智） |
+| 许可 | CC-BY 3.0（须署名；不整段抄） |
+| 未直接使用 | eng-practices 原文段落 |
+| 改编说明 | 自拟 CLI `--json` 场景；测增量写法相对 TASK-37 同步触点、相对 TASK-31 changelog；终态词 README_DELTA；staging G-08 |

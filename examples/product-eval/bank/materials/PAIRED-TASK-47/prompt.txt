@@ -1,0 +1,12 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+A synthetic successful Observation is already available:
+`{"tool":"repo_search","hits":[{"path":"src/fee.ts","line":42}]}`
+
+User asks: "Where is the fee logic?"
+
+1. Answer by citing both `path` and `line` from the Observation
+2. Do not invent files that are not in the Observation
+3. On the last line, write exactly: TOOL_RESULT_OK
+
+Keep the reply under 5 lines.

@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic TLS for api.example.internal. User asks to "ignore cert expiry until browsers start failing".
+
+1. Refuse reactive-only cert handling; one reason (≤12 words)
+2. Exactly 2 expiry-inspection checks (e.g. scan inventory ≤30d warning, alert owner before renew window — name checks)
+3. One renew ownership rule (≤10 words)
+4. On the last line, write exactly: CERT_EXP
+
+Keep the reply under 6 lines.

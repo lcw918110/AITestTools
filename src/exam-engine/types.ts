@@ -25,17 +25,125 @@ export const ORACLE_TYPES = [
   'tool_side_effect',
   'exit_code',
   'metric_threshold',
+  'stdout_assert',
 ] as const;
 export type OracleType = (typeof ORACLE_TYPES)[number];
 
 export type ItemStatus = 'active' | 'draft' | 'deprecated';
 export type ALayer = 'L1' | 'L2' | 'L3';
 
-export interface Oracle {
-  type: OracleType;
+/** exit_code：进程以期望码退出（非 0 也可是期望，如「必须失败」）。 */
+export interface OracleExitCode {
+  type: 'exit_code';
   id?: string;
-  [key: string]: unknown;
+  equals?: number;
 }
+
+/** workspace_assert：文件存在 / 内容包含 / 不含（只读）。 */
+export interface OracleWorkspaceAssert {
+  type: 'workspace_assert';
+  id?: string;
+  path: string;
+  file?: string;
+  contains?: string;
+  not_contains?: string;
+  exists?: boolean;
+}
+
+/** tool_side_effect：workspace 内文件副作用。 */
+export interface OracleToolSideEffect {
+  type: 'tool_side_effect';
+  id?: string;
+  file: string;
+  path?: string;
+  contains?: string;
+}
+
+/** tool_result_equals：工具返回值深等比较。 */
+export interface OracleToolResultEquals {
+  type: 'tool_result_equals';
+  id?: string;
+  equals?: unknown;
+  expected?: unknown;
+}
+
+/** stdout_assert：hosted 回复文本包含 / 不含 / 正则。 */
+export interface OracleStdoutAssert {
+  type: 'stdout_assert';
+  id?: string;
+  contains?: string | string[];
+  not_contains?: string | string[];
+  contains_regex?: string | string[];
+  not_contains_regex?: string | string[];
+  regex_flags?: string;
+}
+
+/** metric_threshold：单题 metrics 阈值判定。 */
+export interface OracleMetricThreshold {
+  type: 'metric_threshold';
+  id?: string;
+  metric: string;
+  name?: string;
+  min?: number;
+  max?: number;
+}
+
+/** event_fold：折叠态与期望文件深等比对。 */
+export interface OracleEventFold {
+  type: 'event_fold';
+  id?: string;
+  spec: string;
+}
+
+/** event_subsequence：事件名有序子序列。 */
+export interface OracleEventSubsequence {
+  type: 'event_subsequence';
+  id?: string;
+  names: string[];
+}
+
+/** state_predicate：受限布尔表达式。 */
+export interface OracleStatePredicate {
+  type: 'state_predicate';
+  id?: string;
+  expr: string;
+}
+
+/** no_event：禁止事件不出现。 */
+export interface OracleNoEvent {
+  type: 'no_event';
+  id?: string;
+  names: string[];
+}
+
+/** tool_trace：必须出现指定工具调用。 */
+export interface OracleToolTrace {
+  type: 'tool_trace';
+  id?: string;
+  must_call: string[];
+}
+
+/** schema_obedience：工具调用必填字段检查。 */
+export interface OracleSchemaObedience {
+  type: 'schema_obedience';
+  id?: string;
+  tool: string;
+  required_fields: string[];
+}
+
+export type Oracle =
+  | OracleExitCode
+  | OracleWorkspaceAssert
+  | OracleToolSideEffect
+  | OracleToolResultEquals
+  | OracleStdoutAssert
+  | OracleMetricThreshold
+  | OracleEventFold
+  | OracleEventSubsequence
+  | OracleStatePredicate
+  | OracleNoEvent
+  | OracleToolTrace
+  | OracleSchemaObedience;
 
 export interface FoldEntrySpec {
   module: string;
@@ -112,6 +220,29 @@ export interface PapersetDoc {
   gates?: Record<string, GateBound>;
 }
 
+/** hosted 考场宿主进程配置（room.schema.json `host`）。 */
+export interface RoomHost {
+  name?: string;
+  version?: string;
+  command?: string;
+  args?: string[];
+  log_path?: string;
+  model?: string;
+  agent?: string;
+  managed_agents?: string[];
+  plugin?: string;
+}
+
+/** 驱动适配器配置（room.schema.json `adapter`）。 */
+export interface RoomAdapter {
+  framework?: string;
+  config?: string;
+  repeats?: number;
+  hook_style?: 'demo-v1' | 'opencode-v1';
+  workspace?: 'temp-git';
+  skip_hook_dispatch?: boolean;
+}
+
 export interface RoomDoc {
   name: string;
   kind: 'fold' | 'fake-host' | 'cassette' | 'live-model' | 'hosted' | 'direct-tool';
@@ -120,15 +251,16 @@ export interface RoomDoc {
   network: boolean;
   durable_log?: string;
   durable_log_glob?: string;
-  workspace?: string;
+  /** isolated：每题跑在临时空 git 仓；无插件的对照侧必须显式声明才能与 ON 侧同构 */
+  workspace?: 'isolated' | 'project';
   secrets?: string[];
   fold_entries?: Record<string, FoldEntrySpec>;
   sut?: { name?: string; root_env?: string; root_rel?: string | null };
   event_schema?: string;
   contract?: string;
   attribution_tree?: string;
-  host?: Record<string, unknown>;
-  adapter?: Record<string, unknown>;
+  host?: RoomHost;
+  adapter?: RoomAdapter;
 }
 
 export interface ExamManifest {

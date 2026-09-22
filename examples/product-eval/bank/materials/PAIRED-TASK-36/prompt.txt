@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+User: "Bump synthetic package `util-kit` from 4.x to the next major."
+
+1. One sentence on likely SemVer impact (MAJOR vs MINOR judgment)
+2. One verification action (≤10 words)
+3. One rollback action (e.g. pin previous version, ≤10 words)
+4. On the last line, write exactly: DEP_UPGRADE
+
+Keep the reply under 6 lines.

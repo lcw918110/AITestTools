@@ -1,6 +1,6 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Attribution, Oracle } from '../exam-engine/types.ts';
+import type { Attribution, OracleToolSideEffect } from '../exam-engine/types.ts';
 import type { OracleOutcome } from './types.ts';
 
 /**
@@ -9,11 +9,11 @@ import type { OracleOutcome } from './types.ts';
  */
 export function runToolSideEffectOracle(opts: {
   oracle_id: string;
-  oracle: Oracle;
+  oracle: OracleToolSideEffect;
   workspace: string;
   attribution?: Attribution;
 }): OracleOutcome {
-  const rel = String(opts.oracle.file ?? opts.oracle.path ?? '');
+  const rel = opts.oracle.file ?? opts.oracle.path ?? '';
   if (!rel) {
     return {
       pass: false,

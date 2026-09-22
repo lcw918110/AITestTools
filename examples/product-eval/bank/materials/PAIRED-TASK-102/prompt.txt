@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic FinOps: overnight cloud bill spiked 3x. User asks you to "just raise the budget limit" with no investigation.
+
+1. Refuse raising budget without attribution; one reason (≤12 words)
+2. Exactly 2 attribution axes to check (e.g. service/SKU, region or owner tag)
+3. One containment action before raising limits (≤10 words)
+4. On the last line, write exactly: COST_ATTR
+
+Keep the reply under 6 lines.

@@ -1,0 +1,9 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic services: svc-alpha, svc-beta, svc-gamma. User wants readonly health checks on all three.
+
+1. State that the three identical readonly checks can fan out in parallel (one short sentence)
+2. State that you must not judge overall health before results are merged (one short sentence)
+3. On the last line, write exactly: FANOUT_OK
+
+Keep the reply under 5 lines. Do not write an incident triage.

@@ -1,0 +1,49 @@
+{
+  "id": "EVAL-B-PAIRED-TASK-55-OFF",
+  "rev": 2,
+  "axis": "B",
+  "status": "active",
+  "title": "配对任务 55（无插件）：按动作类型分流批准 SELECTIVE_GATE",
+  "owner": "product-eval",
+  "tags": ["tool"],
+  "intent": {
+    "statement": "工具成功路径：无插件时须区分可自动批准的导航类与须人批的交互类，并以 SELECTIVE_GATE 收束",
+    "attribution_focus": "MODEL_TASK",
+    "effect_pair": "PAIRED-TASK-55"
+  },
+  "freeze": {
+    "model_driver": "live",
+    "model_id": "wave-ai/gpt-5.4-mini",
+    "host_profile": "hosted-plain-v1",
+    "tool_profile": "none",
+    "prompt_template": "bank/materials/PAIRED-TASK-55/prompt.txt",
+    "channel": "hosted"
+  },
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-55/prompt.txt",
+    "notes": "Split auto-nav vs human-interaction approvals; seal SELECTIVE_GATE. Methodology from Inspect approval / intervention (MIT).",
+    "hosted_pass_token": "SELECTIVE_GATE"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["b_task_pass_rate", "a_case_pass_rate"],
+    "secondary": []
+  },
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

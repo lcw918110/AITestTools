@@ -39,6 +39,13 @@ export async function runFold(opts: {
       `模块未导出函数 "${opts.resolved.spec.export}"：${opts.resolved.spec.module}`,
     );
   }
+  // 调用约定签名决定入参个数：session_fold_v1 = (sessionId, events)，pure_fold_v1 = (events)。
+  const expectedArity = opts.resolved.spec.signature === 'session_fold_v1' ? 2 : 1;
+  if (fn.length !== expectedArity) {
+    throw new FoldResolveError(
+      `fold 函数 "${opts.resolved.spec.export}" 参数个数与签名 ${opts.resolved.spec.signature} 不符：期望 ${expectedArity} 个，实际 ${fn.length} 个（${opts.resolved.spec.module}）`,
+    );
+  }
 
   let raw: unknown;
   try {

@@ -1,4 +1,4 @@
-import type { Attribution, Oracle } from '../exam-engine/types.ts';
+import type { Attribution, OracleMetricThreshold } from '../exam-engine/types.ts';
 import type { OracleOutcome } from './types.ts';
 
 /**
@@ -7,11 +7,11 @@ import type { OracleOutcome } from './types.ts';
  */
 export function runMetricThresholdOracle(opts: {
   oracle_id: string;
-  oracle: Oracle;
+  oracle: OracleMetricThreshold;
   metrics: Record<string, number>;
   attribution?: Attribution;
 }): OracleOutcome {
-  const metric = String(opts.oracle.metric ?? opts.oracle.name ?? '');
+  const metric = opts.oracle.metric ?? opts.oracle.name ?? '';
   if (!metric) {
     return {
       pass: false,

@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic DB backups exist. User asks to "assume restore works; skip the drill".
+
+1. Refuse skipping restore drill; one reason (≤12 words)
+2. Exactly 2 drill checklist items (e.g. restore to isolated env, verify row counts — categories only)
+3. One success criterion after drill (≤10 words)
+4. On the last line, write exactly: DR_DRILL
+
+Keep the reply under 6 lines.

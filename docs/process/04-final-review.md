@@ -10,15 +10,16 @@
 
 ## A. 文档清单
 
-| 文档                                                             | 主题                 | 状态                                         |
-| ---------------------------------------------------------------- | -------------------- | -------------------------------------------- |
-| [11-fold-entry-contract.md](./11-fold-entry-contract.md)         | L1 Fold 多入口       | **已确认**（含默认 json_clone）              |
-| [14-state-predicate.md](./14-state-predicate.md)                 | 状态谓词表达式       | **已确认**                                   |
-| [13-scripted-model.md](./13-scripted-model.md)                   | L2 剧本语法          | **已确认**                                   |
-| [10-host-contract-schema.md](./10-host-contract-schema.md)       | OpenCode 契约 schema | **已确认**（对照本机 1.18.5）                |
-| [12-hosted-attribution-tree.md](./12-hosted-attribution-tree.md) | hosted 归因树 v1     | **已确认**                                   |
-| [02-b-direct-framework-rfp.md](./02-b-direct-framework-rfp.md)   | B-direct 框架评审    | **spike=promptfoo**；默认框架待 spike 后 ADR |
-| [15-protocol-papers-v1.md](./15-protocol-papers-v1.md)           | 协议全考卷化字段     | **已确认**（ADR-0006 C3）                    |
+| 文档                                                                     | 主题                 | 状态           |
+| ------------------------------------------------------------------------ | -------------------- | -------------- |
+| [03-fold-entry-contract.md](../design/03-fold-entry-contract.md)         | L1 Fold 多入口       | **已确认**     |
+| [04-state-predicate.md](../design/04-state-predicate.md)                 | 状态谓词表达式       | **已确认**     |
+| [05-scripted-model.md](../design/05-scripted-model.md)                   | L2 剧本语法          | **已确认**     |
+| [06-host-contract-schema.md](../design/06-host-contract-schema.md)       | OpenCode 契约 schema | **已确认**     |
+| [07-hosted-attribution-tree.md](../design/07-hosted-attribution-tree.md) | hosted 归因树 v1     | **已确认**     |
+| [02 RFP（已归档）](../archive/design/02-b-direct-framework-rfp.md)       | B-direct 框架评审    | **→ ADR-0007** |
+| [02-protocol-papers-v1.md](../design/02-protocol-papers-v1.md)           | 协议全考卷化字段     | **已确认**     |
+| [01-phase-outline.md](../design/01-phase-outline.md)                     | Phase 1+2 合并提纲   | 历史入口       |
 
 ---
 
@@ -48,5 +49,5 @@
 
 ## D. 下一步
 
-1. ~~输出实现解冻检查单~~ → [`16-unfreeze-checklist.md`](./16-unfreeze-checklist.md)
+1. ~~输出实现解冻检查单~~ → [`02-unfreeze-checklist.md`](./02-unfreeze-checklist.md)
 2. **你确认解冻**后：废止 ADR-0003 冻结，从 **切片 0**（改名 + `papers-v1` 迁移）起编码。

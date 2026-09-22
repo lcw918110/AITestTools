@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+New synthetic handler `POST /checkout/confirm` is about to ship. No real PII or secrets in the answer.
+
+1. Name exactly 3 observability points: one log, one metric, one trace/span (short names)
+2. One anti-pattern: what must NOT be logged (≤10 words; e.g. raw card numbers)
+3. Do not invent dashboard JSON
+4. On the last line, write exactly: OBS_POINT
+
+Keep the reply under 6 lines.

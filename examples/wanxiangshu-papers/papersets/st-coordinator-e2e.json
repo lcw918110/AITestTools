@@ -1,0 +1,10 @@
+{
+  "name": "st-coordinator-e2e",
+  "description": "真 Coordinator HTTP 最小 e2e（1 题）；需 SUT_ROOT + PluginWanxiangzhen 构建产物",
+  "axis": "C",
+  "room": "coordinator-http-v1",
+  "items": ["WX-C-ST-COORD-HTTP-01"],
+  "gates": {
+    "c_contract_pass_rate": { "min": 1 }
+  }
+}

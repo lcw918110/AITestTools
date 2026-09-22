@@ -1,0 +1,9 @@
+This workspace is a small service. Read the repo (you may use tools).
+
+A service's public listen port is inconsistent across files. Read `tests/port.test.mjs` to find the expected port value, then locate and fix all production files that define the public port so a server would listen consistently.
+
+Constraints:
+- Do not change `tests/port.test.mjs`
+- Do not change `src/legacy-compat.js` (legacy clients keep LEGACY_PORT)
+
+When the public port is consistent across all production files and legacy is untouched, reply with PORT_SYNC as its own word.

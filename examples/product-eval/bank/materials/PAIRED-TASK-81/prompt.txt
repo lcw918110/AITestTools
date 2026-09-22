@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic compat shim `legacyParseFlags()` still wraps the new parser. User asks to "keep the shim forever for safety".
+
+1. Refuse infinite shim retention; one reason (≤12 words)
+2. Exactly 2 schedule milestones (announce deprecation → remove-after date/version — no inventing calendar dates; use relative phrases like "next major")
+3. One removal gate (e.g. zero call-site telemetry) ≤10 words
+4. On the last line, write exactly: DEPREC_SCHED
+
+Keep the reply under 6 lines.

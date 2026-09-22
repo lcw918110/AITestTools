@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+User wants to extract a duplicated validation helper during a cleanup. No behavior change allowed.
+
+1. State the behavior-hold constraint in one short sentence (must include the words "same behavior" or "no behavior change")
+2. List exactly 3 small steps (extract → replace call sites → run existing tests); each ≤10 words
+3. Explicitly forbid drive-by feature changes (one short sentence)
+4. On the last line, write exactly: BEHAVIOR_HOLD
+
+Keep the reply under 7 lines.

@@ -1,0 +1,49 @@
+{
+  "id": "EVAL-B-PAIRED-TASK-96-OFF",
+  "rev": 2,
+  "axis": "B",
+  "status": "active",
+  "title": "配对任务 96（无插件）：多租户隔离 TENANT_ISO",
+  "owner": "product-eval",
+  "tags": ["coding"],
+  "intent": {
+    "statement": "编码日常：无插件时须给出多租户隔离检查并以 TENANT_ISO 收束",
+    "attribution_focus": "MODEL_TASK",
+    "effect_pair": "PAIRED-TASK-96"
+  },
+  "freeze": {
+    "model_driver": "live",
+    "model_id": "wave-ai/gpt-5.4-mini",
+    "host_profile": "hosted-plain-v1",
+    "tool_profile": "none",
+    "prompt_template": "bank/materials/PAIRED-TASK-96/prompt.txt",
+    "channel": "hosted"
+  },
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-96/prompt.txt",
+    "notes": "Multi-tenant isolation checks; seal TENANT_ISO. Orthogonal to WS_READ_BOUND, CODEOWNER_OK, GDPR_DEL, TEMP_ACL.",
+    "hosted_pass_token": "TENANT_ISO"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["b_task_pass_rate", "a_case_pass_rate"],
+    "secondary": []
+  },
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="zh-CN">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Proctor 评测操作台</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <header class="top">
+      <div class="brand-row">
+        <div class="brand">agent-proctor</div>
+        <nav class="top-nav" aria-label="主导航">
+          <a href="#test" id="navTest" class="top-nav-link">测试</a>
+          <a href="#bank" id="navBank" class="top-nav-link">题库</a>
+          <a href="#env" id="navEnv" class="top-nav-link">运行环境</a>
+        </nav>
+      </div>
+    </header>
+
+    <main class="layout" id="pageTest">
+      <section class="panel" id="lab">
+        <h1>测试任务</h1>
+        <p class="hint">每条任务绑定一类实验、一套测试集和历次结果。勾选不写回测试集。</p>
+
+        <div class="task-split">
+          <aside class="task-nav">
+            <button type="button" id="newEvalTask" class="primary">新建</button>
+            <ul id="evalTaskList" class="run-list"></ul>
+          </aside>
+
+          <div id="evalEditor">
+            <p id="evalEmpty" class="bank-empty">请新建或选择一条测试任务</p>
+            <div id="evalForm" hidden>
+              <label class="block">
+                名称
+                <input id="evalName" type="text" maxlength="80" />
+              </label>
+              <p id="evalKindLabel" class="kind-label">类型：—</p>
+
+              <fieldset class="exam-mode" id="examMode">
+                <legend>有无插件</legend>
+                <label class="check">
+                  <input type="radio" name="examMode" value="off" />
+                  无插件
+                </label>
+                <label class="check">
+                  <input type="radio" name="examMode" value="on" />
+                  有插件
+                </label>
+                <label class="check">
+                  <input type="radio" name="examMode" value="both" />
+                  同时跑
+                </label>
+              </fieldset>
+
+              <label class="block">
+                测试集
+                <select id="testSetFilter"></select>
+              </label>
+
+              <div class="pick-head">
+                <span>本题要跑的题目</span>
+                <button type="button" id="pickAll" class="ghost">全选</button>
+                <button type="button" id="pickNone" class="ghost">全不选</button>
+                <span id="pickCount" class="meta"></span>
+              </div>
+              <div id="taskPick" class="task-pick"></div>
+
+              <div class="env-box" id="runEnv">
+                <h2>运行环境</h2>
+                <p class="hint tiny">
+                  只属于这条测试任务。模型和 Agent 须已在「运行环境」页验证。测万象术同时跑时两侧共用这一套。
+                </p>
+                <div class="grid">
+                  <label>
+                    模型
+                    <select id="model"></select>
+                  </label>
+                  <label>
+                    Agent
+                    <select id="agent"></select>
+                  </label>
+                  <label id="sutRootField">
+                    万象术仓库路径
+                    <input id="sutRoot" type="text" placeholder="测万象术真跑时需要填写" />
+                  </label>
+                </div>
+              </div>
+
+              <details class="bank-advanced" id="advancedBox">
+                <summary>高级</summary>
+                <div class="grid">
+                  <label class="check">
+                    <input id="dryRun" type="checkbox" />
+                    只检查题库，不真跑
+                  </label>
+                </div>
+              </details>
+
+              <div class="actions">
+                <button type="button" id="runBtn" class="primary">运行测试</button>
+                <button type="button" id="deleteEvalTask" class="ghost danger">删除此任务</button>
+                <span id="jobStatus" class="status"></span>
+              </div>
+
+              <h2>运行日志</h2>
+              <pre id="log" class="log"></pre>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="panel" id="results">
+        <h1>测试结果</h1>
+        <p class="hint">看当前测试任务的跑次。默认最近一次；明细是逐题过挂，分析是这次的 Δ 与归因。</p>
+        <label class="block" id="runHistoryWrap">
+          跑次
+          <select id="runHistory"></select>
+        </label>
+        <p id="resultEmpty" class="bank-empty">这条任务还没有跑次</p>
+        <article id="runView" class="run-view" hidden>
+          <h2>明细</h2>
+          <div id="runMeta" class="meta"></div>
+          <div id="dashMatrix" class="dash-matrix"></div>
+          <h3>判定摘要（工作区 / 暗号 / 超时）</h3>
+          <div id="tokenSummary" class="summary-block"></div>
+          <h3>失败 → 录题草稿</h3>
+          <div id="failDrafts" class="summary-block"></div>
+
+          <h2>分析</h2>
+          <div id="dashBoard" class="dash">
+            <div id="dashConfig" class="dash-pills"></div>
+            <div id="dashHeadline" class="dash-stats"></div>
+            <p id="dashUsable" class="dash-note"></p>
+          </div>
+          <div id="runMetrics" class="metrics" hidden></div>
+
+          <div class="actions run-actions">
+            <label class="inline">
+              钉为 baseline
+              <input id="pinName" type="text" placeholder="例如：对照基线" />
+            </label>
+            <button type="button" id="pinBaseline" class="ghost">钉选</button>
+            <label class="inline">
+              对照 baseline
+              <select id="compareBaseline"></select>
+            </label>
+            <button type="button" id="runCompare" class="ghost">一键对照</button>
+            <span id="compareStatus" class="status"></span>
+          </div>
+
+          <h3>归因与稳定性</h3>
+          <div id="attrSummary" class="summary-block"></div>
+
+          <h3>配对效果 / 对照摘要</h3>
+          <div id="effectSummary" class="summary-block"></div>
+
+          <h3>信息性指标（不进硬门禁）</h3>
+          <div id="infoMetrics" class="summary-block"></div>
+
+          <h3>参考分（不进硬门禁）</h3>
+          <div id="refScores" class="summary-block"></div>
+
+          <details class="bank-advanced">
+            <summary>原文（effect_compare / results）</summary>
+            <pre id="effectMd" class="md"></pre>
+            <pre id="resultsNd" class="md"></pre>
+          </details>
+        </article>
+      </section>
+    </main>
+
+    <main class="layout layout-bank" id="pageBank" hidden>
+      <section class="panel" id="bank">
+        <h1>题库工作台</h1>
+        <div class="bank-intro">
+          <p>题库 = 题干 + 怎样算对；三种实验共用同一套题。</p>
+          <p>一道题含：题号、题干、终态词；系统自动维护无插件 / 有插件两侧。</p>
+          <p>改完题后，去测试页开跑。</p>
+        </div>
+
+        <label class="block">
+          测试集
+          <select id="bankTestSetFilter"></select>
+        </label>
+        <div class="actions">
+          <button type="button" id="openCreateWizard" class="primary">录一道题</button>
+          <button type="button" id="validateBank" class="ghost">检查题库</button>
+          <span id="bankStatus" class="status"></span>
+        </div>
+        <p id="bankSummary" class="bank-summary" hidden></p>
+        <pre id="bankLog" class="log" hidden></pre>
+
+        <div class="bank-layout">
+          <ul id="taskList" class="run-list"></ul>
+          <div class="bank-edit" id="bankEdit">
+            <div id="editEmpty" class="bank-empty">请选择或录一道题</div>
+            <div id="editForm" hidden>
+              <h2 id="taskTitle">改题</h2>
+              <p id="taskVersion" class="meta"></p>
+              <label>
+                题干
+                <textarea id="taskPrompt" rows="6"></textarea>
+              </label>
+              <label>
+                怎样算对（终态词）
+                <input id="taskToken" type="text" />
+              </label>
+              <label>
+                任务类型
+                <input id="taskTags" type="text" list="taskTypeList" placeholder="可空，例如编码" />
+              </label>
+              <label>
+                回复必须出现
+                <input id="taskContains" type="text" placeholder="可空，默认等于终态词" autocomplete="off" />
+              </label>
+              <label>
+                回复禁止出现
+                <input id="taskNotContains" type="text" placeholder="可空" autocomplete="off" />
+              </label>
+              <label>
+                变更说明
+                <input id="changeName" type="text" placeholder="为何改（至少 4 字）" />
+              </label>
+              <p class="hint tiny">保存会自动升版本；建议随后「检查题库」。</p>
+              <div class="actions">
+                <button type="button" id="saveTask" class="primary">保存并升版本</button>
+                <button type="button" id="deleteTask" class="ghost danger">删除这道题…</button>
+              </div>
+              <details class="bank-advanced">
+                <summary>高级</summary>
+                <label>
+                  补充说明（notes）
+                  <textarea id="taskNotes" rows="2"></textarea>
+                </label>
+                <p class="meta" id="taskIdsReadonly"></p>
+              </details>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <main class="layout layout-bank" id="pageEnv" hidden>
+      <section class="panel">
+        <h1>运行环境</h1>
+        <p class="hint">
+          先在这里添加模型与 Agent，跑一次 Hello World 验证。通过后才能在测试任务里选用。配置记在本机清单里，不是任务之间共用一间房间。
+        </p>
+        <p id="envStatus" class="status"></p>
+        <div class="env-cols">
+          <div>
+            <h2>模型</h2>
+            <div class="actions">
+              <input id="newModelId" type="text" placeholder="模型标识，例如供应商/型号" />
+              <button type="button" id="addModel" class="primary">添加</button>
+            </div>
+            <ul id="modelList" class="run-list"></ul>
+          </div>
+          <div>
+            <h2>Agent</h2>
+            <div class="actions">
+              <input id="newAgentId" type="text" placeholder="Agent 标识，例如 fast-coder" />
+              <button type="button" id="addAgent" class="primary">添加</button>
+            </div>
+            <ul id="agentList" class="run-list"></ul>
+          </div>
+        </div>
+        <div id="roomPanel" class="room-panel">
+          <h2>房间配置</h2>
+          <p class="hint tiny">直接改 rooms/*.json 的 host / workspace / network 字段。改后立即写回。</p>
+          <div id="roomList" class="room-list"></div>
+          <datalist id="roomModelOptions"></datalist>
+          <datalist id="roomAgentOptions"></datalist>
+        </div>
+        <pre id="envLog" class="log" hidden></pre>
+      </section>
+    </main>
+
+    <dialog id="newEvalDialog" class="wizard">
+      <form method="dialog" id="newEvalForm">
+        <h2>新建测试任务</h2>
+        <p class="hint">先选测哪一类。有无插件只在「测万象术」里出现。</p>
+        <label>
+          名称
+          <input id="newEvalName" type="text" placeholder="例如：157–159 对照" autocomplete="off" />
+        </label>
+        <fieldset class="presets" id="newEvalKind"></fieldset>
+        <p id="newEvalError" class="status err" hidden></p>
+        <div class="actions">
+          <button type="button" id="newEvalCancel" class="ghost">取消</button>
+          <button type="submit" id="newEvalSubmit" class="primary">创建</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="createWizard" class="wizard">
+      <form method="dialog" id="wizardForm">
+        <h2>录一道题</h2>
+        <p class="hint" id="wizardStepLabel">第 1 / 4 步 · 题号</p>
+
+        <div class="wizard-step" data-step="1">
+          <label>
+            题号
+            <input id="wizTaskId" type="text" placeholder="例如 PAIRED-TASK-160" autocomplete="off" />
+          </label>
+          <p class="hint tiny">格式：PAIRED-TASK- 加至少两位数字。打开向导会预填下一空号。</p>
+          <label>
+            测试集
+            <select id="wizTestSet"></select>
+          </label>
+          <button type="button" id="wizNewTestSet" class="ghost">新建测试集</button>
+        </div>
+
+        <div class="wizard-step" data-step="2" hidden>
+          <label>
+            题干
+            <textarea
+              id="wizPrompt"
+              rows="6"
+              placeholder="写清任务与终态词。须能用仓库或工具才能过，不要写「纯文本作答」或「不要用工具」。"
+            ></textarea>
+          </label>
+          <p class="hint tiny">禁止纯文本作答、禁止使用工具、禁止探索仓库这类写法。</p>
+        </div>
+
+        <div class="wizard-step" data-step="3" hidden>
+          <label>
+            怎样算对（终态词）
+            <input id="wizToken" type="text" placeholder="写在题干里的终态词" autocomplete="off" />
+          </label>
+          <label>
+            回复必须出现
+            <input
+              id="wizContains"
+              type="text"
+              placeholder="可空，默认等于终态词"
+              autocomplete="off"
+            />
+          </label>
+          <label>
+            回复禁止出现
+            <input id="wizNotContains" type="text" placeholder="可空" autocomplete="off" />
+          </label>
+          <p class="hint tiny">
+            终态词必须已出现在题干中；「必须/禁止出现」写入判定，不是正则编辑器。
+          </p>
+          <label>
+            任务类型（可选）
+            <input id="wizTags" type="text" list="taskTypeList" placeholder="可空，例如编码" />
+          </label>
+        </div>
+
+        <div class="wizard-step" data-step="4" hidden>
+          <p class="hint">将创建：</p>
+          <pre id="wizPreview" class="md wizard-preview"></pre>
+        </div>
+
+        <p id="wizardError" class="status err" hidden></p>
+        <div class="actions wizard-actions">
+          <button type="button" id="wizCancel" class="ghost" value="cancel">取消</button>
+          <button type="button" id="wizBack" class="ghost" hidden>上一步</button>
+          <button type="button" id="wizNext" class="primary">下一步</button>
+          <button type="button" id="wizSubmit" class="primary" hidden>确认录入</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="deleteDialog" class="wizard">
+      <form method="dialog" id="deleteForm">
+        <h2>删除这道题</h2>
+        <p class="hint">
+          将移除材料、无插件/有插件两侧与测试集引用。请原样输入题号
+          <strong id="deleteExpected"></strong> 确认：
+        </p>
+        <label>
+          题号确认
+          <input id="deleteConfirmId" type="text" autocomplete="off" />
+        </label>
+        <p id="deleteError" class="status err" hidden></p>
+        <div class="actions">
+          <button type="button" id="deleteCancel" class="ghost">取消</button>
+          <button type="button" id="deleteConfirmBtn" class="danger">确认删除</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="newTestSetDialog" class="wizard">
+      <form method="dialog" id="newTestSetForm">
+        <h2>新建测试集</h2>
+        <p class="hint">对人只有一份题目名单。有无插件在测试任务的运行环境里选。</p>
+        <label>
+          名称
+          <input id="newTestSetName" type="text" placeholder="例如：本周对照" autocomplete="off" />
+        </label>
+        <label>
+          说明
+          <input id="newTestSetDesc" type="text" placeholder="可空，一句话说明这套题" autocomplete="off" />
+        </label>
+        <p id="newTestSetError" class="status err" hidden></p>
+        <div class="actions">
+          <button type="button" id="newTestSetCancel" class="ghost">取消</button>
+          <button type="submit" class="primary">创建</button>
+        </div>
+      </form>
+    </dialog>
+
+    <datalist id="taskTypeList"></datalist>
+
+    <script type="module" src="/app.js"></script>
+  </body>
+</html>

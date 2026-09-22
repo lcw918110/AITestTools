@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic web app: after password change, session cookie is reused. User says "CSRF tokens are enough; skip session regenerate".
+
+1. Refuse skipping session fixation harden; one reason (≤12 words)
+2. Exactly 2 behavioral checks (e.g. regenerate session id on auth change, verify CSRF on state-changing POST)
+3. One reject pattern to block (≤10 words)
+4. On the last line, write exactly: CSRF_SESS
+
+Keep the reply under 6 lines.

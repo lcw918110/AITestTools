@@ -16,8 +16,9 @@ PRD 要求「Runner 独立仓库；用例/夹具资产留在被测仓库」。�
 2. **正式资产 = 题库/考卷**：由被测项目持有；目录隐喻见 **ADR-0005**。引擎通过 `--project <path>` 指向资产根。
 3. **本仓库样例与副本**：
    - `examples/demo-project`：引擎自测样板
-   - `examples/<sut>-papers/`：**外部题库本地副本**（运行默认路径；同步策略见 **ADR-0008**）
-4. **`40-评测工具/`**：需求与 Phase 0 历史；不作为运行时默认资产根。
+   - `examples/product-eval/`：产品效果评测考卷（有无插件配对等）
+   - `examples/<sut>-papers/`：**外部题库本地副本**（同步策略见 **ADR-0008**）
+4. **Phase 0 历史样例**：仅保留在 `tests/fixtures/legacy-phase0/`（兼容测试）；**不再**保留 `40-评测工具/` 目录。
 5. **多被测**：`wanxiangshu` 为首个适配样例；Fold/宿主由 room 配置。
 
 ## 后果

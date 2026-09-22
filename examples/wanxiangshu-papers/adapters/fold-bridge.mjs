@@ -1,16 +1,38 @@
 /**
- * 万象术 L1 Fold 桥：Journal.Fold.foldEnvelope + typed Envelope/Fact。
- * 需 SUT_ROOT 指向万象术仓根，且 dist/Journal/Fold.js 可 import。
+ * 万象术 L1 Fold 桥：Durable.Fold.foldEnvelope + typed Envelope/Fact。
+ * 需 SUT_ROOT 指向万象术仓根，且 FOLD_REL 可 import。
  * 旧 Review / Nudge / Squad / WanEvent 入口保留导出名，调用时诚实抛错。
  */
 import { existsSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
+/**
+ * 2026-08-31 万象术产物重构：Journal/ 与 Kernel/ 两个顶层目录已拆散。
+ * 每项按「现行路径优先，旧路径回退」探测，导出名两侧一致。
+ */
+const MODULE_CANDIDATES = {
+  Fold: ['dist/Composition/Durable/Fold.js', 'dist/Journal/Fold.js'],
+  Envelope: ['dist/Persistence/Journal/Envelope.js', 'dist/Journal/Envelope.js'],
+  Fact: ['dist/Composition/Durable/Fact.js', 'dist/Kernel/Fact.js'],
+  Identity: ['dist/Foundation/Identity.js', 'dist/Kernel/Identity.js'],
+};
+
 function sutRoot() {
   const fromEnv = process.env.SUT_ROOT;
   if (typeof fromEnv === 'string' && fromEnv.length > 0) return fromEnv;
-  throw new Error('SUT_ROOT 未设置：L1 需指向万象术仓根（含 dist/Journal/Fold.js）');
+  throw new Error(`SUT_ROOT 未设置：L1 需指向万象术仓根（含 ${MODULE_CANDIDATES.Fold[0]}）`);
+}
+
+function resolveModuleRel(root, name) {
+  const rels = MODULE_CANDIDATES[name];
+  const hit = rels.find((rel) => existsSync(join(root, rel)));
+  if (hit === undefined) {
+    throw new Error(
+      `缺 ${name} 模块（已探 ${rels.join(', ')}，根=${root}）。在万象术仓执行：dotnet tool restore && node scripts/build.mjs`,
+    );
+  }
+  return hit;
 }
 
 function fableUrl(root, ...parts) {
@@ -32,18 +54,12 @@ let cached;
 async function loadDeps() {
   if (cached) return cached;
   const root = sutRoot();
-  const foldJs = join(root, 'dist/Journal/Fold.js');
-  if (!existsSync(foldJs)) {
-    throw new Error(
-      `缺 dist/Journal/Fold.js（${foldJs}）。在万象术仓执行：dotnet tool restore && node scripts/build.mjs`,
-    );
-  }
   const lib = resolveFableLibDir(root);
   const [Fold, Envelope, Fact, Identity, DateOffset] = await Promise.all([
-    import(fableUrl(root, 'dist/Journal/Fold.js')),
-    import(fableUrl(root, 'dist/Journal/Envelope.js')),
-    import(fableUrl(root, 'dist/Kernel/Fact.js')),
-    import(fableUrl(root, 'dist/Kernel/Identity.js')),
+    import(fableUrl(root, resolveModuleRel(root, 'Fold'))),
+    import(fableUrl(root, resolveModuleRel(root, 'Envelope'))),
+    import(fableUrl(root, resolveModuleRel(root, 'Fact'))),
+    import(fableUrl(root, resolveModuleRel(root, 'Identity'))),
     import(fableUrl(root, lib, 'DateOffset.js')),
   ]);
   cached = { Fold, Envelope, Fact, Identity, DateOffset };

@@ -1,0 +1,25 @@
+{
+  "name": "paired-off-calibrate",
+  "description": "难度校准：14 道 Text-only 旧题 + 3 道必须改仓库的效果题（157–159）。旧 14 题几乎全过、没有信息量；效果实验请跑 paired-off-effect-smoke。不要一上来跑 156。",
+  "axis": "B",
+  "room": "hosted-plain-v1",
+  "items": [
+    "EVAL-B-PAIRED-TASK-12-OFF",
+    "EVAL-B-PAIRED-TASK-15-OFF",
+    "EVAL-B-PAIRED-TASK-18-OFF",
+    "EVAL-B-PAIRED-TASK-19-OFF",
+    "EVAL-B-PAIRED-TASK-41-OFF",
+    "EVAL-B-PAIRED-TASK-53-OFF",
+    "EVAL-B-PAIRED-TASK-54-OFF",
+    "EVAL-B-PAIRED-TASK-76-OFF",
+    "EVAL-B-PAIRED-TASK-90-OFF",
+    "EVAL-B-PAIRED-TASK-92-OFF",
+    "EVAL-B-PAIRED-TASK-93-OFF",
+    "EVAL-B-PAIRED-TASK-103-OFF",
+    "EVAL-B-PAIRED-TASK-105-OFF",
+    "EVAL-B-PAIRED-TASK-156-OFF",
+    "EVAL-B-PAIRED-TASK-157-OFF",
+    "EVAL-B-PAIRED-TASK-158-OFF",
+    "EVAL-B-PAIRED-TASK-159-OFF"
+  ]
+}

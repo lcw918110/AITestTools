@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic multi-region cache: TTL expiry uses wall-clock only. Nodes may skew ±30s. User asks to "trust local clock; expire hard".
+
+1. Refuse hard wall-clock-only TTL under skew; one reason (≤12 words)
+2. Exactly 2 skew-tolerant controls (e.g. soft expiry window, logical/version stamp — name controls)
+3. One verification step (≤10 words)
+4. On the last line, write exactly: CLOCK_TTL
+
+Keep the reply under 6 lines.

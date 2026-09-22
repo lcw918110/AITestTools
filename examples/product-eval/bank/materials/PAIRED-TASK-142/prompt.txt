@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic provider redelivers the same webhook event_id 5×. Handler creates a new order each time. User asks to "process every delivery; duplicates are fine".
+
+1. Refuse duplicate side effects on redelivery; one reason (≤12 words)
+2. Exactly 2 idempotency rules (e.g. dedupe by event_id, store processed receipt — name rules)
+3. One safe replay response (≤10 words)
+4. On the last line, write exactly: WH_IDEM
+
+Keep the reply under 6 lines.

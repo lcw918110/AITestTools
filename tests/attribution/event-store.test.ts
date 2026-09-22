@@ -88,9 +88,60 @@ describe('EventStore 只读解析', () => {
 
       const read = readWanxiangEventStore(dir);
       expect(read.present).toBe(true);
+      expect(read.source).toBe('ref');
       expect(read.kinds).toEqual(['JournalEnvelope', 'Runtime', 'RuntimeStarted']);
       expect(read.events).toHaveLength(1);
       expect(read.events[0]?.stream_id).toBe('journal/workspace');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  /**
+   * 万象术运行时先写 <git-dir>/wanxiang/events/*.ndjson，只有 git 操作触发 hook 才收敛成 ref。
+   * 只读 ref 会把「插件正常工作但本题没碰 git」误判成插件没挂上。
+   */
+  it('无 ref 但有运行时 pending 事件时认插件在工作', () => {
+    const dir = mkdtempSync(join(process.cwd(), 'tests/fixtures', 'proctor-es-pending-'));
+    try {
+      const inited = ensureHostedGitRepo(dir);
+      expect(inited, inited.error ?? 'git init').toMatchObject({ ok: true });
+      const eventsDir = join(dir, '.git', 'wanxiang', 'events');
+      mkdirSync(eventsDir, { recursive: true });
+      writeFileSync(join(eventsDir, 'rt-l1.ndjson'), journalEnvelopeLine());
+
+      const read = readWanxiangEventStore(dir);
+      expect(read.present).toBe(true);
+      expect(read.source).toBe('pending');
+      expect(read.reason).toBeUndefined();
+      expect(read.kinds).toEqual(['JournalEnvelope', 'Runtime', 'RuntimeStarted']);
+      expect(read.events).toHaveLength(1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('ref 与 pending 同时存在时按 event_id 去重', () => {
+    const dir = mkdtempSync(join(process.cwd(), 'tests/fixtures', 'proctor-es-both-'));
+    try {
+      const inited = ensureHostedGitRepo(dir);
+      expect(inited, inited.error ?? 'git init').toMatchObject({ ok: true });
+      const shard = EVENT_ID.slice(0, 2);
+      mkdirSync(join(dir, 'events', shard), { recursive: true });
+      writeFileSync(join(dir, 'events', shard, `${EVENT_ID}.jsonl`), journalEnvelopeLine());
+      git(dir, ['add', 'events']);
+      const tree = spawnSync('git', ['write-tree'], { cwd: dir, encoding: 'utf8' });
+      expect(tree.status).toBe(0);
+      git(dir, ['update-ref', WANXIANG_STORE_REF, tree.stdout.trim()]);
+
+      const eventsDir = join(dir, '.git', 'wanxiang', 'events');
+      mkdirSync(eventsDir, { recursive: true });
+      writeFileSync(join(eventsDir, 'rt-l1.ndjson'), journalEnvelopeLine());
+
+      const read = readWanxiangEventStore(dir);
+      expect(read.present).toBe(true);
+      expect(read.source).toBe('ref+pending');
+      expect(read.events).toHaveLength(1);
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

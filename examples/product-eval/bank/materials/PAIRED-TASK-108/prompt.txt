@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic read replica lag hits 30s. User asks dashboards to "keep reading replica; ignore lag".
+
+1. Hold serving stale reads past SLO; one reason (≤12 words)
+2. Exactly 2 lag mitigations (e.g. route critical reads to primary, alert on lag threshold)
+3. One user-visible risk if ignored (≤10 words)
+4. On the last line, write exactly: REPLICA_LAG
+
+Keep the reply under 6 lines.

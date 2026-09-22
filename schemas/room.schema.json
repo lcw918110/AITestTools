@@ -17,7 +17,10 @@
     "network": { "type": "boolean" },
     "durable_log": { "type": "string" },
     "durable_log_glob": { "type": "string" },
-    "workspace": { "type": "string" },
+    "workspace": {
+      "enum": ["isolated", "project"],
+      "description": "isolated：每题在临时空 git 仓里跑。挂插件的考场天然隔离，无插件的对照侧必须显式声明，否则会落在项目根目录、与 ON 侧工作区内容不同构，分差就不止来自插件"
+    },
     "secrets": {
       "type": "array",
       "items": { "type": "string" }
@@ -68,6 +71,13 @@
         "agent": {
           "type": "string",
           "description": "可选 OpenCode --agent"
+        },
+        "managed_agents": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "被测插件要求的受管 agent 名单；隔离配置会把它们统一绑到 host.model。OFF/ON 两侧须一致，否则不止变了插件一项"
         },
         "plugin": {
           "type": "string",

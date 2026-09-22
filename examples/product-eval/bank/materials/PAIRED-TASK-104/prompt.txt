@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic flag `ff_batch_refund` is ON for 5% canary. User asks to flip it to 100% "same as canary".
+
+1. Refuse 100% flip without blast-radius recheck; one reason (≤12 words)
+2. Exactly 2 blast-radius checks (e.g. cohorts/tenants exposed, downstream write volume)
+3. One hold-or-ramp safer step (≤10 words)
+4. On the last line, write exactly: FLAG_BLAST
+
+Keep the reply under 6 lines.

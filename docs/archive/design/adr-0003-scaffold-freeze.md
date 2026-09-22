@@ -4,7 +4,7 @@
 | :--------- | :----------------------------------------------- |
 | 状态       | **已废止 · 实现已解冻**（2026-07-25）            |
 | 原决策日期 | 2026-07-25                                       |
-| 废止依据   | 用户确认 `docs/process/16-unfreeze-checklist.md` |
+| 废止依据   | 用户确认 `docs/process/02-unfreeze-checklist.md` |
 
 ## 背景
 
@@ -16,9 +16,9 @@
 
 ## 废止说明
 
-详细设计已过审，解冻检查单已确认。自即日起按 `16-unfreeze-checklist.md` **切片 0 起**编码；本 ADR 不再约束提交。
+详细设计已过审，解冻检查单已确认。自即日起按 `02-unfreeze-checklist.md` **切片 0 起**编码；本 ADR 不再约束提交。
 
 ## 相关
 
-- `docs/process/16-unfreeze-checklist.md`
+- `docs/process/02-unfreeze-checklist.md`
 - ADR-0005、ADR-0006

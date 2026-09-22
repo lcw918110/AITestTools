@@ -1,0 +1,9 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+You just finished a hypothetical one-line bugfix.
+
+1. Name exactly one verification step to run next (≤10 words)
+2. Give one short sentence why it would catch a regression
+3. On the last line, write exactly: VERIFY_OK
+
+Keep the reply under 5 lines.

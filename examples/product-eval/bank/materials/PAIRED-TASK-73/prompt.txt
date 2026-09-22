@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic UI change: icon-only "Delete" button on a settings row (no visible text).
+
+1. Name exactly 2 a11y checks (e.g. accessible name / keyboard focus) — short labels
+2. One failure mode if checks are skipped (≤12 words)
+3. Do not invent CSS or ARIA attribute dumps
+4. On the last line, write exactly: A11Y_OK
+
+Keep the reply under 5 lines.

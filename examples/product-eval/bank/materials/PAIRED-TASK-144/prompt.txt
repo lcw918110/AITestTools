@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic feature flag docs still list beta limits the code removed last quarter. User asks to "ship code; docs can catch up later".
+
+1. Refuse shipping with known feature-doc drift; one reason (≤12 words)
+2. Exactly 2 drift checks (e.g. flag behavior vs public docs, remove stale limits — name checks)
+3. One release gate artifact (≤10 words)
+4. On the last line, write exactly: DOC_DRIFT
+
+Keep the reply under 6 lines.

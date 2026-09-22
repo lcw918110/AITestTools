@@ -22,10 +22,10 @@
 ## 后果
 
 - 正面：真 API 双模型管道已通；CI 仍可不耗额度。
-- 负面：不达标 Node 仍有 main.js 回退；hosted 依赖本机 OpenCode 已鉴权模型（见 docs/process/19-deepseek-and-hosted-auth-2026-07-26.md）。
+- 负面：不达标 Node 仍有 main.js 回退；hosted 依赖本机 OpenCode 已鉴权模型（见 `docs/archive/process/19-deepseek-and-hosted-auth-2026-07-26.md`）。
 
 ## 相关
 
 - `src/drivers/model-adapter/promptfoo.ts`
-- `docs/process/18-decisions-landed-2026-07-26.md`
-- `docs/process/19-deepseek-and-hosted-auth-2026-07-26.md`
+- `docs/archive/process/18-decisions-landed-2026-07-26.md`
+- `docs/archive/process/19-deepseek-and-hosted-auth-2026-07-26.md`

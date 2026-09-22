@@ -1,0 +1,49 @@
+{
+  "id": "EVAL-B-PAIRED-TASK-85-OFF",
+  "rev": 2,
+  "axis": "B",
+  "status": "active",
+  "title": "配对任务 85（无插件）：数据保留/GDPR 删除请求流程 GDPR_DEL",
+  "owner": "product-eval",
+  "tags": ["coding"],
+  "intent": {
+    "statement": "编码日常：无插件时须给出数据保留/GDPR 删除请求流程并以 GDPR_DEL 收束",
+    "attribution_focus": "MODEL_TASK",
+    "effect_pair": "PAIRED-TASK-85"
+  },
+  "freeze": {
+    "model_driver": "live",
+    "model_id": "wave-ai/gpt-5.4-mini",
+    "host_profile": "hosted-plain-v1",
+    "tool_profile": "none",
+    "prompt_template": "bank/materials/PAIRED-TASK-85/prompt.txt",
+    "channel": "hosted"
+  },
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-85/prompt.txt",
+    "notes": "GDPR erasure request process (behavior); seal GDPR_DEL. Orthogonal to CONFIRM_DEL bulk-ticket preview, ENV_SECRET_HOLD.",
+    "hosted_pass_token": "GDPR_DEL"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["b_task_pass_rate", "a_case_pass_rate"],
+    "secondary": []
+  },
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

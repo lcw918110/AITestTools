@@ -1,0 +1,67 @@
+{
+  "id": "EVAL-B-PAIRED-TASK-54-ON",
+  "rev": 4,
+  "axis": "B",
+  "status": "active",
+  "title": "配对任务 54（有插件）：工具必填参数 Schema 齐全 SCHEMA_OK + NDJSON",
+  "owner": "product-eval",
+  "tags": ["tool"],
+  "intent": {
+    "statement": "与 OFF 同任务；挂万象术后应 SCHEMA_OK 收束并产生 assistant_completed",
+    "attribution_focus": "PROTOCOL",
+    "effect_pair": "PAIRED-TASK-54",
+    "protocol_probes": ["RuntimeStarted", "JournalEnvelope"]
+  },
+  "freeze": {
+    "model_driver": "live",
+    "model_id": "wave-ai/gpt-5.4-mini",
+    "host_profile": "hosted-plugin-v1",
+    "tool_profile": "none",
+    "prompt_template": "bank/materials/PAIRED-TASK-54/prompt.txt",
+    "channel": "hosted"
+  },
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-54/prompt.txt",
+    "notes": "Declare tool + required args without extras; seal SCHEMA_OK. Methodology from EvalScope general_fc schema_accuracy (Apache-2.0).",
+    "hosted_pass_token": "SCHEMA_OK"
+  },
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      },
+      {
+        "id": "tool-line",
+        "type": "stdout_assert",
+        "contains": "tool=summarize_diff"
+      },
+      {
+        "id": "arg-path",
+        "type": "stdout_assert",
+        "contains_regex": "\"path\"\\s*:\\s*\"src/cli/main.ts\""
+      },
+      {
+        "id": "arg-max-lines",
+        "type": "stdout_assert",
+        "contains_regex": "\"max_lines\"\\s*:\\s*40"
+      }
+    ]
+  },
+  "metrics": {
+    "primary": ["b_task_pass_rate", "a_case_pass_rate"],
+    "secondary": ["a_invariant_violations"]
+  },
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": true
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini",
+    "rev3": "协议探针换血：assistant_completed 属万象术 0.8 前 NDJSON 面，已消失；改用 2026-08-31 hosted 真跑实测命中的 EventStore Kind（RuntimeStarted / JournalEnvelope）",
+    "rev4": "判定加严：补 stdout_assert/workspace_assert，暗号不再作为唯一通过条件"
+  }
+}

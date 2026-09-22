@@ -47,20 +47,6 @@ export function validateItem(asset: LoadedAsset<ItemDoc>, materialsRoot?: string
 
   const doc = asset.doc;
 
-  if (
-    /"sleep_ms"/.test(asset.raw) &&
-    !/"harness_internal"/.test(asset.raw) &&
-    !/"proctor_internal"/.test(asset.raw)
-  ) {
-    issues.push(
-      err(
-        'SLEEP_FORBIDDEN',
-        '出现裸 sleep_ms 且未标 harness_internal/proctor_internal（时间无关原则）',
-        file,
-      ),
-    );
-  }
-
   if (materialsRoot !== undefined && !existsSync(resolve(materialsRoot, doc.stimulus.ref))) {
     issues.push(
       err(

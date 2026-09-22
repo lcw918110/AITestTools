@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic primary on-call ends shift. User asks to "just say good luck; skip the checklist".
+
+1. Refuse bare verbal handoff without checklist; one reason (≤12 words)
+2. Exactly 2 checklist items (e.g. open incidents + pager ownership, active silences/overrides — name items)
+3. One must-confirm ack from incoming (≤10 words)
+4. On the last line, write exactly: OC_SHIFT
+
+Keep the reply under 6 lines.

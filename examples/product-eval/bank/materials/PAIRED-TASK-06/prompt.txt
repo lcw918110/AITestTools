@@ -1,0 +1,9 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+You are about to change a shared config used by multiple services (hypothetical).
+
+1. Name exactly two concrete risks of the change (one short sentence each)
+2. Name one mitigation for the highest risk (one short sentence)
+3. On the last line, write exactly: RISK_OK
+
+Keep the reply under 8 lines.

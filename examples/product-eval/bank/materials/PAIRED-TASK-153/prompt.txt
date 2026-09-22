@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic platform: service A promises p99 200ms to customers while calling dependency B with undocumented SLA and no budget share. User asks to "just set client timeout to 5s".
+
+1. Refuse timeout-only as SLA alignment; one reason (≤12 words)
+2. Exactly 2 alignment artifacts (e.g. dependency SLO budget share, error-budget / timeout ladder — name artifacts)
+3. One mismatch risk (≤10 words)
+4. On the last line, write exactly: DEP_SLA
+
+Keep the reply under 6 lines.

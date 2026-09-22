@@ -1,0 +1,9 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+You must cut scope for a hypothetical MVP shipping this week.
+
+1. Name exactly one feature to defer (≤6 words)
+2. Give one sentence reason tied to schedule risk
+3. On the last line, write exactly: SCOPE_OK
+
+Keep the reply under 5 lines.

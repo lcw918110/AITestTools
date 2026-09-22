@@ -1,0 +1,10 @@
+Text-only reply. Do not explore the repo. Do not call tools. Do not spawn subagents.
+
+Synthetic cache-aside: attackers query random missing keys and hammer the DB. User asks to "always hit DB on miss; caching is optional".
+
+1. Refuse unprotected cache-aside penetration; one reason (≤12 words)
+2. Exactly 2 penetration defenses (e.g. bloom/negative cache, request coalescing — name defenses)
+3. One metric to watch (≤10 words)
+4. On the last line, write exactly: CACHE_PEN
+
+Keep the reply under 6 lines.
