@@ -196,4 +196,10 @@
 - `hosted-plugin-v1.json` 第 20 行 `"agent": "engineer"` → `"agent": "orchestrator"`
 - 修复后 Orchestrator 作为根会话启动，方可拉起 Manager → Engineer + DevOps 完整编排链
 
-**待办：** 修复后需重跑 T6 的 ON 侧实验，验证编排是否真正拉起（EventStore 出现 orchestrator/manager/devops 会话 + workspace_ok 通过）。题面 157–159 本身无需改动，待新运行证据更新效果结论。
+**重跑结果（run ID: 20260922-225811092-6ery，2026-09-22）：** 命令 `npm run proctor -- run --axis B --paperset paired-on-effect-smoke --project examples/product-eval`。结果**部分成功**：
+
+1. **`agent=orchestrator` 修复生效：** 三题的 EventStore 首次出现 `orchestrator` 会话（157: 3 orchestrator + 7 engineer + 8 blogger；158: 3+3+8；159: 4+25+10）。此前 engineer 根运行仅有 engineer+blogger。
+2. **Delegation 事件首次出现：** 157 和 159 的 EventStore 含 Delegation kind（158 超时前未产生），另有新的 `sphinx/inquiry-transition` kind——编排机制确实启动。
+3. **完整链仍未接通：** 三题 EventStore 中 `manager`、`devops` 会话**仍为零**。orchestrator 直接 delegate 到 engineer，未走 manager 协调 engineer+devops 路径，验证闭环（engineer → devops 跑测试 → engineer 反馈）仍未闭合。
+4. **运行结果：** 157、158 仍超时（CONTEXT）；159 完成（`host_exit=0`）但 `workspace_ok` 仍 false（query-split、name-reject-empty 失败，无 `pass_token` 发射）。
+5. **结论：** 配置层修复（`host.agent` → `"orchestrator"`）确认有效——orchestrator 与 Delegation 机制首次启动。但 orchestrator → manager → devops 完整编排链需万象术 plugin 的 orchestration 业务逻辑支持，属于 SUT 侧问题，非配置层面可解决。题面 157–159 本身无需改动。
