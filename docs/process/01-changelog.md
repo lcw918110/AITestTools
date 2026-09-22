@@ -135,9 +135,65 @@
 
 - 本次死循环强停后重新更新万象术（hosted-runner / l1 / l2 / l3-runner / fold-bridge 等 93 文件未提交改动，+2497/−2330 行），预计解决死循环问题。
 
-**中文回复固化修复：**
+**回复断言固化修复：**
 
 - `bank.ts` 的 `UpdateTaskBody` / `updateTask`（WRITE 路径）增加 `contains` / `not_contains` 持久化；`ItemSide` / `TaskDetail` / `sideFrom` / `getTask`（READ 路径）返回 `contains` / `not_contains`。
 - 前端 `bank.js` + `index.html` 编辑表单补全回复断言字段。
 - 回归测试 C-B-35 覆盖 WRITE + READ 两端。
 - 验证通过：`typecheck` 0 错误，`vitest` 全量 44 文件 214 测试通过。
+
+**中文回复指令固化：**
+
+- `AGENTS.md` 第 3 行与 `.cursor/rules/dev-process-skills.mdc` 第 16 行新增「始终用简体中文回复」指令，统一思考、对话、代码注释、报告使用简体中文。
+
+**T6 ON 重跑事实记录（2026-09-22）：**
+
+- 重跑 run ID：`20260922-205152392-66in`（ON，paired-on-effect-smoke，题目 157/158/159）
+- 死循环未复现：三题均 `timed_out=false`、无强停信号、4–14 秒内自行退出，确认此前死循环已修复
+- ON 仍 0/3：三题全部 `host_exit=1`、`workspace_ran=true`、`workspace_ok=false`（模型未完成要求的代码修改，如 discount/tax 未含 Math.round、端口未对齐 8443、query 无 split）
+- 共同信号：`event_store_present=false`、`event_store_reason=no-store-ref`；线索指向万象术 0.8+ 耐久改为 `refs/wanxiang/store`，旧 EventStore 协议探针（读 `.wanxiangshu.ndjson` 挂载）可能未适配
+- 对照未跑：因 `host_exit=1` 触发停止条件
+- 待定：方向 A（适配 EventStore 协议探针后重跑做有效对照）vs 方向 B（接受两轮 ON 0/3，维持「插件未改善」结论）
+
+### T6 最终有效对照（2026-09-22）
+
+**最终有效 ON run：**
+
+- Run ID：`20260922-213356265-krzh`。
+- 三题全部 `host_exit=0`、`timed_out=false`、`event_store_present=true`（8 种事件：Agent/ChatExecution/Companion/Context/Host/JournalEnvelope/Prompt/Runtime/RuntimeStarted）、`materials_mutated=true`、`pass_token_present=true`。
+- 但 `workspace_ok=false`，每道题差最后一个 oracle，均为 MODEL_TASK 失败：157 缺 `lib/discount.mjs` 的 `Math.round`；158 缺 `docs/runbook.md` 的 `8443`；159 缺 `lib/validate.js` 的 `^[A-Za-z]` 正则。
+
+**插件全链路打通：**
+
+- 死循环、准入拒绝、配置校验拒绝三个闸门全部解决。
+- 根因链：openCode 的 `fast-`/`deep-` 前缀 agent 名触发 InvalidExplicitAgent（chat admission 不认识）→ 去前缀后 `coder/inspector/browser/inquiry/distiller` 仍是 legacy 名，触发 managed-agent-config-invalid（config 校验拒绝）→ 最终收窄为 7 个非 legacy 名（manager/orchestrator/engineer/devops/blogger/bookkeeper/predictor），主 agent 为 engineer。
+
+**对照结论：**
+
+- baseline（OFF）`20260922-162303606-yxmz`：pass_rate 1.000（3/3）。
+- candidate（ON）`20260922-213356265-krzh`：pass_rate 0.000（0/3）。
+- Δ = −1.000；无 CONTEXT 事件，排除后不变。
+
+**结论：**
+
+- 万象术插件未改善模型效果，本配对中严格更差（OFF 全过、ON 全挂）。——**该结论对照基准无效（ON 编排从未启动，OFF/ON 并非有效配对），已被 §8 根因纠正架空。**
+- DoD 本意「OFF 必挂、ON 有机会过」，实测方向相反——**原记录归因为「题面 157–159 需回到改题工作」，该结论已于 2026-09-22 被证伪（见下方 §8 根因纠正）。**
+
+---
+
+## 8. 根因纠正：T6 ON 编排未启动（2026-09-22）
+
+**原结论已证伪：** §7 末记录「题面 157–159 需回到改题工作」在题面层面过早归因，遗漏了真实根因。
+
+**真实根因：** `examples/product-eval/rooms/hosted-plugin-v1.json` 的 `host.agent` 字段被误设为 `"engineer"`——叶子执行者角色，无 bash、无编排权限。opencode 以 Engineer 身份直接启动根会话，**整个 Orchestrator → Manager → Engineer + DevOps 编排链从未启动**。Engineer 在既无 bash 又无 DevOps 执行者的情况下盲改代码，改完即发通关暗号，从未运行测试。三题各缺一个文件正是盲改模式的典型特征，与题面设计无关。
+
+**EventStore 证据（DevOps 检查确认）：**
+- ON 运行中仅存在 `engineer`、`blogger` 两个会话
+- `devops`、`manager`、`orchestrator` 从未出现
+- 完整编排链缺失——ON 侧实际测得的是「无编排的 Engineer 盲改」而非「插件辅助的 Agent 协作」
+
+**已修复：**
+- `hosted-plugin-v1.json` 第 20 行 `"agent": "engineer"` → `"agent": "orchestrator"`
+- 修复后 Orchestrator 作为根会话启动，方可拉起 Manager → Engineer + DevOps 完整编排链
+
+**待办：** 修复后需重跑 T6 的 ON 侧实验，验证编排是否真正拉起（EventStore 出现 orchestrator/manager/devops 会话 + workspace_ok 通过）。题面 157–159 本身无需改动，待新运行证据更新效果结论。

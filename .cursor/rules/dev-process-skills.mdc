@@ -13,7 +13,7 @@ alwaysApply: true
 4. 完成前 → `.cursor/skills/sdlc-self-check/SKILL.md`
 5. 改了引擎/控制台代码 → `.cursor/skills/code-review/SKILL.md`
 
-- 简体中文
+- 始终用简体中文回复；所有输出（思考、对话、代码注释、报告）必须使用简体中文，不得使用英文。
 - 文档只留当前态；旧稿在 git
 - 不改万象术业务逻辑
 - 对话里本地文件用 `file:///` + 绝对路径，中文不要预先百分号编码

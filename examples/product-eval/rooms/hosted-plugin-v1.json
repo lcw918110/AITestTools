@@ -1,4 +1,5 @@
 {
+  "_comment": "Agent name mappings (original → canonical for ManagedCatalog): fast-coder→coder | fast-manager→manager, deep-manager→manager | fast-coder→coder, deep-coder→coder | fast-inspector→inspector, deep-inspector→inspector | fast-devops→devops, deep-devops→devops | fast-browser→browser, deep-browser→browser | fast-inquiry→inquiry, deep-inquiry→inquiry | fast-reviewer→auditor, deep-reviewer→auditor | fast-orchestrator→orchestrator, deep-orchestrator→orchestrator | fast-distiller→distiller, deep-distiller→distiller | fast-blogger→blogger, deep-blogger→blogger. 原 20 名去前缀后含 legacy 名（coder/inspector/browser/inquiry/distiller）与未知名（auditor），已进一步收窄为插件配置校验接受的 7 个非 legacy 身份。",
   "name": "hosted-plugin-v1",
   "kind": "hosted",
   "description": "真 OpenCode + 万象术 Plugin（配对 treatment）。plugin 相对 SUT_ROOT。耐久为 EventStore（refs/wanxiang/store）。",
@@ -16,29 +17,8 @@
     "version": "1.18.5",
     "command": "opencode",
     "model": "wave-anthropic/claude-sonnet-5",
-    "agent": "fast-coder",
-    "managed_agents": [
-      "fast-manager",
-      "deep-manager",
-      "fast-coder",
-      "deep-coder",
-      "fast-inspector",
-      "deep-inspector",
-      "fast-devops",
-      "deep-devops",
-      "fast-browser",
-      "deep-browser",
-      "fast-inquiry",
-      "deep-inquiry",
-      "fast-reviewer",
-      "deep-reviewer",
-      "fast-orchestrator",
-      "deep-orchestrator",
-      "fast-distiller",
-      "deep-distiller",
-      "fast-blogger",
-      "deep-blogger"
-    ],
+    "agent": "orchestrator",
+    "managed_agents": ["manager", "orchestrator", "engineer", "devops", "blogger", "bookkeeper", "predictor"],
     "plugin": "dist/OpenCode/Plugin/Plugin.js"
   }
 }

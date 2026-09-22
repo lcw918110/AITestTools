@@ -1118,6 +1118,9 @@ async function handler(req: IncomingMessage, res: ServerResponse): Promise<void>
       notes?: string;
       tags?: string[] | string;
       changeName?: string;
+      contains?: string | string[];
+      notContains?: string | string[];
+      not_contains?: string | string[];
     };
     try {
       body = JSON.parse(raw || '{}') as typeof body;
