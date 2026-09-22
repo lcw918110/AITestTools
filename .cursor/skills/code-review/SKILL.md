@@ -4,6 +4,7 @@ description: >-
   非琐碎改动 src 或 apps/console 后跑 Bugbot 代码审查。
   Use when finishing a coding slice, after self-check, or when the user says 审查 / review / bugbot.
 ---
+> ⚠️ **基础约束：始终用简体中文回复。所有思考、对话、代码注释、报告都必须使用简体中文，不得使用英文。**
 
 # 代码审查（本仓）
 

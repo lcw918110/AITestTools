@@ -5,6 +5,7 @@ description: >-
   Use when changing console/bank/eval behavior, papers-v1 usage, rooms/papersets, or docs in this repo.
 paths: docs/**/*.md,examples/product-eval/**/*.md
 ---
+> ⚠️ **基础约束：始终用简体中文回复。所有思考、对话、代码注释、报告都必须使用简体中文，不得使用英文。**
 
 # 设计落盘（本仓）
 

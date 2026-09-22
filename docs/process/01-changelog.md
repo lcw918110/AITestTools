@@ -146,6 +146,8 @@
 
 - `AGENTS.md` 第 3 行与 `.cursor/rules/dev-process-skills.mdc` 第 16 行新增「始终用简体中文回复」指令，统一思考、对话、代码注释、报告使用简体中文。
 
+- .cursor/skills/ 下 design-current-state / coding-standards / sdlc-self-check / code-review 共 4 个 SKILL.md，在 frontmatter 后统一插入 `> ⚠️ **基础约束：始终用简体中文回复。所有思考、对话、代码注释、报告都必须使用简体中文，不得使用英文。**` 约束行，对齐 AGENTS.md 口径。
+
 **T6 ON 重跑事实记录（2026-09-22）：**
 
 - 重跑 run ID：`20260922-205152392-66in`（ON，paired-on-effect-smoke，题目 157/158/159）

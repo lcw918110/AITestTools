@@ -5,6 +5,7 @@ description: >-
   Use when finishing any implementation, doc, or asset change in this repo,
   or before saying 完成 / 已落地 / 已验收.
 ---
+> ⚠️ **基础约束：始终用简体中文回复。所有思考、对话、代码注释、报告都必须使用简体中文，不得使用英文。**
 
 # 完成前自测（本仓）
 
