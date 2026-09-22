@@ -205,3 +205,40 @@
 3. **完整链仍未接通：** 三题 EventStore 中 `manager`、`devops` 会话**仍为零**。orchestrator 直接 delegate 到 engineer，未走 manager 协调 engineer+devops 路径，验证闭环（engineer → devops 跑测试 → engineer 反馈）仍未闭合。
 4. **运行结果：** 157、158 仍超时（CONTEXT）；159 完成（`host_exit=0`）但 `workspace_ok` 仍 false（query-split、name-reject-empty 失败，无 `pass_token` 发射）。
 5. **结论：** 配置层修复（`host.agent` → `"orchestrator"`）确认有效——orchestrator 与 Delegation 机制首次启动。但 orchestrator → manager → devops 完整编排链需万象术 plugin 的 orchestration 业务逻辑支持，属于 SUT 侧问题，非配置层面可解决。题面 157–159 本身无需改动。
+
+---
+
+## 9. T6 ON 重跑验证（2026-09-23）：编排链仍未接通
+
+**重跑 run ID：** `20260923-002820484-c198`（ON，paired-on-effect-smoke，题目 157/158/159）。
+
+**前置变更：**
+
+- 万象术死循环修复（93 文件更新，2026-09-22）
+- `host.agent` = `orchestrator`（§8 修复）
+- Pair Programming 中文语言修复（`PairProgrammingThoughtTransform.fs` `English` → `SimplifiedChinese`，commit `49a6b1e89`，Fable 编译部署）
+
+**评测结果（0/3）：**
+
+| 题号 | host_exit | timed_out | 关键变化 |
+|------|-----------|-----------|----------|
+| 157 | 0 | false | discount-round + tax-round 双失败，13 engineer 会话但 materials 未变 |
+| 158 | null | true | 0 engineer 会话，编排未启动 |
+| 159 | null | true | query-split 首次通过，但 name-reject-empty 未过，5 engineer 会话后超时 |
+
+**EventStore 编排链状态：**
+
+- orchestrator 会话：存在（4/3/3）
+- manager 会话：**0**
+- devops 会话：**0**
+- engineer 会话：13/0/5
+- Delegation 种类出现（157、159），但 orchestrator 直接 delegate 到 engineer
+
+**结论：**
+
+- 死循环修复确认有效（157 正常退出）
+- orchestrator 与 Delegation 确认生效
+- orchestrator → manager → devops 完整编排链仍未接通（manager/devops 0），原因是万象术 plugin 业务逻辑层未实现 manager commission 路由，属于 SUT 侧工程问题
+- 中文固化源码修改已编译部署，编排链接通后可评估效果
+
+**下一阶段方向：** 在万象术 plugin 侧实现 orchestrator commission tool → manager 的完整路由链路，使 manager fork engineer + resume devops 形成验证反馈闭环。
