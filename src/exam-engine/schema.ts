@@ -4,14 +4,21 @@ import { Ajv2020, type ErrorObject, type ValidateFunction } from 'ajv/dist/2020.
 import addFormats from 'ajv-formats';
 import type { Issue } from './types.ts';
 
-/** 资产协议版本（ADR-0006）。 */
+/** 资产协议版本（ADR-0006）。V2.17 深迁移：cases-v1 将替代 papers-v1，迁移完成前保持 papers-v1。 */
 export const ASSET_PROTOCOL_VERSION = 'papers-v1';
 
 const SCHEMA_FILES = {
+  // 旧 papers-v1 schema（现行协议）
   item: 'item.schema.json',
   paperset: 'paperset.schema.json',
   room: 'room.schema.json',
   exam: 'exam.schema.json',
+  // 新 cases-v1 schema（阶段 1 已就位，阶段 2 迁移后启用）
+  case: 'case.schema.json',
+  'case-revision': 'case-revision.schema.json',
+  'dataset-release': 'dataset-release.schema.json',
+  environment: 'environment.schema.json',
+  candidate: 'candidate.schema.json',
 } as const;
 
 export type SchemaName = keyof typeof SCHEMA_FILES;

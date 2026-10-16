@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/agent-proctor/agent-proctor/schemas/dataset-release.schema.json",
+  "title": "DatasetRelease",
+  "description": "V2.17 冻结案例集合及其完整引用闭包（cases-v1）。不可变；逐项引用确切 CaseRevision。",
+  "type": "object",
+  "required": ["dataset_release_id", "name", "case_revisions", "closure_hash"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "dataset_release_id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "name": { "type": "string", "minLength": 1 },
+    "description": { "type": "string" },
+    "case_revisions": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["case_id", "case_revision_id", "content_hash"],
+        "additionalProperties": false,
+        "properties": {
+          "case_id": { "type": "string" },
+          "case_revision_id": { "type": "string" },
+          "content_hash": { "type": "string" },
+          "material_hashes": {
+            "type": "object",
+            "additionalProperties": { "type": "string" }
+          }
+        }
+      }
+    },
+    "closure_hash": {
+      "type": "string",
+      "minLength": 1,
+      "description": "引用闭包总 hash（含材料/Oracle/Rubric）。"
+    },
+    "coverage_matrix": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": { "type": "number" }
+      }
+    },
+    "created_at": { "type": "string" }
+  }
+}

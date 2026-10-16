@@ -1,0 +1,355 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/agent-proctor/agent-proctor/schemas/case-revision.schema.json",
+  "title": "CaseRevision",
+  "description": "V2.17 不可变修订正文（cases-v1）。修改输入/预期/Oracle/Rubric 创建新修订；正式 DatasetRelease 只引用确切修订。",
+  "type": "object",
+  "required": [
+    "case_id",
+    "case_revision_id",
+    "revision_number",
+    "content_hash",
+    "stimulus",
+    "expect",
+    "attribution_focus",
+    "execution"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "case_id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "case_revision_id": {
+      "type": "string",
+      "description": "唯一修订标识（如 paired-task-22.r2）。"
+    },
+    "revision_number": { "type": "integer", "minimum": 1 },
+    "content_hash": {
+      "type": "string",
+      "minLength": 1,
+      "description": "输入/前提/预期/Oracle/Rubric/证据/清理 的规范化摘要（sha256）。"
+    },
+    "stimulus": {
+      "type": "object",
+      "required": ["kind", "ref"],
+      "additionalProperties": false,
+      "properties": {
+        "kind": {
+          "enum": ["event_sequence", "task_prompt", "tool_args", "hook_script", "cassette"]
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1,
+          "description": "相对项目根的考材路径（materials/...）。"
+        },
+        "notes": { "type": "string" },
+        "hosted_pass_token": {
+          "type": "string",
+          "minLength": 1,
+          "description": "hosted 直播跑：stdout 须含该词（整词匹配）。"
+        }
+      }
+    },
+    "preconditions": { "type": "array", "items": { "type": "string" } },
+    "steps": { "type": "array", "items": { "type": "string" } },
+    "setup_cleanup": { "type": "array", "items": { "type": "string" } },
+    "permissions_side_effects": { "type": "array", "items": { "type": "string" } },
+    "expect": {
+      "type": "object",
+      "required": ["oracles"],
+      "additionalProperties": false,
+      "properties": {
+        "oracles": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "$ref": "#/$defs/oracle" }
+        },
+        "rubric": { "$ref": "#/$defs/rubric" }
+      }
+    },
+    "evidence_requirements": { "type": "array", "items": { "type": "string" } },
+    "strata": {
+      "type": "object",
+      "properties": {
+        "task_type": { "type": "string" },
+        "difficulty_level": { "type": "string" },
+        "difficulty_basis": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "attribution_focus": { "$ref": "#/$defs/attribution" },
+    "protocol_probes": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "hosted：durable NDJSON 中期望出现的 Kind。"
+    },
+    "execution": {
+      "type": "object",
+      "required": ["deadline_ms", "requires_network"],
+      "additionalProperties": false,
+      "properties": {
+        "deadline_ms": { "type": "integer", "exclusiveMinimum": 0 },
+        "requires_network": { "type": "boolean" },
+        "requires_durable_log": { "type": "boolean" },
+        "repeats": { "type": "integer", "minimum": 1 }
+      }
+    },
+    "change_log": {
+      "type": "object",
+      "additionalProperties": { "type": "string" }
+    }
+  },
+  "$defs": {
+    "attribution": {
+      "enum": ["PROTOCOL", "CONTEXT", "MODEL_SCHEMA", "MODEL_TASK", "TOOL", "HARNESS"]
+    },
+    "rubric": {
+      "type": "object",
+      "required": ["dimensions"],
+      "properties": {
+        "dimensions": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["name", "scale", "weight"],
+            "properties": {
+              "name": { "type": "string" },
+              "scale": { "type": "string" },
+              "weight": { "type": "number" }
+            },
+            "additionalProperties": false
+          }
+        },
+        "judge": {
+          "type": "object",
+          "properties": {
+            "model": { "type": "string" },
+            "prompt_version": { "type": "string" }
+          },
+          "additionalProperties": false
+        }
+      },
+      "additionalProperties": false
+    },
+    "oracle": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": {
+          "enum": [
+            "event_fold",
+            "event_subsequence",
+            "state_predicate",
+            "no_event",
+            "tool_trace",
+            "schema_obedience",
+            "workspace_assert",
+            "tool_result_equals",
+            "tool_side_effect",
+            "exit_code",
+            "metric_threshold",
+            "stdout_assert"
+          ]
+        },
+        "id": { "type": "string" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "type": { "const": "exit_code" } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/oracle-exit-code" }
+        },
+        {
+          "if": { "properties": { "type": { "const": "workspace_assert" } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/oracle-workspace-assert" }
+        },
+        {
+          "if": { "properties": { "type": { "const": "tool_side_effect" } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/oracle-tool-side-effect" }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "tool_result_equals" } },
+            "required": ["type"]
+          },
+          "then": { "$ref": "#/$defs/oracle-tool-result-equals" }
+        },
+        {
+          "if": { "properties": { "type": { "const": "stdout_assert" } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/oracle-stdout-assert" }
+        },
+        {
+          "if": { "properties": { "type": { "const": "metric_threshold" } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/oracle-metric-threshold" }
+        },
+        {
+          "if": { "properties": { "type": { "const": "event_fold" } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/oracle-event-fold" }
+        },
+        {
+          "if": {
+            "properties": { "type": { "const": "event_subsequence" } },
+            "required": ["type"]
+          },
+          "then": { "$ref": "#/$defs/oracle-event-subsequence" }
+        },
+        {
+          "if": { "properties": { "type": { "const": "state_predicate" } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/oracle-state-predicate" }
+        },
+        {
+          "if": { "properties": { "type": { "const": "no_event" } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/oracle-no-event" }
+        },
+        {
+          "if": { "properties": { "type": { "const": "tool_trace" } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/oracle-tool-trace" }
+        },
+        {
+          "if": { "properties": { "type": { "const": "schema_obedience" } }, "required": ["type"] },
+          "then": { "$ref": "#/$defs/oracle-schema-obedience" }
+        }
+      ]
+    },
+    "oracle-exit-code": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "exit_code" },
+        "id": { "type": "string" },
+        "equals": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "oracle-workspace-assert": {
+      "type": "object",
+      "required": ["type", "path"],
+      "properties": {
+        "type": { "const": "workspace_assert" },
+        "id": { "type": "string" },
+        "path": { "type": "string", "minLength": 1 },
+        "file": { "type": "string", "minLength": 1 },
+        "contains": { "type": "string" },
+        "not_contains": { "type": "string" },
+        "exists": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    },
+    "oracle-tool-side-effect": {
+      "type": "object",
+      "required": ["type", "file"],
+      "properties": {
+        "type": { "const": "tool_side_effect" },
+        "id": { "type": "string" },
+        "file": { "type": "string", "minLength": 1 },
+        "path": { "type": "string", "minLength": 1 },
+        "contains": { "type": "string" }
+      },
+      "additionalProperties": false
+    },
+    "oracle-tool-result-equals": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "tool_result_equals" },
+        "id": { "type": "string" },
+        "equals": {},
+        "expected": {}
+      },
+      "additionalProperties": false,
+      "anyOf": [{ "required": ["equals"] }, { "required": ["expected"] }]
+    },
+    "oracle-stdout-assert": {
+      "type": "object",
+      "required": ["type"],
+      "properties": {
+        "type": { "const": "stdout_assert" },
+        "id": { "type": "string" },
+        "contains": { "type": ["string", "array"] },
+        "not_contains": { "type": ["string", "array"] },
+        "contains_regex": { "type": ["string", "array"] },
+        "not_contains_regex": { "type": ["string", "array"] },
+        "regex_flags": { "type": "string" }
+      },
+      "additionalProperties": false,
+      "anyOf": [
+        { "required": ["contains"] },
+        { "required": ["not_contains"] },
+        { "required": ["contains_regex"] },
+        { "required": ["not_contains_regex"] }
+      ]
+    },
+    "oracle-metric-threshold": {
+      "type": "object",
+      "required": ["type", "metric"],
+      "properties": {
+        "type": { "const": "metric_threshold" },
+        "id": { "type": "string" },
+        "metric": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "min": { "type": "number" },
+        "max": { "type": "number" }
+      },
+      "additionalProperties": false
+    },
+    "oracle-event-fold": {
+      "type": "object",
+      "required": ["type", "spec"],
+      "properties": {
+        "type": { "const": "event_fold" },
+        "id": { "type": "string" },
+        "spec": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "oracle-event-subsequence": {
+      "type": "object",
+      "required": ["type", "names"],
+      "properties": {
+        "type": { "const": "event_subsequence" },
+        "id": { "type": "string" },
+        "names": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "oracle-state-predicate": {
+      "type": "object",
+      "required": ["type", "expr"],
+      "properties": {
+        "type": { "const": "state_predicate" },
+        "id": { "type": "string" },
+        "expr": { "type": "string", "minLength": 1 }
+      },
+      "additionalProperties": false
+    },
+    "oracle-no-event": {
+      "type": "object",
+      "required": ["type", "names"],
+      "properties": {
+        "type": { "const": "no_event" },
+        "id": { "type": "string" },
+        "names": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "oracle-tool-trace": {
+      "type": "object",
+      "required": ["type", "must_call"],
+      "properties": {
+        "type": { "const": "tool_trace" },
+        "id": { "type": "string" },
+        "must_call": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    },
+    "oracle-schema-obedience": {
+      "type": "object",
+      "required": ["type", "tool", "required_fields"],
+      "properties": {
+        "type": { "const": "schema_obedience" },
+        "id": { "type": "string" },
+        "tool": { "type": "string", "minLength": 1 },
+        "required_fields": { "type": "array", "items": { "type": "string" } }
+      },
+      "additionalProperties": false
+    }
+  }
+}

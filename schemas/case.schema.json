@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/agent-proctor/agent-proctor/schemas/case.schema.json",
+  "title": "Case",
+  "description": "V2.17 稳定逻辑用例身份（cases-v1）。不在父对象上原地改写已发布内容；内容修订见 case-revision.schema.json。",
+  "type": "object",
+  "required": ["case_id", "title", "lifecycle", "automation_readiness"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "case_id": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "稳定逻辑用例身份（小写连字符）。"
+    },
+    "title": { "type": "string", "minLength": 1 },
+    "owner": { "type": "string" },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "任务类型标签（如 coding / workspace）。"
+    },
+    "lifecycle": {
+      "enum": ["draft", "candidate", "reviewed", "validated", "released", "deprecated"]
+    },
+    "automation_readiness": {
+      "enum": ["not_assessed", "manual_only", "spec_incomplete", "design_ready", "blocked"]
+    },
+    "head_revision_id": {
+      "type": "string",
+      "description": "当前最新修订号（case_revision_id）。历史修订不可变。"
+    },
+    "pair_key": {
+      "type": "string",
+      "description": "配对键：OFF/ON 两侧相同，用于 compare 分差对齐。"
+    },
+    "created_at": { "type": "string" },
+    "updated_at": { "type": "string" }
+  }
+}

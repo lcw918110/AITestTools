@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/agent-proctor/agent-proctor/schemas/environment.schema.json",
+  "title": "EnvironmentProfile",
+  "description": "V2.17 一键创建/重置测试环境的版本化配方（cases-v1）。",
+  "type": "object",
+  "required": ["environment_profile_id", "name", "lifecycle", "recipe"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "environment_profile_id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "name": { "type": "string", "minLength": 1 },
+    "lifecycle": { "enum": ["draft", "active", "deprecated"] },
+    "recipe": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "os": { "type": "string" },
+        "architecture": { "type": "string" },
+        "runtime": { "type": "string" },
+        "host": { "type": "string" },
+        "plugin": { "type": "string" },
+        "node": { "type": "string" },
+        "package_manager": { "type": "string" },
+        "lockfile": { "type": "string" },
+        "workspace_template": { "type": "string" },
+        "data_seed": { "type": "string" },
+        "network_policy": { "type": "string" },
+        "isolation_profile": { "type": "string" }
+      }
+    }
+  }
+}

@@ -1,0 +1,46 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/agent-proctor/agent-proctor/schemas/candidate.schema.json",
+  "title": "CandidateConfig",
+  "description": "V2.17 待测系统候选的版本化配置组合（cases-v1）。实验共享的 DatasetRelease/Oracle/MetricSpec 由 ExperimentPlan 唯一定义。",
+  "type": "object",
+  "required": ["candidate_id", "name"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "candidate_id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+    "name": { "type": "string", "minLength": 1 },
+    "host": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" }
+      }
+    },
+    "agent": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" }
+      }
+    },
+    "plugin": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "version": { "type": "string" },
+        "path": { "type": "string" }
+      }
+    },
+    "model_routing": { "type": "string" },
+    "feature_ablation_profile": { "type": "string" },
+    "environment_profile": { "type": "string" },
+    "declared_differences": {
+      "type": "array",
+      "items": { "type": "string" }
+    }
+  }
+}
