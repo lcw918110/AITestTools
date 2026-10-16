@@ -81,23 +81,26 @@ function saveRoomField(name, partial) {
   if ('network' in partial) pending.network = partial.network;
   pendingRoomChanges.set(name, pending);
   clearTimeout(roomTimers.get(name));
-  roomTimers.set(name, setTimeout(async () => {
-    const toSave = pendingRoomChanges.get(name);
-    pendingRoomChanges.delete(name);
-    if (!toSave) return;
-    try {
-      const updated = await api(`/api/env/rooms/${encodeURIComponent(name)}`, {
-        method: 'PUT',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify(toSave),
-      });
-      const idx = rooms.findIndex(r => r.name === name);
-      if (idx >= 0) rooms[idx] = updated;
-      setEnvStatus(`${name} 已保存`, 'ok');
-    } catch (e) {
-      setEnvStatus(`${name}: ${e.message || e}`, 'err');
-    }
-  }, 600));
+  roomTimers.set(
+    name,
+    setTimeout(async () => {
+      const toSave = pendingRoomChanges.get(name);
+      pendingRoomChanges.delete(name);
+      if (!toSave) return;
+      try {
+        const updated = await api(`/api/env/rooms/${encodeURIComponent(name)}`, {
+          method: 'PUT',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify(toSave),
+        });
+        const idx = rooms.findIndex((r) => r.name === name);
+        if (idx >= 0) rooms[idx] = updated;
+        setEnvStatus(`${name} 已保存`, 'ok');
+      } catch (e) {
+        setEnvStatus(`${name}: ${e.message || e}`, 'err');
+      }
+    }, 600),
+  );
 }
 
 async function loadRooms() {
@@ -154,7 +157,9 @@ function renderRooms() {
     modelInput.setAttribute('list', 'roomModelOptions');
     modelInput.value = room.host?.model || '';
     modelInput.placeholder = '模型标识';
-    modelInput.addEventListener('change', () => saveRoomField(room.name, { host: { model: modelInput.value } }));
+    modelInput.addEventListener('change', () =>
+      saveRoomField(room.name, { host: { model: modelInput.value } }),
+    );
     modelLabel.appendChild(modelInput);
     card.appendChild(modelLabel);
 
@@ -166,7 +171,9 @@ function renderRooms() {
     agentInput.setAttribute('list', 'roomAgentOptions');
     agentInput.value = room.host?.agent || '';
     agentInput.placeholder = 'Agent 标识';
-    agentInput.addEventListener('change', () => saveRoomField(room.name, { host: { agent: agentInput.value } }));
+    agentInput.addEventListener('change', () =>
+      saveRoomField(room.name, { host: { agent: agentInput.value } }),
+    );
     agentLabel.appendChild(agentInput);
     card.appendChild(agentLabel);
 
@@ -177,7 +184,9 @@ function renderRooms() {
     plugInput.type = 'text';
     plugInput.value = room.host?.plugin || '';
     plugInput.placeholder = '插件路径';
-    plugInput.addEventListener('change', () => saveRoomField(room.name, { host: { plugin: plugInput.value } }));
+    plugInput.addEventListener('change', () =>
+      saveRoomField(room.name, { host: { plugin: plugInput.value } }),
+    );
     plugLabel.appendChild(plugInput);
     card.appendChild(plugLabel);
 
@@ -186,11 +195,18 @@ function renderRooms() {
     maLabel.textContent = '托管 Agent';
     const maInput = document.createElement('input');
     maInput.type = 'text';
-    maInput.value = Array.isArray(room.host?.managed_agents) ? room.host.managed_agents.join(', ') : '';
+    maInput.value = Array.isArray(room.host?.managed_agents)
+      ? room.host.managed_agents.join(', ')
+      : '';
     maInput.placeholder = '逗号分隔';
     maInput.addEventListener('change', () => {
       const val = maInput.value.trim();
-      const agents = val ? val.split(',').map(s => s.trim()).filter(Boolean) : [];
+      const agents = val
+        ? val
+            .split(',')
+            .map((s) => s.trim())
+            .filter(Boolean)
+        : [];
       saveRoomField(room.name, { host: { managed_agents: agents } });
     });
     maLabel.appendChild(maInput);
@@ -203,7 +219,8 @@ function renderRooms() {
     wsSel.innerHTML = '<option value="">—</option>';
     for (const v of ['isolated', 'project']) {
       const o = document.createElement('option');
-      o.value = v; o.textContent = v;
+      o.value = v;
+      o.textContent = v;
       if (room.workspace === v) o.selected = true;
       wsSel.appendChild(o);
     }
@@ -217,7 +234,9 @@ function renderRooms() {
     const netCheck = document.createElement('input');
     netCheck.type = 'checkbox';
     netCheck.checked = room.network === true || room.network === 'true';
-    netCheck.addEventListener('change', () => saveRoomField(room.name, { network: netCheck.checked }));
+    netCheck.addEventListener('change', () =>
+      saveRoomField(room.name, { network: netCheck.checked }),
+    );
     netLabel.appendChild(netCheck);
     netLabel.appendChild(document.createTextNode(' 网络'));
     card.appendChild(netLabel);
@@ -264,4 +283,3 @@ export async function initEnv() {
 }
 
 document.addEventListener('env-catalog-changed', () => renderRooms());
-

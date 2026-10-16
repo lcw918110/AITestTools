@@ -57,3 +57,97 @@ export function strArray(v: unknown): string[] | undefined {
 export function optStr(obj: Record<string, unknown>, key: string): string | undefined {
   return str(obj[key]);
 }
+
+/** rooms/*.json host 字段白名单：字符串类型字段。 */
+const HOST_STRING_FIELDS = ['model', 'agent', 'plugin'] as const;
+
+export type SanitizedHost = {
+  model?: string;
+  agent?: string;
+  plugin?: string;
+  managed_agents?: string[];
+};
+
+/**
+ * 对 body.host 做白名单过滤 + 类型校验。
+ * 白名单外的字段被忽略并记入 rejected；类型不符的白名单字段同样被忽略并记入 rejected。
+ * 只返回通过校验的字段。
+ */
+export function sanitizeHostFields(raw: Record<string, unknown>): {
+  host: SanitizedHost;
+  rejected: string[];
+} {
+  const host: SanitizedHost = {};
+  const rejected: string[] = [];
+  for (const [key, value] of Object.entries(raw)) {
+    if (key === 'managed_agents') {
+      if (Array.isArray(value) && value.every((x) => typeof x === 'string')) {
+        host.managed_agents = value;
+      } else {
+        rejected.push('host.managed_agents 应为字符串数组，已忽略');
+      }
+      continue;
+    }
+    if ((HOST_STRING_FIELDS as readonly string[]).includes(key)) {
+      if (typeof value === 'string') {
+        host[key as 'model' | 'agent' | 'plugin'] = value;
+      } else {
+        rejected.push(`host.${key} 应为字符串，已忽略`);
+      }
+      continue;
+    }
+    rejected.push(`host.${key} 不是合法字段，已忽略`);
+  }
+  return { host, rejected };
+}
+
+export type SanitizedRoomUpdate = {
+  host?: SanitizedHost;
+  workspace?: string;
+  network?: boolean;
+  warnings: string[];
+};
+
+/**
+ * 对 PUT /api/env/rooms/:name 的请求体做整体校验：
+ * - host：白名单过滤 + 类型校验（model/agent/plugin 为字符串，managed_agents 为字符串数组）
+ * - workspace：应为字符串
+ * - network：应为布尔
+ * 校验失败或白名单外的值被忽略，并记入 warnings；不会抛出异常。
+ */
+export function sanitizeRoomUpdate(body: {
+  host?: unknown;
+  workspace?: unknown;
+  network?: unknown;
+}): SanitizedRoomUpdate {
+  const warnings: string[] = [];
+  const out: SanitizedRoomUpdate = { warnings };
+
+  if (body.host !== undefined) {
+    if (typeof body.host === 'object' && body.host !== null && !Array.isArray(body.host)) {
+      const { host, rejected } = sanitizeHostFields(body.host as Record<string, unknown>);
+      out.host = host;
+      warnings.push(...rejected);
+    } else {
+      warnings.push('host 应为对象，已忽略');
+    }
+  }
+
+  if (body.workspace !== undefined) {
+    if (typeof body.workspace === 'string') {
+      out.workspace = body.workspace;
+    } else {
+      warnings.push('workspace 应为字符串，已忽略');
+    }
+  }
+
+  if (body.network !== undefined) {
+    if (typeof body.network === 'boolean') {
+      out.network = body.network;
+    } else {
+      warnings.push('network 应为布尔，已忽略');
+    }
+  }
+
+  return out;
+}

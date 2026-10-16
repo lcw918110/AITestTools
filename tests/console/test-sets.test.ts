@@ -2,7 +2,11 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import { createTestSet, listTestSets, testSetIdFromPaperset } from '../../apps/console/test-sets.ts';
+import {
+  createTestSet,
+  listTestSets,
+  testSetIdFromPaperset,
+} from '../../apps/console/test-sets.ts';
 
 function seed(): string {
   const root = mkdtempSync(join(tmpdir(), 'proctor-ts-'));

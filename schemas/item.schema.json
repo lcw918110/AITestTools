@@ -172,7 +172,10 @@
           "then": { "$ref": "#/$defs/oracle-tool-side-effect" }
         },
         {
-          "if": { "properties": { "type": { "const": "tool_result_equals" } }, "required": ["type"] },
+          "if": {
+            "properties": { "type": { "const": "tool_result_equals" } },
+            "required": ["type"]
+          },
           "then": { "$ref": "#/$defs/oracle-tool-result-equals" }
         },
         {
@@ -188,7 +191,10 @@
           "then": { "$ref": "#/$defs/oracle-event-fold" }
         },
         {
-          "if": { "properties": { "type": { "const": "event_subsequence" } }, "required": ["type"] },
+          "if": {
+            "properties": { "type": { "const": "event_subsequence" } },
+            "required": ["type"]
+          },
           "then": { "$ref": "#/$defs/oracle-event-subsequence" }
         },
         {
@@ -255,10 +261,7 @@
         "expected": {}
       },
       "additionalProperties": false,
-      "anyOf": [
-        { "required": ["equals"] },
-        { "required": ["expected"] }
-      ]
+      "anyOf": [{ "required": ["equals"] }, { "required": ["expected"] }]
     },
     "oracle-stdout-assert": {
       "type": "object",

@@ -2,8 +2,9 @@
  * 可保存的测试任务：选题 + 配置 + 跑次历史。
  * 落在评测项目 eval-tasks/，不写回 papersets/。
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
+import { writeJsonAtomic } from './json-io.ts';
 import { parseJsonObject, str } from './parse.ts';
 import {
   defaultExamMode,
@@ -122,7 +123,8 @@ function readTaskFile(file: string): { ok: true; task: EvalTask } | { ok: false;
   const id = str(doc.id);
   if (id === undefined || !safeId(id)) return { ok: false, error: '缺少或非法 id' };
   const kindRaw = str(doc.kind);
-  if (kindRaw === undefined || !isExperimentId(kindRaw)) return { ok: false, error: '缺少或非法 kind' };
+  if (kindRaw === undefined || !isExperimentId(kindRaw))
+    return { ok: false, error: '缺少或非法 kind' };
   const kind = kindRaw as ExperimentId;
   const examMode = examModeFor(kind, typeof doc.examMode === 'string' ? doc.examMode : undefined);
   const taskIds = Array.isArray(doc.taskIds)
@@ -147,7 +149,7 @@ function readTaskFile(file: string): { ok: true; task: EvalTask } | { ok: false;
       : (testSetIdFromPaperset(paperset) ?? 'full');
   const out: EvalTask = {
     id,
-    name: clipName(typeof doc.name === "string" ? doc.name : undefined),
+    name: clipName(typeof doc.name === 'string' ? doc.name : undefined),
     kind,
     paperset,
     testSetId,
@@ -168,7 +170,7 @@ function writeTask(project: string, task: EvalTask): void {
   mkdirSync(evalTasksDir(project), { recursive: true });
   const file = taskPath(project, task.id);
   if (!file) throw new Error('非法测试任务 id');
-  writeFileSync(file, `${JSON.stringify(task, null, 2)}\n`);
+  writeJsonAtomic(file, task);
 }
 
 export type EvalTaskFileError = { file: string; error: string };

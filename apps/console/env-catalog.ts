@@ -4,6 +4,7 @@
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { writeJsonAtomic } from './json-io.ts';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -61,7 +62,7 @@ function readCatalogFile(project: string): CatalogFile {
 }
 
 function writeCatalogFile(project: string, doc: CatalogFile): void {
-  writeFileSync(catalogPath(project), `${JSON.stringify(doc, null, 2)}\n`);
+  writeJsonAtomic(catalogPath(project), doc);
 }
 
 function listRoomFiles(project: string): Array<{ file: string; doc: RoomFile }> {
@@ -166,7 +167,7 @@ function appendManagedAgent(project: string, agentId: string): void {
     if (list.includes(agentId)) continue;
     host.managed_agents = [...list, agentId];
     r.doc.host = host;
-    writeFileSync(join(roomsDir(project), r.file), `${JSON.stringify(r.doc, null, 2)}\n`);
+    writeJsonAtomic(join(roomsDir(project), r.file), r.doc);
   }
 }
 
@@ -242,7 +243,10 @@ export function verifyEnvEntry(
   if (!list.some((x) => x.id === id)) return { error: '请先在运行环境页添加该项', code: 400 };
   const companion = defaultCompanion(project, kind);
   if (!companion) {
-    return { error: kind === 'model' ? '请先添加一个 Agent 再验证模型' : '请先添加一个模型再验证 Agent', code: 400 };
+    return {
+      error: kind === 'model' ? '请先添加一个 Agent 再验证模型' : '请先添加一个模型再验证 Agent',
+      code: 400,
+    };
   }
   if (process.env.PROCTOR_CONSOLE_VERIFY_STUB === '1') {
     return { catalog: markVerified(project, kind, id), ok: true, log: 'stub: HELLO_WORLD' };

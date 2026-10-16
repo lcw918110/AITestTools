@@ -97,9 +97,7 @@ async function refreshTasks() {
   bankFilterId = filter;
   const list = document.getElementById('taskList');
   list.innerHTML = '';
-  const shown = filter
-    ? tasks.filter((t) => (t.testSetIds || []).includes(filter))
-    : tasks;
+  const shown = filter ? tasks.filter((t) => (t.testSetIds || []).includes(filter)) : tasks;
   for (const t of shown) {
     const li = document.createElement('li');
     const btn = document.createElement('button');

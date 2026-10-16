@@ -2,7 +2,8 @@
  * 测试集：对人一份人题名单；磁盘成对 paperset（无插件 / 有插件）。
  * eval-model / eval-agent 等不进测试集列表。
  */
-import { existsSync, readdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { writeJsonAtomic } from './json-io.ts';
 import { join } from 'node:path';
 import { taskIdsOfItems } from './run-plan.ts';
 
@@ -115,10 +116,7 @@ export function listTestSets(project: string): TestSet[] {
   return out;
 }
 
-export function getTestSet(
-  project: string,
-  id: string,
-): TestSet | { error: string; code: number } {
+export function getTestSet(project: string, id: string): TestSet | { error: string; code: number } {
   const row = listTestSets(project).find((t) => t.id === id);
   if (!row) return { error: `未知测试集：${id}`, code: 400 };
   return row;
@@ -155,34 +153,20 @@ export function createTestSet(
   if (existsSync(offPath) || existsSync(onPath)) {
     return { error: '测试集文件已存在', code: 409 };
   }
-  writeFileSync(
-    offPath,
-    `${JSON.stringify(
-      {
-        name: offName,
-        description,
-        axis: 'B',
-        room: 'hosted-plain-v1',
-        items: [],
-      },
-      null,
-      2,
-    )}\n`,
-  );
-  writeFileSync(
-    onPath,
-    `${JSON.stringify(
-      {
-        name: onName,
-        description,
-        axis: 'B',
-        room: 'hosted-plugin-v1',
-        items: [],
-      },
-      null,
-      2,
-    )}\n`,
-  );
+  writeJsonAtomic(offPath, {
+    name: offName,
+    description,
+    axis: 'B',
+    room: 'hosted-plain-v1',
+    items: [],
+  });
+  writeJsonAtomic(onPath, {
+    name: onName,
+    description,
+    axis: 'B',
+    room: 'hosted-plugin-v1',
+    items: [],
+  });
   const created = getTestSet(project, id);
   if ('error' in created) return created;
   return { ...created, label };

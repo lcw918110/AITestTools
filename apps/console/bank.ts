@@ -6,6 +6,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import { join, resolve, sep } from 'node:path';
 import { spawn } from 'node:child_process';
 import { getTestSet, papersetFilesForTestSet, testSetIdsForTask } from './test-sets.ts';
+import { writeJsonAtomic, writeTextAtomic } from './json-io.ts';
 
 /** 路径安全：已有任务（含历史特例） */
 const TASK_ID_SAFE_RE = /^[A-Z][A-Z0-9-]*$/;
@@ -231,7 +232,9 @@ function asTrimmedList(value: unknown): string[] {
 }
 
 /** 任务类型：逗号分隔或数组；禁止废弃对照/考场标签。 */
-export function parseTags(raw: unknown): { ok: true; tags: string[] } | { ok: false; error: string } {
+export function parseTags(
+  raw: unknown,
+): { ok: true; tags: string[] } | { ok: false; error: string } {
   if (raw === undefined || raw === null || raw === '') return { ok: true, tags: [] };
   let parts: string[] = [];
   if (typeof raw === 'string') {
@@ -456,7 +459,7 @@ export function getTask(
 }
 
 function writeJson(file: string, doc: unknown): void {
-  writeFileSync(file, `${JSON.stringify(doc, null, 2)}\n`);
+  writeJsonAtomic(file, doc);
 }
 
 function updateItemStimulus(
@@ -531,64 +534,72 @@ export async function updateTask(
   const containErr = assertPromptContainsToken(nextPrompt, nextToken);
   if (containErr) return { error: containErr, code: 400 };
 
-  const mat = materialsDir(project, taskId);
-  mkdirSync(mat, { recursive: true });
-  if (!safeUnder(join(project, 'bank'), mat)) return { error: '路径非法', code: 400 };
-
-  if (body.prompt !== undefined) {
-    writeFileSync(
-      join(mat, 'prompt.txt'),
-      body.prompt.endsWith('\n') ? body.prompt : `${body.prompt}\n`,
-    );
-  }
+  // 落盘前解析 tags（避免先写盘才发现非法）。
+  const tagsResult = body.tags !== undefined ? parseTags(body.tags) : undefined;
+  if (tagsResult && !tagsResult.ok) return { error: tagsResult.error, code: 400 };
+  const nextTags = tagsResult?.ok ? tagsResult.tags : undefined;
 
   const stimPatch: { hosted_pass_token?: string; notes?: string } = {};
   if (tokenProvided) stimPatch.hosted_pass_token = nextToken;
   if (body.notes !== undefined) stimPatch.notes = body.notes;
-
   const changedStim = Object.keys(stimPatch).length > 0;
-  if (changedStim) {
-    if (existing.off?.file) updateItemStimulus(existing.off.file, stimPatch);
-    if (existing.on?.file) updateItemStimulus(existing.on.file, stimPatch);
-    if (!existing.off && !existing.on) {
-      return { error: '无可更新的 OFF/ON item', code: 400 };
-    }
-  }
-
-  if (body.tags !== undefined) {
-    const parsed = parseTags(body.tags);
-    if (!parsed.ok) return { error: parsed.error, code: 400 };
-    if (existing.off?.file) updateItemTags(existing.off.file, parsed.tags);
-    if (existing.on?.file) updateItemTags(existing.on.file, parsed.tags);
-    if (!existing.off && !existing.on) {
-      return { error: '无可更新的 OFF/ON item', code: 400 };
-    }
-  }
 
   const containsProvided = body.contains !== undefined;
-  const notContainsProvided =
-    body.notContains !== undefined || body.not_contains !== undefined;
-  if (containsProvided || notContainsProvided) {
-    const srcFile = existing.off?.file ?? existing.on?.file;
-    const contains = containsProvided
-      ? asTrimmedList(body.contains)
-      : oracleValueOf(srcFile, 'stdout-must', 'contains');
-    const notContains = notContainsProvided
-      ? asTrimmedList(body.notContains ?? body.not_contains)
-      : oracleValueOf(srcFile, 'stdout-forbid', 'not_contains');
-    const oracles = buildOracles({ token: nextToken, contains, notContains });
-    if (existing.off?.file) updateItemOracles(existing.off.file, oracles);
-    if (existing.on?.file) updateItemOracles(existing.on.file, oracles);
-    if (!existing.off && !existing.on) {
-      return { error: '无可更新的 OFF/ON item', code: 400 };
-    }
+  const notContainsProvided = body.notContains !== undefined || body.not_contains !== undefined;
+
+  // 需要更新 OFF/ON item 却一个都没有：结构错误，落盘前即失败，避免先写 prompt.txt 才发现。
+  const needsItems =
+    changedStim || body.tags !== undefined || containsProvided || notContainsProvided;
+  if (needsItems && !existing.off && !existing.on) {
+    return { error: '无可更新的 OFF/ON item', code: 400 };
   }
 
-  // 强制升版本（无 bump 开关）
+  const mat = materialsDir(project, taskId);
+  mkdirSync(mat, { recursive: true });
+  if (!safeUnder(join(project, 'bank'), mat)) return { error: '路径非法', code: 400 };
+
+  const promptFile = join(mat, 'prompt.txt');
+  const offFile = existing.off?.file;
+  const onFile = existing.on?.file;
+  // 快照所有可能被本次更新改写的文件，用于失败回滚。
+  const snap = snapshotFiles([promptFile, offFile, onFile]);
+
   try {
+    if (body.prompt !== undefined) {
+      writeFileSync(
+        join(mat, 'prompt.txt'),
+        body.prompt.endsWith('\n') ? body.prompt : `${body.prompt}\n`,
+      );
+    }
+
+    if (changedStim) {
+      if (existing.off?.file) updateItemStimulus(existing.off.file, stimPatch);
+      if (existing.on?.file) updateItemStimulus(existing.on.file, stimPatch);
+    }
+
+    if (nextTags !== undefined) {
+      if (existing.off?.file) updateItemTags(existing.off.file, nextTags);
+      if (existing.on?.file) updateItemTags(existing.on.file, nextTags);
+    }
+
+    if (containsProvided || notContainsProvided) {
+      const srcFile = existing.off?.file ?? existing.on?.file;
+      const contains = containsProvided
+        ? asTrimmedList(body.contains)
+        : oracleValueOf(srcFile, 'stdout-must', 'contains');
+      const notContains = notContainsProvided
+        ? asTrimmedList(body.notContains ?? body.not_contains)
+        : oracleValueOf(srcFile, 'stdout-forbid', 'not_contains');
+      const oracles = buildOracles({ token: nextToken, contains, notContains });
+      if (existing.off?.file) updateItemOracles(existing.off.file, oracles);
+      if (existing.on?.file) updateItemOracles(existing.on.file, oracles);
+    }
+
+    // 强制升版本（无 bump 开关）
     if (existing.off?.file) bumpItemFile(existing.off.file, changeName);
     if (existing.on?.file) bumpItemFile(existing.on.file, changeName);
   } catch (e) {
+    restoreFiles(snap);
     return { error: (e as Error).message, code: 500 };
   }
 
@@ -750,6 +761,31 @@ function buildPairedItem(opts: {
   };
   if (tags.length > 0) doc.tags = tags;
   return { id, doc };
+}
+
+/** 文件快照：记录是否存在与原文，用于多文件写入失败时回滚。 */
+type FileSnapshot = { file: string; existed: boolean; content?: string };
+
+function snapshotFiles(files: Array<string | undefined>): FileSnapshot[] {
+  const out: FileSnapshot[] = [];
+  for (const f of files) {
+    if (!f) continue;
+    if (existsSync(f)) out.push({ file: f, existed: true, content: readFileSync(f, 'utf8') });
+    else out.push({ file: f, existed: false });
+  }
+  return out;
+}
+
+/** 逆序恢复快照：原存在则写回原文（原子），原不存在则删除。 */
+function restoreFiles(snaps: FileSnapshot[]): void {
+  for (const s of [...snaps].reverse()) {
+    try {
+      if (s.existed) writeTextAtomic(s.file, s.content ?? '');
+      else rmSync(s.file, { force: true });
+    } catch {
+      /* 回滚尽力而为：单文件恢复失败不阻断其它文件 */
+    }
+  }
 }
 
 export function rollbackCreate(project: string, snap: CreateSnapshot): void {

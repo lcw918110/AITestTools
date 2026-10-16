@@ -70,7 +70,8 @@
               <div class="env-box" id="runEnv">
                 <h2>运行环境</h2>
                 <p class="hint tiny">
-                  只属于这条测试任务。模型和 Agent 须已在「运行环境」页验证。测万象术同时跑时两侧共用这一套。
+                  只属于这条测试任务。模型和 Agent
+                  须已在「运行环境」页验证。测万象术同时跑时两侧共用这一套。
                 </p>
                 <div class="grid">
                   <label>
@@ -113,7 +114,9 @@
 
       <section class="panel" id="results">
         <h1>测试结果</h1>
-        <p class="hint">看当前测试任务的跑次。默认最近一次；明细是逐题过挂，分析是这次的 Δ 与归因。</p>
+        <p class="hint">
+          看当前测试任务的跑次。默认最近一次；明细是逐题过挂，分析是这次的 Δ 与归因。
+        </p>
         <label class="block" id="runHistoryWrap">
           跑次
           <select id="runHistory"></select>
@@ -213,7 +216,12 @@
               </label>
               <label>
                 回复必须出现
-                <input id="taskContains" type="text" placeholder="可空，默认等于终态词" autocomplete="off" />
+                <input
+                  id="taskContains"
+                  type="text"
+                  placeholder="可空，默认等于终态词"
+                  autocomplete="off"
+                />
               </label>
               <label>
                 回复禁止出现
@@ -246,7 +254,8 @@
       <section class="panel">
         <h1>运行环境</h1>
         <p class="hint">
-          先在这里添加模型与 Agent，跑一次 Hello World 验证。通过后才能在测试任务里选用。配置记在本机清单里，不是任务之间共用一间房间。
+          先在这里添加模型与 Agent，跑一次 Hello World
+          验证。通过后才能在测试任务里选用。配置记在本机清单里，不是任务之间共用一间房间。
         </p>
         <p id="envStatus" class="status"></p>
         <div class="env-cols">
@@ -269,7 +278,9 @@
         </div>
         <div id="roomPanel" class="room-panel">
           <h2>房间配置</h2>
-          <p class="hint tiny">直接改 rooms/*.json 的 host / workspace / network 字段。改后立即写回。</p>
+          <p class="hint tiny">
+            直接改 rooms/*.json 的 host / workspace / network 字段。改后立即写回。
+          </p>
           <div id="roomList" class="room-list"></div>
           <datalist id="roomModelOptions"></datalist>
           <datalist id="roomAgentOptions"></datalist>
@@ -303,7 +314,12 @@
         <div class="wizard-step" data-step="1">
           <label>
             题号
-            <input id="wizTaskId" type="text" placeholder="例如 PAIRED-TASK-160" autocomplete="off" />
+            <input
+              id="wizTaskId"
+              type="text"
+              placeholder="例如 PAIRED-TASK-160"
+              autocomplete="off"
+            />
           </label>
           <p class="hint tiny">格式：PAIRED-TASK- 加至少两位数字。打开向导会预填下一空号。</p>
           <label>
@@ -396,7 +412,12 @@
         </label>
         <label>
           说明
-          <input id="newTestSetDesc" type="text" placeholder="可空，一句话说明这套题" autocomplete="off" />
+          <input
+            id="newTestSetDesc"
+            type="text"
+            placeholder="可空，一句话说明这套题"
+            autocomplete="off"
+          />
         </label>
         <p id="newTestSetError" class="status err" hidden></p>
         <div class="actions">
