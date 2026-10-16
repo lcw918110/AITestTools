@@ -247,20 +247,119 @@ export interface DatasetRelease {
   created_at: string;
 }
 
+/** exit_code：进程以期望码退出（非 0 也可是期望，如「必须失败」）。 */
+export interface OracleExitCode {
+  type: 'exit_code';
+  id?: string;
+  equals?: number;
+}
+
+/** workspace_assert：文件存在 / 内容包含 / 不含（只读）。 */
+export interface OracleWorkspaceAssert {
+  type: 'workspace_assert';
+  id?: string;
+  path: string;
+  file?: string;
+  contains?: string;
+  not_contains?: string;
+  exists?: boolean;
+}
+
+/** tool_side_effect：workspace 内文件副作用。 */
+export interface OracleToolSideEffect {
+  type: 'tool_side_effect';
+  id?: string;
+  file: string;
+  path?: string;
+  contains?: string;
+}
+
+/** tool_result_equals：工具返回值深等比较。 */
+export interface OracleToolResultEquals {
+  type: 'tool_result_equals';
+  id?: string;
+  equals?: unknown;
+  expected?: unknown;
+}
+
+/** stdout_assert：hosted 回复文本包含 / 不含 / 正则。 */
+export interface OracleStdoutAssert {
+  type: 'stdout_assert';
+  id?: string;
+  contains?: string | string[];
+  not_contains?: string | string[];
+  contains_regex?: string | string[];
+  not_contains_regex?: string | string[];
+  regex_flags?: string;
+}
+
+/** metric_threshold：单题 metrics 阈值判定。 */
+export interface OracleMetricThreshold {
+  type: 'metric_threshold';
+  id?: string;
+  metric: string;
+  name?: string;
+  min?: number;
+  max?: number;
+}
+
+/** event_fold：折叠态与期望文件深等比对。 */
+export interface OracleEventFold {
+  type: 'event_fold';
+  id?: string;
+  spec: string;
+}
+
+/** event_subsequence：事件名有序子序列。 */
+export interface OracleEventSubsequence {
+  type: 'event_subsequence';
+  id?: string;
+  names: string[];
+}
+
+/** state_predicate：受限布尔表达式。 */
+export interface OracleStatePredicate {
+  type: 'state_predicate';
+  id?: string;
+  expr: string;
+}
+
+/** no_event：禁止事件不出现。 */
+export interface OracleNoEvent {
+  type: 'no_event';
+  id?: string;
+  names: string[];
+}
+
+/** tool_trace：必须出现指定工具调用。 */
+export interface OracleToolTrace {
+  type: 'tool_trace';
+  id?: string;
+  must_call: string[];
+}
+
+/** schema_obedience：工具调用必填字段检查。 */
+export interface OracleSchemaObedience {
+  type: 'schema_obedience';
+  id?: string;
+  tool: string;
+  required_fields: string[];
+}
+
 /** Oracle 定义（保留 V1 12 种判定器结构）。 */
 export type Oracle =
-  | { type: 'exit_code'; id?: string; equals?: number }
-  | { type: 'workspace_assert'; id?: string; path: string; file?: string; contains?: string; not_contains?: string; exists?: boolean }
-  | { type: 'tool_side_effect'; id?: string; file: string; path?: string; contains?: string }
-  | { type: 'tool_result_equals'; id?: string; equals?: unknown; expected?: unknown }
-  | { type: 'stdout_assert'; id?: string; contains?: string | string[]; not_contains?: string | string[]; contains_regex?: string | string[]; not_contains_regex?: string | string[]; regex_flags?: string }
-  | { type: 'metric_threshold'; id?: string; metric: string; name?: string; min?: number; max?: number }
-  | { type: 'event_fold'; id?: string; spec: string }
-  | { type: 'event_subsequence'; id?: string; names: string[] }
-  | { type: 'state_predicate'; id?: string; expr: string }
-  | { type: 'no_event'; id?: string; names: string[] }
-  | { type: 'tool_trace'; id?: string; must_call: string[] }
-  | { type: 'schema_obedience'; id?: string; tool: string; required_fields: string[] };
+  | OracleExitCode
+  | OracleWorkspaceAssert
+  | OracleToolSideEffect
+  | OracleToolResultEquals
+  | OracleStdoutAssert
+  | OracleMetricThreshold
+  | OracleEventFold
+  | OracleEventSubsequence
+  | OracleStatePredicate
+  | OracleNoEvent
+  | OracleToolTrace
+  | OracleSchemaObedience;
 
 /** Rubric 规格（§5.1）。 */
 export interface RubricSpec {

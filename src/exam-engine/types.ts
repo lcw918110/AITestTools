@@ -1,160 +1,278 @@
-/** 资产协议 TypeScript 视图。结构真相以 `schemas/*.json` 为准。PRD 所称 case/suite/profile = item/paperset/room。 */
+/**
+ * V2.17 领域对象模型——唯一权威类型。
+ * 本文件重新导出 src/domain/types.ts 的全部领域对象。
+ *
+ * 迁移映射：
+ *   ItemDoc     → Case + CaseRevision（逻辑身份 + 不可变修订）
+ *   PapersetDoc → DatasetRelease（冻结的 CaseRevision 引用闭包）
+ *   RoomDoc     → EnvironmentProfile / CandidateConfig
+ *   ExamManifest → 配置快照（RunPlanSnapshot）
+ *   FreezeA/B   → CandidateConfig（候选配置）
+ *   Axis        → 不再使用（A/B/C 轴已废除）
+ *   effect_pair → PairKey（case_revision_id + replicate_index）
+ *
+ * 旧类型（ItemDoc/PapersetDoc/RoomDoc 等）以独立接口保留为 @deprecated，
+ * 包含旧字段名以便现有代码逐步迁移，而非一次性全部重写。
+ */
 
-export const AXES = ['A', 'B', 'C', 'AB', 'AC', 'BC'] as const;
+import type {
+  RunLifecycleStatus,
+  ExecutionOutcome,
+  EvaluationOutcome,
+  AttemptStatus,
+  Attribution,
+  AttributionTag,
+  OracleType,
+  OracleVerdict,
+  OracleResult,
+  Score,
+  CaseLifecycle,
+  AutomationReadiness,
+  Case,
+  CaseRevision,
+  TaskStrata,
+  DatasetRelease,
+  Oracle,
+  RubricSpec,
+  CandidateConfig,
+  ExperimentPlan,
+  Experiment,
+  PairKey,
+  RunPlanSnapshot,
+  Event,
+  Artifact,
+  RunFinalManifest,
+  Run,
+  CaseExecution,
+  Attempt,
+  AgentInvocation,
+  MetricSpec,
+  PassRateMetrics,
+  FastGoodFrugalMetrics,
+  ComparabilityGate,
+  Comparison,
+  ConfigSource,
+  EnforcementLevel,
+  BudgetPolicy,
+  ArtifactPolicy,
+  CompatibilityStatus,
+  PlatformCompatibilityRule,
+  IsolationProfile,
+  IsolationBackendRegistration,
+  NodeState,
+  FeatureCatalogNode,
+  FeatureCatalogRelease,
+  FeatureControlPoint,
+  FeatureAblationProfile,
+  RouteSimulation,
+  EnvironmentProfile,
+  EnvInstanceStatus,
+  EnvironmentInstance,
+  EnvironmentManifest,
+  FaultScenario,
+  FaultInjectionProfile,
+  ProviderDefinition,
+  DeploymentDefinition,
+  ModelCatalogEntry,
+  CapabilityMatch,
+  ModelRoutingProfile,
+  OracleExitCode,
+  OracleWorkspaceAssert,
+  OracleToolSideEffect,
+  OracleToolResultEquals,
+  OracleStdoutAssert,
+  OracleMetricThreshold,
+  OracleEventFold,
+  OracleEventSubsequence,
+  OracleStatePredicate,
+  OracleNoEvent,
+  OracleToolTrace,
+  OracleSchemaObedience,
+} from '../domain/types.js';
+
+import {
+  RUN_LIFECYCLE_STATUS,
+  EXECUTION_OUTCOME,
+  EVALUATION_OUTCOME,
+  ATTEMPT_STATUS,
+  RUN_TRANSITIONS,
+  ATTRIBUTIONS,
+  ATTRIBUTION_TAGS,
+  ORACLE_TYPES,
+  CASE_LIFECYCLE,
+  AUTOMATION_READINESS,
+  COMPARABILITY_GATE,
+  COMPATIBILITY_STATUS,
+  ENV_INSTANCE_STATUS,
+} from '../domain/types.js';
+
+// ── 重新导出全部 V2.17 领域对象 ──
+export {
+  RUN_LIFECYCLE_STATUS,
+  EXECUTION_OUTCOME,
+  EVALUATION_OUTCOME,
+  ATTEMPT_STATUS,
+  RUN_TRANSITIONS,
+  ATTRIBUTIONS,
+  ATTRIBUTION_TAGS,
+  ORACLE_TYPES,
+  CASE_LIFECYCLE,
+  AUTOMATION_READINESS,
+  COMPARABILITY_GATE,
+  COMPATIBILITY_STATUS,
+  ENV_INSTANCE_STATUS,
+};
+
+export type {
+  RunLifecycleStatus,
+  ExecutionOutcome,
+  EvaluationOutcome,
+  AttemptStatus,
+  Attribution,
+  AttributionTag,
+  OracleType,
+  OracleVerdict,
+  OracleResult,
+  Score,
+  CaseLifecycle,
+  AutomationReadiness,
+  Case,
+  CaseRevision,
+  TaskStrata,
+  DatasetRelease,
+  Oracle,
+  RubricSpec,
+  CandidateConfig,
+  ExperimentPlan,
+  Experiment,
+  PairKey,
+  RunPlanSnapshot,
+  Event,
+  Artifact,
+  RunFinalManifest,
+  Run,
+  CaseExecution,
+  Attempt,
+  AgentInvocation,
+  MetricSpec,
+  PassRateMetrics,
+  FastGoodFrugalMetrics,
+  ComparabilityGate,
+  Comparison,
+  ConfigSource,
+  EnforcementLevel,
+  BudgetPolicy,
+  ArtifactPolicy,
+  CompatibilityStatus,
+  PlatformCompatibilityRule,
+  IsolationProfile,
+  IsolationBackendRegistration,
+  NodeState,
+  FeatureCatalogNode,
+  FeatureCatalogRelease,
+  FeatureControlPoint,
+  FeatureAblationProfile,
+  RouteSimulation,
+  EnvironmentProfile,
+  EnvInstanceStatus,
+  EnvironmentInstance,
+  EnvironmentManifest,
+  FaultScenario,
+  FaultInjectionProfile,
+  ProviderDefinition,
+  DeploymentDefinition,
+  ModelCatalogEntry,
+  CapabilityMatch,
+  ModelRoutingProfile,
+  OracleExitCode,
+  OracleWorkspaceAssert,
+  OracleToolSideEffect,
+  OracleToolResultEquals,
+  OracleStdoutAssert,
+  OracleMetricThreshold,
+  OracleEventFold,
+  OracleEventSubsequence,
+  OracleStatePredicate,
+  OracleNoEvent,
+  OracleToolTrace,
+  OracleSchemaObedience,
+};
+
+// ═══════════════════════════════════════════════════════════════
+// 以下为 V1 兼容类型，保留旧字段名以便现有代码逐步迁移。
+// 标记 @deprecated，指向 V2.17 对应对象。
+// ═══════════════════════════════════════════════════════════════
+
+// ── 旧状态 / 轴 ──
+
+/** @deprecated 不再使用（A/B/C 轴已废除）。 */
+export const AXES = ['A', 'B', 'C'] as const;
+/** @deprecated 不再使用。 */
 export type Axis = (typeof AXES)[number];
 
-export const ATTRIBUTIONS = [
-  'PROTOCOL',
-  'CONTEXT',
-  'MODEL_SCHEMA',
-  'MODEL_TASK',
-  'TOOL',
-  'HARNESS',
-] as const;
-export type Attribution = (typeof ATTRIBUTIONS)[number];
-
-export const ORACLE_TYPES = [
-  'event_fold',
-  'event_subsequence',
-  'state_predicate',
-  'no_event',
-  'tool_trace',
-  'schema_obedience',
-  'workspace_assert',
-  'tool_result_equals',
-  'tool_side_effect',
-  'exit_code',
-  'metric_threshold',
-  'stdout_assert',
-] as const;
-export type OracleType = (typeof ORACLE_TYPES)[number];
-
+/** @deprecated 使用 RunLifecycleStatus。 */
 export type ItemStatus = 'active' | 'draft' | 'deprecated';
+
+/** @deprecated 不再使用（L1/L2/L3 轴已废除）。 */
 export type ALayer = 'L1' | 'L2' | 'L3';
 
-/** exit_code：进程以期望码退出（非 0 也可是期望，如「必须失败」）。 */
-export interface OracleExitCode {
-  type: 'exit_code';
-  id?: string;
-  equals?: number;
+// ── ItemDoc（兼容旧字段名，映射到 CaseRevision） ──
+
+/** @deprecated 使用 CaseRevision。保留旧字段名以便现有代码编译。 */
+export interface ItemDoc {
+  /** @deprecated 使用 CaseRevision.case_id */
+  id: string;
+  /** @deprecated 使用 CaseRevision.revision_number */
+  rev: number;
+  /** @deprecated 不再使用 */
+  axis: Axis;
+  /** @deprecated 使用 CaseLifecycle */
+  status: ItemStatus;
+  title: string;
+  owner?: string;
+  tags?: string[];
+  intent: {
+    statement: string;
+    /** @deprecated 使用 CaseRevision.attribution_focus */
+    attribution_focus: Attribution;
+    /** @deprecated 使用 CaseRevision.protocol_probes */
+    protocol_probes?: string[];
+    /** @deprecated 使用 PairKey（case_revision_id + replicate_index） */
+    effect_pair?: string;
+  };
+  /** @deprecated 使用 CandidateConfig */
+  freeze: FreezeA | FreezeBC;
+  stimulus: {
+    kind: string;
+    ref: string;
+    notes?: string;
+    /** hosted 通行 token */
+    hosted_pass_token?: string;
+  };
+  expect: {
+    oracles: Oracle[];
+    /** @deprecated 使用 RubricSpec */
+    rubric?: RubricSpec;
+  };
+  /** @deprecated 使用 MetricSpec 引用 */
+  metrics: { primary: string[]; secondary?: string[] };
+  execution: {
+    deadline_ms: number;
+    requires_network: boolean;
+    requires_durable_log?: boolean;
+    repeats?: number;
+  };
+  /** @deprecated 使用 TaskStrata */
+  strata?: TaskStrata;
+  change_log?: Record<string, string>;
+  deprecation?: { reason: string; superseded_by?: string };
 }
 
-/** workspace_assert：文件存在 / 内容包含 / 不含（只读）。 */
-export interface OracleWorkspaceAssert {
-  type: 'workspace_assert';
-  id?: string;
-  path: string;
-  file?: string;
-  contains?: string;
-  not_contains?: string;
-  exists?: boolean;
-}
+// ── FreezeA / FreezeBC（兼容旧字段名） ──
 
-/** tool_side_effect：workspace 内文件副作用。 */
-export interface OracleToolSideEffect {
-  type: 'tool_side_effect';
-  id?: string;
-  file: string;
-  path?: string;
-  contains?: string;
-}
-
-/** tool_result_equals：工具返回值深等比较。 */
-export interface OracleToolResultEquals {
-  type: 'tool_result_equals';
-  id?: string;
-  equals?: unknown;
-  expected?: unknown;
-}
-
-/** stdout_assert：hosted 回复文本包含 / 不含 / 正则。 */
-export interface OracleStdoutAssert {
-  type: 'stdout_assert';
-  id?: string;
-  contains?: string | string[];
-  not_contains?: string | string[];
-  contains_regex?: string | string[];
-  not_contains_regex?: string | string[];
-  regex_flags?: string;
-}
-
-/** metric_threshold：单题 metrics 阈值判定。 */
-export interface OracleMetricThreshold {
-  type: 'metric_threshold';
-  id?: string;
-  metric: string;
-  name?: string;
-  min?: number;
-  max?: number;
-}
-
-/** event_fold：折叠态与期望文件深等比对。 */
-export interface OracleEventFold {
-  type: 'event_fold';
-  id?: string;
-  spec: string;
-}
-
-/** event_subsequence：事件名有序子序列。 */
-export interface OracleEventSubsequence {
-  type: 'event_subsequence';
-  id?: string;
-  names: string[];
-}
-
-/** state_predicate：受限布尔表达式。 */
-export interface OracleStatePredicate {
-  type: 'state_predicate';
-  id?: string;
-  expr: string;
-}
-
-/** no_event：禁止事件不出现。 */
-export interface OracleNoEvent {
-  type: 'no_event';
-  id?: string;
-  names: string[];
-}
-
-/** tool_trace：必须出现指定工具调用。 */
-export interface OracleToolTrace {
-  type: 'tool_trace';
-  id?: string;
-  must_call: string[];
-}
-
-/** schema_obedience：工具调用必填字段检查。 */
-export interface OracleSchemaObedience {
-  type: 'schema_obedience';
-  id?: string;
-  tool: string;
-  required_fields: string[];
-}
-
-export type Oracle =
-  | OracleExitCode
-  | OracleWorkspaceAssert
-  | OracleToolSideEffect
-  | OracleToolResultEquals
-  | OracleStdoutAssert
-  | OracleMetricThreshold
-  | OracleEventFold
-  | OracleEventSubsequence
-  | OracleStatePredicate
-  | OracleNoEvent
-  | OracleToolTrace
-  | OracleSchemaObedience;
-
-export interface FoldEntrySpec {
-  module: string;
-  export: string;
-  signature: 'session_fold_v1' | 'pure_fold_v1';
-  event_schema: string;
-  resolve_root?: 'sut' | 'project';
-  normalize?: 'json_clone' | 'none';
-}
-
+/** @deprecated 使用 CandidateConfig。保留旧字段名。 */
 export interface FreezeA {
+  /** @deprecated 不再使用 */
   layer: ALayer;
   model_driver: 'none' | 'scripted' | 'as-recorded';
   fold_entry?: string;
@@ -165,6 +283,7 @@ export interface FreezeA {
   cassette?: string;
 }
 
+/** @deprecated 使用 CandidateConfig。保留旧字段名。 */
 export interface FreezeBC {
   model_driver: string;
   model_id: string;
@@ -175,52 +294,66 @@ export interface FreezeBC {
   channel?: 'direct' | 'hosted';
 }
 
-export interface ItemDoc {
-  id: string;
-  rev: number;
+// ── PapersetDoc（兼容旧字段名，映射到 DatasetRelease） ──
+
+/** @deprecated 使用 DatasetRelease。保留旧字段名。 */
+export interface PapersetDoc {
+  name: string;
+  description?: string;
+  /** @deprecated 不再使用 */
   axis: Axis;
-  status: ItemStatus;
-  title: string;
-  owner?: string;
-  tags?: string[];
-  intent: {
-    statement: string;
-    attribution_focus: Attribution;
-    /** hosted：期望出现在 durable NDJSON 中的 Kind（设计 12 protocol probes） */
-    protocol_probes?: string[];
-    /** 配对效果键：off/on 两侧相同，供 compare 分差对齐 */
-    effect_pair?: string;
-  };
-  freeze: FreezeA | FreezeBC;
-  stimulus: { kind: string; ref: string; notes?: string; hosted_pass_token?: string };
-  expect: { oracles: Oracle[] };
-  metrics: { primary: string[]; secondary?: string[] };
-  execution: {
-    deadline_ms: number;
-    requires_network: boolean;
-    requires_durable_log?: boolean;
-    repeats?: number;
-  };
-  change_log?: Record<string, string>;
-  deprecation?: { reason: string; superseded_by?: string };
+  /** @deprecated 不再使用 */
+  room: string;
+  /** @deprecated 不再使用 */
+  matrix_env?: string;
+  /** @deprecated 使用 DatasetRelease.case_revisions */
+  items: string[];
+  /** @deprecated 不再使用 */
+  gates?: Record<string, GateBound>;
 }
 
+// ── RoomDoc（兼容旧字段名，映射到 EnvironmentProfile） ──
+
+/** @deprecated 使用 EnvironmentProfile。保留旧字段名。 */
+export interface RoomDoc {
+  name: string;
+  /** @deprecated 不再使用 */
+  kind: 'fold' | 'fake-host' | 'cassette' | 'live-model' | 'hosted' | 'direct-tool';
+  description?: string;
+  model_driver: 'none' | 'scripted' | 'as-recorded' | 'live';
+  network: boolean;
+  durable_log?: string;
+  durable_log_glob?: string;
+  workspace?: 'isolated' | 'project';
+  secrets?: string[];
+  fold_entries?: Record<string, FoldEntrySpec>;
+  sut?: { name?: string; root_env?: string; root_rel?: string | null };
+  event_schema?: string;
+  contract?: string;
+  attribution_tree?: string;
+  host?: RoomHost;
+  adapter?: RoomAdapter;
+}
+
+// ── 其他旧类型 ──
+
+/** @deprecated 不再使用。 */
+export interface FoldEntrySpec {
+  module: string;
+  export: string;
+  signature: 'session_fold_v1' | 'pure_fold_v1';
+  event_schema: string;
+  resolve_root?: 'sut' | 'project';
+  normalize?: 'json_clone' | 'none';
+}
+
+/** @deprecated 使用 MetricSpec。 */
 export interface GateBound {
   min?: number;
   max?: number;
 }
 
-export interface PapersetDoc {
-  name: string;
-  description?: string;
-  axis: Axis;
-  room: string;
-  matrix_env?: string;
-  items: string[];
-  gates?: Record<string, GateBound>;
-}
-
-/** hosted 考场宿主进程配置（room.schema.json `host`）。 */
+/** @deprecated 不再使用。 */
 export interface RoomHost {
   name?: string;
   version?: string;
@@ -233,7 +366,7 @@ export interface RoomHost {
   plugin?: string;
 }
 
-/** 驱动适配器配置（room.schema.json `adapter`）。 */
+/** @deprecated 不再使用。 */
 export interface RoomAdapter {
   framework?: string;
   config?: string;
@@ -243,26 +376,7 @@ export interface RoomAdapter {
   skip_hook_dispatch?: boolean;
 }
 
-export interface RoomDoc {
-  name: string;
-  kind: 'fold' | 'fake-host' | 'cassette' | 'live-model' | 'hosted' | 'direct-tool';
-  description?: string;
-  model_driver: 'none' | 'scripted' | 'as-recorded' | 'live';
-  network: boolean;
-  durable_log?: string;
-  durable_log_glob?: string;
-  /** isolated：每题跑在临时空 git 仓；无插件的对照侧必须显式声明才能与 ON 侧同构 */
-  workspace?: 'isolated' | 'project';
-  secrets?: string[];
-  fold_entries?: Record<string, FoldEntrySpec>;
-  sut?: { name?: string; root_env?: string; root_rel?: string | null };
-  event_schema?: string;
-  contract?: string;
-  attribution_tree?: string;
-  host?: RoomHost;
-  adapter?: RoomAdapter;
-}
-
+/** @deprecated 使用 RunPlanSnapshot。保留旧字段名。 */
 export interface ExamManifest {
   name: string;
   description?: string;
@@ -278,17 +392,12 @@ export interface ExamManifest {
   defaults?: { paperset?: string; room?: string };
 }
 
+/** @deprecated 使用 Artifact。 */
 export type AssetKind =
-  | 'items'
-  | 'papersets'
-  | 'rooms'
-  | 'materials'
-  | 'scripts'
-  | 'cassettes'
-  | 'contracts'
-  | 'shells'
-  | 'runs';
+  | 'items' | 'papersets' | 'rooms' | 'materials'
+  | 'scripts' | 'cassettes' | 'contracts' | 'shells' | 'runs';
 
+/** @deprecated 使用 Artifact。 */
 export interface LoadedAsset<T> {
   path: string;
   relPath: string;
@@ -296,8 +405,10 @@ export interface LoadedAsset<T> {
   doc: T;
 }
 
+/** @deprecated 使用 Event。 */
 export type IssueLevel = 'error' | 'warning';
 
+/** @deprecated 使用 Event。 */
 export interface Issue {
   level: IssueLevel;
   code: string;
@@ -306,9 +417,13 @@ export interface Issue {
   instancePath?: string;
 }
 
-/** @deprecated 使用 ItemDoc；保留别名降低迁移噪音 */
+/** @deprecated 使用 Case。 */
 export type CaseDoc = ItemDoc;
+/** @deprecated 使用 DatasetRelease。 */
 export type SuiteDoc = PapersetDoc;
+/** @deprecated 使用 EnvironmentProfile。 */
 export type ProfileDoc = RoomDoc;
+/** @deprecated 使用 RunPlanSnapshot。 */
 export type ProjectManifest = ExamManifest;
+/** @deprecated 使用 CaseLifecycle。 */
 export type CaseStatus = ItemStatus;
