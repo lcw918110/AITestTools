@@ -24,8 +24,8 @@ describe('cases-v1 适配层（阶段 4a）', () => {
 
     const item = caseRevisionToItemDoc(rev, caseDoc);
 
-    // 身份
-    expect(item.id).toBe('paired-task-22-off');
+    // 身份（还原 V1 格式 id，保持 run 产物与历史 run 一致）
+    expect(item.id).toBe('EVAL-B-PAIRED-TASK-22-OFF');
     expect(item.rev).toBe(2);
     expect(item.axis).toBe('B');
     // 意图

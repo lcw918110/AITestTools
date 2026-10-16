@@ -14,6 +14,17 @@
 import type { Case, CaseRevision, EnvironmentProfile } from '../domain/types.ts';
 import type { FreezeBC, ItemDoc, RoomDoc } from '../exam-engine/types.ts';
 
+/**
+ * case_id → V1 item_id（反向映射，保持 run 产物 id 与历史 run 一致）。
+ *
+ * case_id（paired-task-22）丢失了 V1 item_id 的 EVAL-{AXIS}- 前缀与 -{VARIANT} 后缀。
+ * 阶段 4a 目标是「执行语义与 V1 等价」，故还原 V1 格式 id，使 compare 新旧 run 无需映射层。
+ * 轴信息当前数据全为 B，硬编码 'B'；A/C 轴数据出现后需从 CaseRevision 扩展轴字段。
+ */
+function caseIdToV1ItemId(caseId: string, variant: 'off' | 'on'): string {
+  return `EVAL-B-${caseId.toUpperCase()}-${variant.toUpperCase()}`;
+}
+
 /** CaseRevision + Case → ItemDoc（runner 旧形状）。 */
 export function caseRevisionToItemDoc(caseRevision: CaseRevision, caseDoc: Case): ItemDoc {
   const variant = caseRevision.case_revision_id.includes('.on') ? 'on' : 'off';
@@ -29,7 +40,7 @@ export function caseRevisionToItemDoc(caseRevision: CaseRevision, caseDoc: Case)
   };
 
   return {
-    id: `${caseDoc.case_id}-${variant}`,
+    id: caseIdToV1ItemId(caseDoc.case_id, variant),
     rev: caseRevision.revision_number,
     axis: 'B',
     status: 'active',
