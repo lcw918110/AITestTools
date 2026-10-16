@@ -28,14 +28,16 @@ AITestTools/                              # agent-proctor 引擎仓（npm 包名
 ├── tsconfig.json / tsconfig.build.json
 ├── vitest.config.ts
 │
-├── schemas/                              # papers-v1 JSON Schema（随包发布）
-│   ├── exam.schema.json                  # 考卷根 exam.json
-│   ├── item.schema.json                  # 单题 item
-│   ├── paperset.schema.json              # 题组 paperset
-│   └── room.schema.json                  # 考场 room（含 host.plugin 约定）
+├── schemas/                              # JSON Schema（V1 papers-v1 协议，迁移中 → V2.17 领域对象）
+│   ├── exam.schema.json                  # 考卷根 exam.json（V1 资产协议）
+│   ├── item.schema.json                  # 单题 item（V1，迁移 → Case/CaseRevision）
+│   ├── paperset.schema.json              # 题组 paperset（V1，迁移 → DatasetRelease）
+│   └── room.schema.json                  # 考场 room（V1，迁移 → EnvironmentProfile）
 │
 ├── src/                                  # 引擎源码（tsc → dist/）
 │   ├── index.ts                          # 包导出入口
+│   ├── domain/                           # V2.17 领域对象（唯一权威类型）
+│   │   └── types.ts                      # 全部领域对象 + 状态机 + 枚举（见 docs/05 映射表）
 │   ├── cli/
 │   │   ├── main.ts                       # proctor 入口、HELP、子命令分发
 │   │   └── commands/                     # 子命令实现
@@ -48,14 +50,14 @@ AITestTools/                              # agent-proctor 引擎仓（npm 包名
 │   │       ├── report-show.ts / report-trend.ts
 │   │       ├── contract-verify.ts
 │   │       └── cassette-record.ts
-│   ├── exam-engine/                      # 考卷装载、schema 校验、digest、路径解析
-│   ├── drivers/                          # 执行驱动
-│   │   ├── fold/                         # Fold 直驱（A 轴事件）
+│   ├── exam-engine/                      # 考卷装载、schema 校验、digest、路径解析（types.ts 为领域对象重新导出层）
+│   ├── drivers/                          # 执行驱动（V1 轴驱动，迁移中 → 统一 Adapter 生命周期）
+│   │   ├── fold/                         # Fold 直驱（V1 A 轴事件）
 │   │   ├── fakehost/                     # 契约假宿主
-│   │   ├── model-adapter/                # B 轴直连模型（Promptfoo 等）
-│   │   ├── cassette/                     # L3 磁带回放
+│   │   ├── model-adapter/                # 模型直连（V1 B 轴，Promptfoo 等）
+│   │   ├── cassette/                     # 磁带回放（V1 L3）
 │   │   └── scripted/                     # 脚本化模型桩
-│   ├── run/                              # 各轴 runner、gates、写 run 产物
+│   ├── run/                              # 各 runner、gates、写 run 产物（V1 轴 runner，迁移中 → 统一执行阶段）
 │   ├── oracles/                          # 白名单判定器（fold、workspace、tool_trace…）
 │   ├── attribution/                      # 失败归因（含 hosted 判定树）
 │   ├── contract/                         # 宿主契约与 verify
@@ -86,15 +88,15 @@ AITestTools/                              # agent-proctor 引擎仓（npm 包名
 │
 ├── examples/                             # 可运行考卷样例与题库副本
 │   │
-│   ├── demo-project/                     # 引擎自测 / CI：A/B/C smoke、假宿主、磁带等
+│   ├── demo-project/                     # 引擎自测 / CI：smoke、假宿主、磁带等（V1 轴样例，迁移中）
 │   │   ├── exam.json
 │   │   ├── rooms/                        # fold-v1、fake-host、hosted-opencode、model-direct、shell-echo…
-│   │   ├── items/                        # A / B / C 轴样例题
-│   │   ├── papersets/                     # smoke 与 eval-model、eval-agent 等题组
+│   │   ├── items/                        # 样例题（V1 A/B/C 轴，迁移 → Case/CaseRevision）
+│   │   ├── papersets/                     # smoke 与 eval-model、eval-agent 等题组（迁移 → DatasetRelease）
 │   │   ├── materials/                    # 每题 stimulus / expected 等物料目录
 │   │   ├── contracts/                    # demo-host-v1.json
 │   │   ├── cassettes/                    # 预录磁带
-│   │   ├── shells/                       # C 轴 shell 驱动样例
+│   │   ├── shells/                       # shell 驱动样例（V1 C 轴）
 │   │   ├── scripts/                      # 脚本化模型 JSON
 │   │   ├── sut/                          # 演示用 fold / plugin 桩（非被测仓本体）
 │   │   ├── baselines/ / runs/            # 本地基线与跑卷残留
@@ -150,6 +152,7 @@ AITestTools/                              # agent-proctor 引擎仓（npm 包名
 │   ├── 02-总体架构与领域设计.md           # ③ 领域对象、状态、执行、安全契约
 │   ├── 03-界面与交互设计.md               # ④ 页面与交互
 │   ├── 04-首期实验方案与用例治理.md       # ⑤ ON/OFF 协议、快好省、用例治理
+│   ├── 05-领域对象与代码类型映射.md       # ⑥ 领域对象 ↔ 代码类型 契约锚点
 │   ├── 需求追踪矩阵.csv                   # 63 条需求 → 验收 → 设计 → 验证
 │   ├── README_项目负责人阅读版.md          # 阅读导览（不替代权威规范）
 │   ├── 文档包质量检查报告.md               # 文档包静态检查记录
@@ -167,7 +170,7 @@ AITestTools/                              # agent-proctor 引擎仓（npm 包名
 │   │
 │   ├── test/                             # 测试操作
 │   │   ├── 01-wanxiangshu-ops.md         # 测万象术 / 模型·Agent·插件 操作手册
-│   │   ├── 02-engine-regression.md       # 引擎 A/B/C 工程回归
+│   │   ├── 02-engine-regression.md       # 引擎工程回归
 │   │   └── 03-console-ops.md              # 评测操作台测试手册
 │   │
 │   ├── templates/                        # 16 份 CSV 配置/治理模板

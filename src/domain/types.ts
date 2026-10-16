@@ -247,6 +247,31 @@ export interface DatasetRelease {
   created_at: string;
 }
 
+/** 执行路线步骤（§3.1 RouteStep）。只定义路线、步骤级引用和步骤级证据要求。 */
+export interface RouteStep {
+  step_id: string;
+  /** 引用确切 CaseRevision。 */
+  case_revision_id: string;
+  /** 依赖的前置步骤。 */
+  depends_on?: string[];
+  /** 前置条件。 */
+  preconditions?: string[];
+  /** 失败后的继续/停止策略。 */
+  on_failure: 'continue' | 'stop' | 'skip_dependents';
+  /** 步骤级证据要求。 */
+  evidence_requirements?: string[];
+}
+
+/** 用例执行路线（§3.1 SuitePlan）。不拥有 Run/Experiment 级预算、并发、重试、计时口径或评分器权威值。 */
+export interface SuitePlan {
+  suite_plan_id: string;
+  name: string;
+  dataset_release_id: string;
+  /** 按依赖/顺序组织的路线步骤。 */
+  steps: RouteStep[];
+  created_at: string;
+}
+
 /** exit_code：进程以期望码退出（非 0 也可是期望，如「必须失败」）。 */
 export interface OracleExitCode {
   type: 'exit_code';
@@ -845,6 +870,29 @@ export interface FeatureAblationProfile {
   acceptance_evidence?: string;
 }
 
+/** 干预类型（§3.1 FeatureInterventionPlan）。 */
+export const INTERVENTION_TYPES = [
+  'plugin_on_off',
+  'select_named_profile',
+  'single_control_point',
+  'profile_compare',
+  'scenario_observation',
+  'source_assisted_variant',
+] as const;
+export type InterventionType = (typeof INTERVENTION_TYPES)[number];
+
+/** 功能干预计划（§3.1 FeatureInterventionPlan）。 */
+export interface FeatureInterventionPlan {
+  intervention_plan_id: string;
+  intervention_type: InterventionType;
+  /** 固定变量。 */
+  fixed_variables: Record<string, unknown>;
+  /** 控制证据。 */
+  control_evidence?: string;
+  /** 归因范围。 */
+  attribution_scope?: string;
+}
+
 /** 模拟路由（§3.1 RouteSimulation）。无副作用，非实际调用。 */
 export interface RouteSimulation {
   simulation_id: string;
@@ -956,26 +1004,50 @@ export interface FaultInjectionProfile {
 // 13. Provider / 模型（§4.3 / §4.4）
 // ─────────────────────────────────────────────────────────────
 
-/** Provider / Deployment / 模型目录（§6）。 */
-export interface ProviderDefinition {
+/** 服务提供方（§4.3 Provider）。 */
+export interface Provider {
   provider_id: string;
   name: string;
   adapter?: string;
   status: 'active' | 'inactive' | 'deprecated';
 }
 
-export interface DeploymentDefinition {
+/** 实际部署/区域/端点（§4.3 Deployment）。 */
+export interface Deployment {
   deployment_id: string;
   provider_id: string;
   region?: string;
   endpoint?: string;
 }
 
+/** 可稳定识别的模型/部署标识（§4.3 ModelRef）。 */
+export interface ModelRef {
+  model_id: string;
+  provider_id: string;
+  deployment_id?: string;
+}
+
+/** 有来源的能力事实（§4.3 ModelCapability）。 */
+export interface ModelCapability {
+  capability: string;
+  source: string;
+  /** 供应商声明 vs 真实探针结果必须区分。 */
+  source_kind: 'vendor_claim' | 'probe_verified' | 'estimated';
+}
+
+/** 具体角色的必需/可选能力（§4.3 AgentRoleRequirement）。 */
+export interface AgentRoleRequirement {
+  role_id: string;
+  required_capabilities: string[];
+  optional_capabilities?: string[];
+}
+
+/** 模型目录条目（§6）。 */
 export interface ModelCatalogEntry {
   model_id: string;
   provider_id: string;
   deployment_id?: string;
-  capabilities?: Array<{ capability: string; source: string }>;
+  capabilities?: ModelCapability[];
   usage_source?: string;
   price_source?: string;
   price_version?: string;
@@ -1000,3 +1072,8 @@ export interface ModelRoutingProfile {
     route_policy_version: string;
   }>;
 }
+
+/** @deprecated 使用 Provider。 */
+export type ProviderDefinition = Provider;
+/** @deprecated 使用 Deployment。 */
+export type DeploymentDefinition = Deployment;
