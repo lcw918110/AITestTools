@@ -1,3 +1,16 @@
+/**
+ * 考卷/项目资产加载器。
+ *
+ * 职责边界：递归扫描目录，收集、读取、解析 exam-engine 资产文件
+ * （item/paperset/room），返回 LoadedAsset（含 path/relPath/raw/doc 四元组）。
+ *
+ * 与 contract/load.ts 的区别：
+ * - contract/load.ts 加载宿主契约（bundled HostContract），直接 cast 返回结构体；
+ * - 本模块加载考卷/项目资产，保留 raw 文本（供 digest 等后续校验使用），
+ *   JSON 解析错误包装为 AssetParseError（带具体文件路径）；
+ * - 两者职责不同，语义异构，不应合并为公共 JSON 加载函数。
+ */
+
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
 import type { ItemDoc, LoadedAsset, PapersetDoc, RoomDoc } from './types.ts';

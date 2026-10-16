@@ -86,7 +86,7 @@ function runFixture(job: EvalJob, projectRoot: string): FrameworkRawResult {
   return { framework: 'promptfoo-fixture', rows };
 }
 
-type LiveProvider = {
+export type LiveProvider = {
   apiKey: string;
   baseUrl: string;
   /** DeepSeek thinking 模式不支持 tool_choice=required，须用 auto */
@@ -124,6 +124,68 @@ function resolveLiveProvider(model: string): LiveProvider {
   };
 }
 
+/**
+ * 构建 promptfoo 配置对象（纯函数，不写盘）。
+ * 用 JS 对象 + JSON.stringify 序列化，避免手工字符串拼接破坏 YAML 语法。
+ * JSON 是 YAML 1.2 的有效子集，promptfoo 的 YAML 解析器可直接解析。
+ * 所有用户输入值（prompt / item_id / apiKey 等）自然被 JSON 正确转义，
+ * 即使含 :、#、引号、换行、{、} 等特殊字符也不会破坏配置。
+ */
+export function buildPromptfooConfig(
+  providers: Array<LiveProvider & { model: string }>,
+  cases: Array<{ item_id: string; repeat: number; prompt: string }>,
+): Record<string, unknown> {
+  return {
+    description: 'agent-proctor B-direct live spike',
+    providers: providers.map((p) => ({
+      id: `openai:chat:${p.model}`,
+      config: {
+        apiBaseUrl: p.baseUrl,
+        apiKey: p.apiKey,
+        temperature: 0,
+        max_tokens: 512,
+        tool_choice: p.toolChoice,
+        tools: [
+          {
+            type: 'function',
+            function: {
+              name: 'todowrite',
+              description: 'Create or update a todo list for multi-step work',
+              parameters: {
+                type: 'object',
+                properties: {
+                  todos: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        id: { type: 'string' },
+                        content: { type: 'string' },
+                        status: { type: 'string' },
+                      },
+                    },
+                  },
+                  merge: { type: 'boolean' },
+                },
+                required: ['todos', 'merge'],
+              },
+            },
+          },
+        ],
+      },
+    })),
+    prompts: ['{{prompt}}'],
+    tests: cases.map((c) => ({
+      description: `${c.item_id}::r${c.repeat}`,
+      vars: {
+        prompt: c.prompt,
+        item_id: c.item_id,
+        repeat: String(c.repeat),
+      },
+    })),
+  };
+}
+
 function runLive(
   job: EvalJob,
   opts: { projectRoot: string; artifactDir?: string },
@@ -151,45 +213,8 @@ function runLive(
     }
   }
 
-  const yml: string[] = ['description: agent-proctor B-direct live spike', 'providers:'];
-  for (const p of providers) {
-    yml.push(`  - id: ${JSON.stringify(`openai:chat:${p.model}`)}`);
-    yml.push('    config:');
-    yml.push(`      apiBaseUrl: ${JSON.stringify(p.baseUrl)}`);
-    yml.push(`      apiKey: ${JSON.stringify(p.apiKey)}`);
-    yml.push('      temperature: 0');
-    yml.push('      max_tokens: 512');
-    yml.push(`      tool_choice: ${p.toolChoice}`);
-    yml.push('      tools:');
-    yml.push('        - type: function');
-    yml.push('          function:');
-    yml.push('            name: todowrite');
-    yml.push('            description: Create or update a todo list for multi-step work');
-    yml.push('            parameters:');
-    yml.push('              type: object');
-    yml.push('              properties:');
-    yml.push('                todos:');
-    yml.push('                  type: array');
-    yml.push('                  items:');
-    yml.push('                    type: object');
-    yml.push('                    properties:');
-    yml.push('                      id: { type: string }');
-    yml.push('                      content: { type: string }');
-    yml.push('                      status: { type: string }');
-    yml.push('                merge: { type: boolean }');
-    yml.push('              required: [todos, merge]');
-  }
-  yml.push('prompts:');
-  yml.push('  - "{{prompt}}"');
-  yml.push('tests:');
-  for (const c of cases) {
-    yml.push(`  - description: ${JSON.stringify(`${c.item_id}::r${c.repeat}`)}`);
-    yml.push('    vars:');
-    yml.push(`      prompt: ${JSON.stringify(c.prompt)}`);
-    yml.push(`      item_id: ${JSON.stringify(c.item_id)}`);
-    yml.push(`      repeat: ${JSON.stringify(String(c.repeat))}`);
-  }
-  writeFileSync(cfgPath, `${yml.join('\n')}\n`);
+  const config = buildPromptfooConfig(providers, cases);
+  writeFileSync(cfgPath, `${JSON.stringify(config, null, 2)}\n`);
 
   const pf = resolvePromptfooBin(projectRoot);
   // 多 provider 密钥已写在 promptfooconfig；env 仅保留默认兜底（首个模型）

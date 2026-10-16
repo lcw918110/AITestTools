@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resolveOpenCodePluginExport } from '../../src/run/opencode-plugin-export.ts';
+import { resolveOpenCodePluginExport } from '../../src/drivers/model-adapter/opencode-plugin-export.ts';
 import { partitionHostedProtocolProbes } from '../../src/attribution/ndjson-probes.ts';
 
 describe('resolveOpenCodePluginExport', () => {

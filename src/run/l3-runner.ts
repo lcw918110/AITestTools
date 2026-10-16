@@ -301,5 +301,3 @@ function scoreReplay(opts: {
   if (opts.artifactDir !== undefined) result.artifact_dir = opts.artifactDir;
   return result;
 }
-
-

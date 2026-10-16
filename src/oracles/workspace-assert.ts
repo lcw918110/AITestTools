@@ -1,5 +1,5 @@
 import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { resolve, sep } from 'node:path';
 import type { Attribution, OracleWorkspaceAssert } from '../exam-engine/types.ts';
 import type { OracleOutcome } from './types.ts';
 
@@ -25,7 +25,16 @@ export function runWorkspaceAssertOracle(opts: {
       attribution: 'HARNESS',
     };
   }
-  const abs = join(opts.workspace, rel);
+  const workspace = resolve(opts.workspace);
+  const abs = resolve(workspace, rel);
+  if (abs !== workspace && !abs.startsWith(workspace + sep)) {
+    return {
+      pass: false,
+      oracle_id: opts.oracle_id,
+      message: `安全拒绝：路径 ${rel} 试图访问 workspace 外文件`,
+      attribution: 'HARNESS',
+    };
+  }
   const wantExists = opts.oracle.exists === undefined ? true : Boolean(opts.oracle.exists);
   const exists = existsSync(abs);
   if (wantExists && !exists) {
@@ -51,7 +60,17 @@ export function runWorkspaceAssertOracle(opts: {
     ((typeof contains === 'string' && contains.length > 0) ||
       (typeof notContains === 'string' && notContains.length > 0));
   if (needsText) {
-    const text = readFileSync(abs, 'utf8');
+    let text: string;
+    try {
+      text = readFileSync(abs, 'utf8');
+    } catch (err) {
+      return {
+        pass: false,
+        oracle_id: opts.oracle_id,
+        message: `读取文件 ${rel} 失败：${err instanceof Error ? err.message : String(err)}`,
+        attribution: opts.attribution ?? 'TOOL',
+      };
+    }
     if (typeof contains === 'string' && contains.length > 0 && !text.includes(contains)) {
       return {
         pass: false,

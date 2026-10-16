@@ -96,7 +96,15 @@ describe('B/C 轴 freeze 形状', () => {
       axis: 'B',
       freeze: bFreeze,
       stimulus: { kind: 'task_prompt', ref: 'fixtures/x/task.md' },
-      expect: { oracles: [{ type: 'schema_obedience', tool: 'todowrite', required_fields: ['todos', 'select_methodology'] }] },
+      expect: {
+        oracles: [
+          {
+            type: 'schema_obedience',
+            tool: 'todowrite',
+            required_fields: ['todos', 'select_methodology'],
+          },
+        ],
+      },
       metrics: { primary: ['b_schema_obedience_rate'] },
       execution: { deadline_ms: 60000, requires_network: true },
     });

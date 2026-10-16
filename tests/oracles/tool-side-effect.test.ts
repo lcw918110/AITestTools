@@ -27,4 +27,28 @@ describe('runToolSideEffectOracle', () => {
     });
     expect(o.pass).toBe(false);
   });
+  it('绝对路径应被拒绝', () => {
+    const ws = join(tmpdir(), `side-fx-abs-${Date.now()}`);
+    mkdirSync(ws, { recursive: true });
+    const o = runToolSideEffectOracle({
+      oracle_id: 's1',
+      oracle: { type: 'tool_side_effect', file: '/etc/passwd', contains: 'root' },
+      workspace: ws,
+    });
+    expect(o.pass).toBe(false);
+    expect(o.message).toContain('安全拒绝');
+  });
+
+  it('读取目录时 readFileSync 异常应捕获不崩溃', () => {
+    const ws = join(tmpdir(), `side-fx-dir-${Date.now()}`);
+    mkdirSync(ws, { recursive: true });
+    mkdirSync(join(ws, 'subdir'));
+    const o = runToolSideEffectOracle({
+      oracle_id: 's1',
+      oracle: { type: 'tool_side_effect', file: 'subdir', contains: 'anything' },
+      workspace: ws,
+    });
+    expect(o.pass).toBe(false);
+    expect(o.message).toContain('读取文件');
+  });
 });

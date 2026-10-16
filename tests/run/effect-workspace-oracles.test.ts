@@ -70,7 +70,7 @@ describe('效果题 workspace_assert：播种后未改应挂、改对应过', ()
       stdout: 'PORT_SYNC',
       focus: off.intent.attribution_focus,
     });
-    expect(before.veto).toBeDefined();
+    expect(before.veto?.message).toMatch(/config-port.*未含「"port": 8443」/);
 
     writeFileSync(
       join(workDir, 'config/app.json'),
@@ -107,7 +107,7 @@ describe('效果题 workspace_assert：播种后未改应挂、改对应过', ()
       stdout: 'QUERY_WIRE',
       focus: off.intent.attribution_focus,
     });
-    expect(before.veto).toBeDefined();
+    expect(before.veto?.message).toMatch(/query-split.*未含「split」/);
 
     writeFileSync(
       join(workDir, 'lib/query.js'),

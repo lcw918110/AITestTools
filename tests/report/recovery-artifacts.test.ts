@@ -27,7 +27,12 @@ describe('loadRunArtifacts 恢复/部分制品 (a_recovery_pass_rate)', () => {
       'results.ndjson',
       [
         JSON.stringify({ item_id: 'A', item_rev: 1, pass: true, metrics: { a_case_pass_rate: 1 } }),
-        JSON.stringify({ item_id: 'B', item_rev: 1, pass: false, metrics: { a_case_pass_rate: 0 } }),
+        JSON.stringify({
+          item_id: 'B',
+          item_rev: 1,
+          pass: false,
+          metrics: { a_case_pass_rate: 0 },
+        }),
         '',
       ].join('\n'),
     );

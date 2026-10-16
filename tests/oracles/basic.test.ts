@@ -25,17 +25,42 @@ describe('state_predicate', () => {
   it('路径缺失视为 null', () => {
     expect(evalStatePredicate('a.b == null', {})).toBe(true);
   });
+  it('对象键序不同但语义相等判等', () => {
+    expect(
+      evalStatePredicate('left == right', {
+        left: { a: 1, b: 2 },
+        right: { b: 2, a: 1 },
+      }),
+    ).toBe(true);
+  });
+  it('嵌套对象键序不同判等', () => {
+    expect(
+      evalStatePredicate('left == right', {
+        left: { a: 1, nested: { x: 1, y: 2 } },
+        right: { nested: { y: 2, x: 1 }, a: 1 },
+      }),
+    ).toBe(true);
+  });
   it('非法函数调用被拒绝', () => {
     expect(() => evalStatePredicate('foo()', {})).toThrow(PredicateError);
   });
 });
 
 describe('no_event', () => {
-  it('禁止事件命中则失败', () => {
+  it('禁止事件命中则失败（type 字段）', () => {
     const r = runNoEventOracle({
       oracle_id: 'x',
       events: [{ type: 'Bad' }],
       names: ['Bad'],
+    });
+    expect(r.pass).toBe(false);
+  });
+
+  it('仅含 name 字段的禁止事件也能命中', () => {
+    const r = runNoEventOracle({
+      oracle_id: 'x',
+      events: [{ name: 'BadEvent' }],
+      names: ['BadEvent'],
     });
     expect(r.pass).toBe(false);
   });
@@ -63,6 +88,15 @@ describe('event_subsequence', () => {
       names: ['TurnCompleted', 'NudgeEmitted'],
     });
     expect(r.pass).toBe(false);
+  });
+
+  it('name 字段也能作为事件名后备匹配', () => {
+    const r = runEventSubsequenceOracle({
+      oracle_id: 'seq',
+      events: [{ name: 'TurnCompleted' }, { type: 'Noise' }, { name: 'TurnStarted' }],
+      names: ['TurnCompleted', 'TurnStarted'],
+    });
+    expect(r.pass).toBe(true);
   });
 });
 

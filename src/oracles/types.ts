@@ -10,6 +10,7 @@ export interface OracleFailure {
 export interface OraclePass {
   oracle_id: string;
   pass: true;
+  message?: string;
 }
 
 export type OracleOutcome = OraclePass | (OracleFailure & { pass: false });

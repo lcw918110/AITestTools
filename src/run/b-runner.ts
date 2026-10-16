@@ -86,7 +86,11 @@ export async function runBDirectItem(opts: {
     raw = await runPromptfooAdapter(job, adapterOpts);
   } catch (e) {
     return [
-      fail(opts.item, 'HARNESS', `B-direct adapter 失败：${(e as Error).message}`, { invariantViolationsExplicit: 0, extraMetrics: { b_schema_obedience_rate: 0 }, ...(opts.models[0] !== undefined ? { modelSuffix: opts.models[0] } : {}) }),
+      fail(opts.item, 'HARNESS', `B-direct adapter 失败：${(e as Error).message}`, {
+        invariantViolationsExplicit: 0,
+        extraMetrics: { b_schema_obedience_rate: 0 },
+        ...(opts.models[0] !== undefined ? { modelSuffix: opts.models[0] } : {}),
+      }),
     ];
   }
 
@@ -146,7 +150,9 @@ export async function runBDirectItem(opts: {
       a_case_pass_rate: draftPass ? 1 : 0,
       a_invariant_violations: 0,
     };
-    applyMetricThresholdPass(opts.item.expect.oracles, draftMetrics, focus, (o) => failures.push(o));
+    applyMetricThresholdPass(opts.item.expect.oracles, draftMetrics, focus, (o) =>
+      failures.push(o),
+    );
     const failed = failures.filter((o): o is Extract<OracleOutcome, { pass: false }> => !o.pass);
     const pass = failed.length === 0 && row.pass;
     const attribution = pass ? undefined : (failed[0]?.attribution ?? 'MODEL_SCHEMA');
@@ -175,8 +181,6 @@ export async function runBDirectItem(opts: {
   }
   return results;
 }
-
-
 
 function sanitize(model: string): string {
   return model.replace(/[^A-Za-z0-9._-]+/g, '_');

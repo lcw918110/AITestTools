@@ -1,3 +1,5 @@
+import { deepEqual } from './deep-equal.ts';
+
 /**
  * 受限布尔表达式求值（设计 14）。无函数调用、无赋值。
  */
@@ -196,10 +198,7 @@ function readPath(root: unknown, parts: (string | number)[]): unknown {
 }
 
 function strictEq(a: unknown, b: unknown): boolean {
-  if (typeof a === 'object' && a !== null && typeof b === 'object' && b !== null) {
-    return JSON.stringify(a) === JSON.stringify(b); // 简化：对象整树；标量用 Object.is
-  }
-  return Object.is(a, b);
+  return deepEqual(a, b);
 }
 
 function evalAst(ast: Ast, root: unknown): unknown {

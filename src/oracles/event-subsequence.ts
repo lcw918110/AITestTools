@@ -1,10 +1,6 @@
 import type { Attribution } from '../exam-engine/types.ts';
 import type { OracleOutcome } from './types.ts';
-
-function eventName(e: Record<string, unknown>): string {
-  const k = e.Kind ?? e.kind ?? e.type ?? e.name;
-  return typeof k === 'string' ? k : '';
-}
+import { eventName } from './event-name.ts';
 
 /** 有序子序列：names 须按顺序出现在事件流中（可夹杂其它事件）。 */
 export function runEventSubsequenceOracle(opts: {

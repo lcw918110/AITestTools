@@ -3,10 +3,7 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import type { ItemDoc, RoomDoc } from '../exam-engine/types.ts';
-import {
-  runToolSideEffectOracle,
-  runWorkspaceAssertOracle,
-} from '../oracles/index.ts';
+import { runToolSideEffectOracle, runWorkspaceAssertOracle } from '../oracles/index.ts';
 import { fail, applyMetricThresholdPass } from './runner-shared.ts';
 import { deepEqual } from '../oracles/deep-equal.ts';
 import type { AxisItemResult } from './l2-runner.ts';
@@ -39,7 +36,9 @@ export async function runCItem(opts: {
     (typeof opts.room.host?.command === 'string' ? opts.room.host.command : undefined);
 
   if (shellRel === undefined) {
-    return fail(opts.item, 'HARNESS', 'C 轴考场需 adapter.config 指向 shells/<tool>.mjs', { extraMetrics: { c_contract_pass_rate: 0 } });
+    return fail(opts.item, 'HARNESS', 'C 轴考场需 adapter.config 指向 shells/<tool>.mjs', {
+      extraMetrics: { c_contract_pass_rate: 0 },
+    });
   }
 
   let stimulus: ShellStimulus;
@@ -48,7 +47,9 @@ export async function runCItem(opts: {
       readFileSync(resolve(opts.projectRoot, opts.item.stimulus.ref), 'utf8'),
     ) as ShellStimulus;
   } catch (e) {
-    return fail(opts.item, 'HARNESS', `无法加载 stimulus：${(e as Error).message}`, { extraMetrics: { c_contract_pass_rate: 0 } });
+    return fail(opts.item, 'HARNESS', `无法加载 stimulus：${(e as Error).message}`, {
+      extraMetrics: { c_contract_pass_rate: 0 },
+    });
   }
 
   const workspace = mkdtempSync(join(tmpdir(), 'proctor-c-ws-'));
@@ -116,7 +117,9 @@ export async function runCItem(opts: {
   try {
     parsed = JSON.parse((r.stdout || '').trim()) as typeof parsed;
   } catch (e) {
-    return fail(opts.item, 'HARNESS', `壳 stdout 非 JSON：${(e as Error).message}`, { extraMetrics: { c_contract_pass_rate: 0 } });
+    return fail(opts.item, 'HARNESS', `壳 stdout 非 JSON：${(e as Error).message}`, {
+      extraMetrics: { c_contract_pass_rate: 0 },
+    });
   }
 
   const exp = stimulus.expect ?? {};
@@ -232,5 +235,3 @@ export async function runCItem(opts: {
   if (opts.artifactDir !== undefined) result.artifact_dir = opts.artifactDir;
   return result;
 }
-
-

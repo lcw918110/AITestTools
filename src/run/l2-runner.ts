@@ -3,7 +3,13 @@ import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { spawnSync } from 'node:child_process';
-import { loadContract, fail, computeAxisDraftMetrics, applyMetricThresholdPass, finalizeAxisResult } from './runner-shared.ts';
+import {
+  loadContract,
+  fail,
+  computeAxisDraftMetrics,
+  applyMetricThresholdPass,
+  finalizeAxisResult,
+} from './runner-shared.ts';
 import { FakeHost, FakeHostError } from '../drivers/fakehost/index.ts';
 import { loadScript, ScriptError } from '../drivers/scripted/index.ts';
 import type { FreezeA, ItemDoc, RoomDoc } from '../exam-engine/types.ts';
@@ -14,7 +20,7 @@ import {
   type OracleOutcome,
 } from '../oracles/index.ts';
 import type { L1ItemResult } from './l1-runner.ts';
-import { resolveOpenCodePluginExport } from './opencode-plugin-export.ts';
+import { resolveOpenCodePluginExport } from '../drivers/model-adapter/opencode-plugin-export.ts';
 
 export type AxisItemResult = L1ItemResult;
 
@@ -452,7 +458,9 @@ export async function runL2Item(opts: {
   const draftMetrics = computeAxisDraftMetrics(failures);
   applyMetricThresholdPass(opts.item.expect.oracles, draftMetrics, focus, (o) => failures.push(o));
 
-  return finalizeAxisResult({ item: opts.item, failures, ...(opts.artifactDir !== undefined ? { artifactDir: opts.artifactDir } : {}) });
+  return finalizeAxisResult({
+    item: opts.item,
+    failures,
+    ...(opts.artifactDir !== undefined ? { artifactDir: opts.artifactDir } : {}),
+  });
 }
-
-

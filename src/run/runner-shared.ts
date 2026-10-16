@@ -1,10 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadBundledContract } from '../contract/load.ts';
-import {
-  runMetricThresholdOracle,
-  type OracleOutcome,
-} from '../oracles/index.ts';
+import { runMetricThresholdOracle, type OracleOutcome } from '../oracles/index.ts';
 import type { Attribution, ItemDoc, Oracle } from '../exam-engine/types.ts';
 import type { L1ItemResult } from './l1-runner.ts';
 
@@ -39,24 +36,30 @@ export function fail(
     modelSuffix?: string;
     extraMetrics?: Record<string, number>;
     invariantViolationsExplicit?: 0;
+    artifactDir?: string | undefined;
+    effectPair?: string | undefined;
+    extraFailures?: Array<{ oracle_id: string; message: string }>;
   },
 ): L1ItemResult {
   const hasInvariantViolation =
     opts?.invariantViolationsExplicit === 0
       ? false
       : attribution === 'PROTOCOL' || attribution === 'CONTEXT';
-  return {
+  const result: L1ItemResult = {
     item_id: opts?.modelSuffix !== undefined ? `${item.id}::${opts.modelSuffix}` : item.id,
     item_rev: item.rev,
     pass: false,
     attribution,
-    oracle_failures: [{ oracle_id: 'harness', message }],
+    oracle_failures: [{ oracle_id: 'harness', message }, ...(opts?.extraFailures ?? [])],
     metrics: {
       a_case_pass_rate: 0,
       a_invariant_violations: hasInvariantViolation ? 1 : 0,
       ...(opts?.extraMetrics ?? {}),
     },
   };
+  if (opts?.artifactDir !== undefined) result.artifact_dir = opts.artifactDir;
+  if (opts?.effectPair !== undefined) result.effect_pair = opts.effectPair;
+  return result;
 }
 
 /**
@@ -90,9 +93,7 @@ export function applyMetricThresholdPass(
 export function computeAxisDraftMetrics(
   failures: readonly OracleOutcome[],
 ): Record<string, number> {
-  const preFailed = failures.filter(
-    (o): o is Extract<OracleOutcome, { pass: false }> => !o.pass,
-  );
+  const preFailed = failures.filter((o): o is Extract<OracleOutcome, { pass: false }> => !o.pass);
   const draftPass = preFailed.length === 0;
   return {
     a_case_pass_rate: draftPass ? 1 : 0,
@@ -114,9 +115,7 @@ export function finalizeAxisResult(opts: {
   artifactDir?: string;
   foldState?: unknown;
 }): L1ItemResult {
-  const failed = opts.failures.filter(
-    (o): o is Extract<OracleOutcome, { pass: false }> => !o.pass,
-  );
+  const failed = opts.failures.filter((o): o is Extract<OracleOutcome, { pass: false }> => !o.pass);
   const pass = failed.length === 0;
   const attribution: Attribution | undefined = pass
     ? undefined

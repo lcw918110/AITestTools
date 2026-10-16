@@ -13,7 +13,12 @@ import {
   runStatePredicateOracle,
   type OracleOutcome,
 } from '../oracles/index.ts';
-import { fail, computeAxisDraftMetrics, applyMetricThresholdPass, finalizeAxisResult } from './runner-shared.ts';
+import {
+  fail,
+  computeAxisDraftMetrics,
+  applyMetricThresholdPass,
+  finalizeAxisResult,
+} from './runner-shared.ts';
 
 export interface L1ItemResult {
   item_id: string;
@@ -155,7 +160,10 @@ export async function runL1Item(opts: {
   const draftMetrics = computeAxisDraftMetrics(failures);
   applyMetricThresholdPass(opts.item.expect.oracles, draftMetrics, focus, (o) => failures.push(o));
 
-  return finalizeAxisResult({ item: opts.item, failures, ...(opts.artifactDir !== undefined ? { artifactDir: opts.artifactDir } : {}), foldState });
+  return finalizeAxisResult({
+    item: opts.item,
+    failures,
+    ...(opts.artifactDir !== undefined ? { artifactDir: opts.artifactDir } : {}),
+    foldState,
+  });
 }
-
-

@@ -194,7 +194,12 @@ function buildEffect(baseRun: LoadedRun, candRun: LoadedRun): EffectSummary {
     effect.reference_scores = ref;
   }
 
-  const paired = buildPairedEffects(baseRun.results, candRun.results, baseRun.scores, candRun.scores);
+  const paired = buildPairedEffects(
+    baseRun.results,
+    candRun.results,
+    baseRun.scores,
+    candRun.scores,
+  );
   if (paired.length > 0) effect.paired_effects = paired;
 
   return effect;

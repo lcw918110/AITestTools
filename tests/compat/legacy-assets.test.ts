@@ -16,10 +16,7 @@ const legacyRoot = fileURLToPath(new URL('../fixtures/legacy-phase0', import.met
 
 describe('与 Phase 0 样例的行为对齐（compat: stated guarantee）', () => {
   beforeAll(() => {
-    expect(
-      existsSync(legacyCasesDir),
-      `兼容套件 fixtures 目录缺失：${legacyCasesDir}`,
-    ).toBe(true);
+    expect(existsSync(legacyCasesDir), `兼容套件 fixtures 目录缺失：${legacyCasesDir}`).toBe(true);
   });
 
   const files = collectFiles(legacyCasesDir, '.case.json');
