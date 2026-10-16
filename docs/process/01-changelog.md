@@ -342,3 +342,34 @@
 **仍存未决：** 前端零测试（`apps/console/public/*` 无 JS/HTML/CSS 单元、集成或 E2E 测试）。详见 `05-full-code-audit.md` 与 `06-next-steps.md` §5。（`metrics/catalog.ts` 已由 `tests/metrics/catalog.test.ts`（28 用例）覆盖。）
 
 **全仓测试基线（实测，2026-10-09）：** 本轮控制台重构后 `npm test`（vitest run）全量 **50 个测试文件 / 289 个测试用例全部通过**，`npm run typecheck`（tsc --noEmit）0 错误。该数字为最终实测基线；§6/§7/§11 各节记录的历史数字（44/46 文件、213/214/223 测试）已统一更正为本口径。
+
+---
+
+## §13 V2.17 全量重构基线（2026-10-16）
+
+本轮启动 V2.17 全量重构（`docs/` 五主文档为权威口径），先做**工作区清理**与**领域模型落盘**，为后续 Phase 1–8 建立干净基线。
+
+**1. 遗留未提交改动清理（先隔离风险）**
+
+- 工作区存在 205 个文件未提交改动（时间跨度 9/24–10/16），对应 changelog §12 控制台重构 + T1–T7 的 hosted 运行器/Oracle/promptfoo 增强 + bank 材料格式化。
+- 逐项审查后判定**全部有用**，分 3 个逻辑 commit 提交为干净基线：
+  - `81ddeba` 控制台质量闭环重构（server 拆分 + 原子写/CAS + 回滚 + HTTP 层测试）
+  - `3c21bc5` hosted 运行器增强 + Oracle 判定器补全 + promptfoo 配置重构
+  - `cb434b8` bank 材料表格格式化 + skill 中文约束补全 + 配置整理
+
+**2. 文档口径统一（design-before-code）**
+
+- `02-总体架构与领域设计.md` §3.2：从「Item 作为首期物理存储基础」改为「领域对象为唯一权威模型，现有资产迁移为领域对象」，消除两套并行口径。
+- `00-glossary.md` §7、`01-产品需求规格说明书.md` FR-03、`需求追踪矩阵.csv` REQ-CASE-REVISION-001 同步迁移口径。
+- 提交 `c52b16c`。
+
+**3. 领域对象类型落盘（Phase 1 第一步）**
+
+- 新建 `src/domain/types.ts`（903 行）：覆盖附件 02 §3.1 全部 20+ 领域对象 + 4 组状态机 + 三段式记录 + 双分母指标 + Comparability Gate + 配置/安全/功能目录/环境/故障注入对象。
+- 重写 `src/exam-engine/types.ts` 为领域对象重新导出层：旧类型（ItemDoc/PapersetDoc/RoomDoc/FreezeA/B 等）保留为 `@deprecated` 兼容接口（含旧字段名），使现有 77 处 ItemDoc 引用逐步迁移而非一次性崩溃。
+- Oracle 判定器从内联对象字面量改为命名接口（OracleExitCode 等 12 个），可独立导出。
+- 提交 `1570731` + `0ec7bd6`。
+
+**验证基线（实测，2026-10-16）：** `npm run typecheck` 0 错误；`npm test` 49/50 文件通过（唯一失败 `tests/attribution/event-store.test.ts` 为沙箱 git 权限环境问题，与改动无关）。
+
+**下一步：** 继续 Phase 1——将 engine/run/report/cli/console 各模块的旧类型引用逐步迁移为领域对象，随后迁移 examples/product-eval 数据集与 schemas。
