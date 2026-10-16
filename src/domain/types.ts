@@ -174,6 +174,8 @@ export interface Case {
   automation_readiness: AutomationReadiness;
   /** 当前最新修订号；历史修订不可变，通过 case_revision_id 引用。 */
   head_revision_id?: string;
+  /** 配对键（OFF/ON 共享同一 Case，通过 pair_key 关联）。 */
+  pair_key?: string;
   created_at: string;
   updated_at: string;
 }
@@ -197,6 +199,8 @@ export interface CaseRevision {
     kind: string;
     ref: string;
     notes?: string;
+    /** hosted 通行 token（V1 stimulus.hosted_pass_token 迁移）。 */
+    hosted_pass_token?: string;
   };
   /** 前提条件 / 步骤动作 / 初始化清理 / 权限副作用。 */
   preconditions?: string[];
@@ -944,6 +948,10 @@ export interface EnvironmentProfile {
     host_agent?: string;
     /** 管理的 Agent 列表（V1 room.host.managed_agents 迁移）。 */
     managed_agents?: string[];
+    /** Host 插件路径（V1 room.host.plugin 迁移）。 */
+    host_plugin?: string;
+    /** 耐久日志 glob（V1 room.durable_log_glob 迁移）。 */
+    durable_log_glob?: string;
   };
 }
 

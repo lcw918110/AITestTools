@@ -32,6 +32,8 @@
       "deep-distiller",
       "fast-blogger",
       "deep-blogger"
-    ]
+    ],
+    "host_plugin": "dist/OpenCode/Plugin/Plugin.js",
+    "durable_log_glob": "**/.git/refs/wanxiang/store"
   }
 }

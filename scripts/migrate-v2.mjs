@@ -271,6 +271,8 @@ function main() {
         host_model: room.host?.model,
         host_agent: room.host?.agent,
         managed_agents: room.host?.managed_agents,
+        host_plugin: room.host?.plugin,
+        durable_log_glob: room.durable_log_glob,
       },
     };
     const file = join(envDir, `${room.name}.environment.json`);

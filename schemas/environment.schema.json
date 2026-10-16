@@ -33,7 +33,9 @@
         "managed_agents": {
           "type": "array",
           "items": { "type": "string" }
-        }
+        },
+        "host_plugin": { "type": "string" },
+        "durable_log_glob": { "type": "string" }
       }
     }
   }
