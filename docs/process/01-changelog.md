@@ -404,3 +404,10 @@
 - `freeze.prompt_template` 判定冗余不迁移（= stimulus.ref，CaseRevision.stimulus.ref 已承载）
 
 重跑迁移脚本补全字段，498 资产重新通过 schema（含新增字段），typecheck 0 错误。决策依据落盘 06 方案 §4.1。
+
+**阶段 4a（适配层 + 字段完整性，2026-10-17）：**
+
+- 修复类型滞后：`Case` 补 `pair_key`、`CaseRevision.stimulus` 补 `hosted_pass_token`、`EnvironmentProfile.recipe` 补 `host_plugin`/`durable_log_glob`（此前 schema/产物有、类型定义缺）
+- 新增 `src/run/cases-v1-adapter.ts`（绞杀者模式）：`caseRevisionToItemDoc`、`environmentToRoom` 把 cases-v1 资产还原为 runner 旧形状
+- 可证伪自测：318 ItemDoc + 4 RoomDoc 还原的关键执行字段与 V1 原始数据 0 处不符（适配层测试 3 用例 + 逐字段对比脚本）
+- 待决策：run.ts 数据源切换的 CLI 口径（`--dataset/--environment` 显式组合 vs DatasetRelease 加 environment 引用）；`intent.statement` 归属
