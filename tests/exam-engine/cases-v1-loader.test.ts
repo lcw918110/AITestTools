@@ -50,20 +50,13 @@ describe('cases-v1 加载器（阶段 3）', () => {
 });
 
 describe('revisionDigest（cases-v1 内容摘要）', () => {
-  it('与迁移脚本产出的 content_hash 一致', () => {
+  it('与迁移脚本产出的 content_hash 全量一致（318 个）', () => {
     const revisions = loadCaseRevisions(join(projectRoot, 'case-revisions'), projectRoot);
-    // 抽查 3 个 revision，验证 digest 与 content_hash 一致
-    const samples = [
-      'paired-task-22.r2.off',
-      'paired-task-22.r3.on',
-      'paired-task-157.r1.off',
-    ];
-    for (const id of samples) {
-      const rev = revisions.find((r) => r.doc.case_revision_id === id);
-      expect(rev, `应存在 ${id}`).toBeTruthy();
-      if (rev) {
-        expect(revisionDigest(rev.doc)).toBe(rev.doc.content_hash);
-      }
+    expect(revisions.length).toBe(318);
+    for (const rev of revisions) {
+      expect(revisionDigest(rev.doc), `${rev.doc.case_revision_id} 应 digest 一致`).toBe(
+        rev.doc.content_hash,
+      );
     }
   });
 

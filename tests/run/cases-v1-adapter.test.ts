@@ -79,4 +79,20 @@ describe('cases-v1 适配层（阶段 4a）', () => {
     expect(offItem.intent.attribution_focus).toBe(off.attribution_focus);
     expect(onItem.intent.attribution_focus).toBe(on.attribution_focus);
   });
+
+  it('318 个 item.id 全量还原为 V1 格式（EVAL-B- 前缀 + 大写 + 变体后缀）', () => {
+    const cases = loadCasesV2(join(projectRoot, 'cases'), projectRoot);
+    const revisions = loadCaseRevisions(join(projectRoot, 'case-revisions'), projectRoot);
+    const caseById = new Map(cases.map((c) => [c.doc.case_id, c.doc]));
+
+    for (const rev of revisions) {
+      const caseDoc = caseById.get(rev.doc.case_id)!;
+      const item = caseRevisionToItemDoc(rev.doc, caseDoc);
+      const variant = rev.doc.case_revision_id.includes('.on') ? 'ON' : 'OFF';
+      // 期望：EVAL-B-{CASE_ID 大写}-{OFF|ON}
+      expect(item.id, `${rev.doc.case_revision_id} 应还原 V1 id`).toBe(
+        `EVAL-B-${rev.doc.case_id.toUpperCase()}-${variant}`,
+      );
+    }
+  });
 });

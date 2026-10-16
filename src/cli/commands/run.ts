@@ -275,23 +275,23 @@ export async function runCommand(options: RunOptions): Promise<number> {
  * - 组合：运行时显式指定 --dataset + --environment，不写回资产
  * - 执行：适配层还原 ItemDoc/RoomDoc 后复用 runOneItem（绞杀者模式）
  */
-async function runCommandV2(options: RunOptions): Promise<number> {
-  const project = loadProject(options.project);
-  const datasetName = options.dataset!;
-  const environmentName = options.environment!;
 
+/** 解析 dataset-release × environment，还原为 runner 认识的 ItemDoc[] + RoomDoc。 */
+export function resolveDatasetItems(
+  project: ReturnType<typeof loadProject>,
+  datasetName: string,
+  environmentName: string,
+): { items: ItemDoc[]; room: RoomDoc } {
   const releases = loadDatasetReleases(project.dirs.dataset_releases, project.root);
   const release = releases.find((r) => r.doc.dataset_release_id === datasetName);
   if (release === undefined) {
-    console.error(`找不到 dataset-release：${datasetName}`);
-    return 1;
+    throw new Error(`找不到 dataset-release：${datasetName}`);
   }
 
   const envs = loadEnvironments(project.dirs.environments, project.root);
   const env = envs.find((e) => e.doc.environment_profile_id === environmentName);
   if (env === undefined) {
-    console.error(`找不到 environment：${environmentName}`);
-    return 1;
+    throw new Error(`找不到 environment：${environmentName}`);
   }
 
   const cases = loadCasesV2(project.dirs.cases, project.root);
@@ -300,17 +300,35 @@ async function runCommandV2(options: RunOptions): Promise<number> {
   const revById = new Map(revisions.map((r) => [r.doc.case_revision_id, r.doc]));
 
   // 还原 ItemDoc（按 dataset-release 的 case_revisions 顺序）
-  const selected: ItemDoc[] = [];
+  const items: ItemDoc[] = [];
   for (const ref of release.doc.case_revisions) {
     const rev = revById.get(ref.case_revision_id);
     const caseDoc = caseById.get(ref.case_id);
     if (rev === undefined || caseDoc === undefined) {
-      console.error(
+      throw new Error(
         `dataset-release 引用了不存在的修订：${ref.case_revision_id}（case=${ref.case_id}）`,
       );
-      return 1;
     }
-    selected.push(caseRevisionToItemDoc(rev, caseDoc));
+    items.push(caseRevisionToItemDoc(rev, caseDoc));
+  }
+
+  return { items, room: environmentToRoom(env.doc) };
+}
+
+async function runCommandV2(options: RunOptions): Promise<number> {
+  const project = loadProject(options.project);
+  const datasetName = options.dataset!;
+  const environmentName = options.environment!;
+
+  let selected: ItemDoc[];
+  let room: RoomDoc;
+  try {
+    const resolved = resolveDatasetItems(project, datasetName, environmentName);
+    selected = resolved.items;
+    room = resolved.room;
+  } catch (e) {
+    console.error((e as Error).message);
+    return 1;
   }
 
   const only = options.only;
@@ -326,7 +344,6 @@ async function runCommandV2(options: RunOptions): Promise<number> {
 
   const rid = runId();
   const runsRoot = project.dirs.runs;
-  const room = environmentToRoom(env.doc);
   const models = resolveModels(undefined);
   const sutEnv = project.manifest.system_under_test?.root_env;
   const sutRoot = sutEnv !== undefined ? process.env[sutEnv] : undefined;
@@ -359,7 +376,7 @@ async function runCommandV2(options: RunOptions): Promise<number> {
       run_id: rid,
       axis: 'B',
       paperset: datasetName,
-      room: env.doc.environment_profile_id,
+      room: environmentName,
       started_at: new Date().toISOString(),
       project_root: project.root,
       items: filtered.map((i) => ({ id: i.id, rev: i.rev })),
