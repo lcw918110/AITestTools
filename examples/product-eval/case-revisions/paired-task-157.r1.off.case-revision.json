@@ -52,6 +52,7 @@
   "evidence_requirements": [],
   "attribution_focus": "MODEL_TASK",
   "protocol_probes": [],
+  "model_id": "wave-anthropic/claude-sonnet-5",
   "execution": {
     "deadline_ms": 240000,
     "requires_network": true,

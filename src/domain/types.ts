@@ -216,6 +216,8 @@ export interface CaseRevision {
   attribution_focus: Attribution;
   /** 协议探针（hosted 期望的 Kind）。 */
   protocol_probes?: string[];
+  /** 基准模型（V1 freeze.model_id 迁移；题目级固定条件）。 */
+  model_id?: string;
   /** 执行约束。 */
   execution: {
     deadline_ms: number;
@@ -412,6 +414,12 @@ export interface CandidateConfig {
   environment_profile?: string;
   /** 明确允许作为候选差异的配置引用。 */
   declared_differences?: string[];
+  /** prompt 模板路径（V1 freeze.prompt_template 迁移；与 stimulus.ref 冗余时省略）。 */
+  prompt_template?: string;
+  /** 直连/宿主通道（V1 freeze.channel 迁移）。 */
+  channel?: 'direct' | 'hosted';
+  /** 工具 Profile（V1 freeze.tool_profile 迁移）。 */
+  tool_profile?: string;
 }
 
 /** 实验计划（§3.1 ExperimentPlan）。执行前冻结。 */
@@ -928,6 +936,14 @@ export interface EnvironmentProfile {
     data_seed?: string;
     network_policy?: string;
     isolation_profile?: string;
+    /** Host 命令（V1 room.host.command 迁移）。 */
+    host_command?: string;
+    /** Host 默认模型（V1 room.host.model 迁移）。 */
+    host_model?: string;
+    /** Host 默认 Agent（V1 room.host.agent 迁移）。 */
+    host_agent?: string;
+    /** 管理的 Agent 列表（V1 room.host.managed_agents 迁移）。 */
+    managed_agents?: string[];
   };
 }
 

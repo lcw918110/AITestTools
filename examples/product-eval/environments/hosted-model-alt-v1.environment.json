@@ -7,6 +7,31 @@
     "runtime": "opencode",
     "host": "opencode@1.18.5",
     "network_policy": "allow",
-    "isolation_profile": "isolated"
+    "isolation_profile": "isolated",
+    "host_command": "opencode",
+    "host_model": "agnes/agnes-2.0-flash",
+    "host_agent": "fast-coder",
+    "managed_agents": [
+      "fast-manager",
+      "deep-manager",
+      "fast-coder",
+      "deep-coder",
+      "fast-inspector",
+      "deep-inspector",
+      "fast-devops",
+      "deep-devops",
+      "fast-browser",
+      "deep-browser",
+      "fast-inquiry",
+      "deep-inquiry",
+      "fast-reviewer",
+      "deep-reviewer",
+      "fast-orchestrator",
+      "deep-orchestrator",
+      "fast-distiller",
+      "deep-distiller",
+      "fast-blogger",
+      "deep-blogger"
+    ]
   }
 }

@@ -61,6 +61,7 @@
     "RuntimeStarted",
     "JournalEnvelope"
   ],
+  "model_id": "wave-anthropic/claude-sonnet-5",
   "execution": {
     "deadline_ms": 240000,
     "requires_network": true,

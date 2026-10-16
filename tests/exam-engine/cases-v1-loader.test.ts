@@ -72,7 +72,7 @@ describe('revisionDigest（cases-v1 内容摘要）', () => {
     const rev = revisions.find((r) => r.doc.case_revision_id === 'paired-task-22.r2.off')!;
     const changed = {
       ...rev.doc,
-      expect: { oracles: [{ type: 'no_event', names: ['X'] }] },
+      expect: { oracles: [{ type: 'no_event' as const, names: ['X'] }] },
     };
     expect(revisionDigest(changed)).not.toBe(revisionDigest(rev.doc));
   });

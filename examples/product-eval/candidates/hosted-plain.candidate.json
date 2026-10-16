@@ -11,5 +11,7 @@
   },
   "plugin": null,
   "model_routing": "hosted-plain-v1",
-  "environment_profile": "hosted-plain-v1"
+  "environment_profile": "hosted-plain-v1",
+  "channel": "hosted",
+  "tool_profile": "none"
 }

@@ -13,5 +13,7 @@
     "name": "wanxiangshu"
   },
   "model_routing": "hosted-plugin-v1",
-  "environment_profile": "hosted-plugin-v1"
+  "environment_profile": "hosted-plugin-v1",
+  "channel": "hosted",
+  "tool_profile": "none"
 }

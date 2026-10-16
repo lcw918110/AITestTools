@@ -82,6 +82,10 @@
       "items": { "type": "string", "minLength": 1 },
       "description": "hosted：durable NDJSON 中期望出现的 Kind。"
     },
+    "model_id": {
+      "type": "string",
+      "description": "基准模型（V1 freeze.model_id 迁移；题目级固定条件）。"
+    },
     "execution": {
       "type": "object",
       "required": ["deadline_ms", "requires_network"],

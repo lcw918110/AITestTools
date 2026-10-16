@@ -26,7 +26,14 @@
         "workspace_template": { "type": "string" },
         "data_seed": { "type": "string" },
         "network_policy": { "type": "string" },
-        "isolation_profile": { "type": "string" }
+        "isolation_profile": { "type": "string" },
+        "host_command": { "type": "string" },
+        "host_model": { "type": "string" },
+        "host_agent": { "type": "string" },
+        "managed_agents": {
+          "type": "array",
+          "items": { "type": "string" }
+        }
       }
     }
   }

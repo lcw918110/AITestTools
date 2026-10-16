@@ -396,4 +396,11 @@
 
 **自审（7 项可证伪自测全过）：** 迁移数量完整性、字段映射正确性（318 全对）、OFF/ON 配对完整性（159 对严格 1:1）、content_hash 一致性（318 可独立重算）、schema 覆盖完整性（498 资产 0 非法）、唯一性与引用有效性、映射表字段 vs 类型定义（41 类型一致）。
 
-**阶段 4 发现缺陷（待决策）：** 迁移脚本拆分 freeze/room 时丢失 runner 执行必需字段（freeze.model_id/prompt_template/channel/tool_profile + room.host.model/agent/managed_agents/command）。已记录于 06 方案 §4.1，待决策「扩展 CandidateConfig/EnvironmentProfile」vs「新建 ModelRoutingProfile」后推进阶段 4a。
+**阶段 4 发现缺陷（已决策并修复）：** 迁移脚本拆分 freeze/room 时丢失 runner 执行必需字段。经分析（`freeze.prompt_template` 与 `stimulus.ref` 318 项全冗余；`model_id` 为题目级固定条件 312+6 分布；`channel`/`tool_profile` 全统一）确定**方案 A 无损扩展**：
+
+- `CaseRevision` 新增 `model_id`（基准模型，题目级固定条件；157/158/159 三对用 claude-sonnet-5，其余 gpt-5.4-mini）
+- `CandidateConfig` 新增 `channel`（hosted/direct）/`tool_profile`
+- `EnvironmentProfile.recipe` 新增 `host_command`/`host_model`/`host_agent`/`managed_agents`
+- `freeze.prompt_template` 判定冗余不迁移（= stimulus.ref，CaseRevision.stimulus.ref 已承载）
+
+重跑迁移脚本补全字段，498 资产重新通过 schema（含新增字段），typecheck 0 错误。决策依据落盘 06 方案 §4.1。

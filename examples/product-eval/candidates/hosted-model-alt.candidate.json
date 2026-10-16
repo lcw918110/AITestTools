@@ -11,5 +11,7 @@
   },
   "plugin": null,
   "model_routing": "hosted-model-alt-v1",
-  "environment_profile": "hosted-model-alt-v1"
+  "environment_profile": "hosted-model-alt-v1",
+  "channel": "hosted",
+  "tool_profile": "none"
 }

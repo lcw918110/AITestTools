@@ -7,6 +7,18 @@
     "runtime": "opencode",
     "host": "opencode@1.18.5",
     "network_policy": "allow",
-    "isolation_profile": "isolated"
+    "isolation_profile": "isolated",
+    "host_command": "opencode",
+    "host_model": "wave-anthropic/claude-sonnet-5",
+    "host_agent": "orchestrator",
+    "managed_agents": [
+      "manager",
+      "orchestrator",
+      "engineer",
+      "devops",
+      "blogger",
+      "bookkeeper",
+      "predictor"
+    ]
   }
 }

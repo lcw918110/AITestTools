@@ -41,6 +41,9 @@
     "declared_differences": {
       "type": "array",
       "items": { "type": "string" }
-    }
+    },
+    "prompt_template": { "type": "string" },
+    "channel": { "enum": ["direct", "hosted"] },
+    "tool_profile": { "type": "string" }
   }
 }

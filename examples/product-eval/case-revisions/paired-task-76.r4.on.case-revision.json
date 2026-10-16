@@ -49,6 +49,7 @@
     "RuntimeStarted",
     "JournalEnvelope"
   ],
+  "model_id": "wave-ai/gpt-5.4-mini",
   "execution": {
     "deadline_ms": 180000,
     "requires_network": true,

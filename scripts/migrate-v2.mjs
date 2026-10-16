@@ -114,6 +114,7 @@ function toCaseRevision(item, caseId) {
     strata: undefined,
     attribution_focus: item.intent?.attribution_focus ?? 'MODEL_TASK',
     protocol_probes: item.intent?.protocol_probes ?? [],
+    model_id: item.freeze?.model_id,
     execution: {
       deadline_ms: item.execution?.deadline_ms ?? 180000,
       requires_network: item.execution?.requires_network ?? true,
@@ -266,6 +267,10 @@ function main() {
         node: undefined,
         network_policy: room.network === true ? 'allow' : 'deny',
         isolation_profile: room.workspace,
+        host_command: room.host?.command,
+        host_model: room.host?.model,
+        host_agent: room.host?.agent,
+        managed_agents: room.host?.managed_agents,
       },
     };
     const file = join(envDir, `${room.name}.environment.json`);
@@ -283,6 +288,8 @@ function main() {
       plugin: isPlugin ? { name: 'wanxiangshu' } : null,
       model_routing: room.name,
       environment_profile: room.name,
+      channel: room.model_driver === 'live' ? 'hosted' : 'direct',
+      tool_profile: 'none',
     };
     const cfile = join(candidateDir, `${candidate.candidate_id}.candidate.json`);
     if (!dryRun) writeJson(cfile, candidate);
