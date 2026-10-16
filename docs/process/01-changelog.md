@@ -373,3 +373,27 @@
 **验证基线（实测，2026-10-16）：** `npm run typecheck` 0 错误；`npm test` 49/50 文件通过（唯一失败 `tests/attribution/event-store.test.ts` 为沙箱 git 权限环境问题，与改动无关）。
 
 **下一步：** 继续 Phase 1——将 engine/run/report/cli/console 各模块的旧类型引用逐步迁移为领域对象，随后迁移 examples/product-eval 数据集与 schemas。
+
+## §14 V2.17 深迁移阶段 1–3（2026-10-17）
+
+在 §13 基线之上，经 grill-me 对齐后确定**深迁移**方向：废弃 papers-v1 物理协议，新建 cases-v1 协议，318 个 item.json 迁移为 Case/CaseRevision 资产。方案落盘为 [06-V2.17深迁移方案.md](../06-V2.17深迁移方案.md)，契约锚点为 [05-领域对象与代码类型映射.md](../05-领域对象与代码类型映射.md)。
+
+**已对齐的关键决策：**
+
+- 迁移深度：深迁移（新建物理协议，非仅类型重命名）
+- OFF/ON 语义：是两个 CaseRevision（预期合同 statement/attribution_focus/protocol_probes 不同），通过 pair_key 关联
+- 文档对应：每改一处代码，同步更新 05 映射表与对应文档
+
+**阶段 1（协议与 Schema）：** 新建 5 个 cases-v1 schema（case/case-revision/dataset-release/environment/candidate），全部经 ajv 编译验证合法。`schema.ts` 注册新 schema，`ASSET_PROTOCOL_VERSION` 保持 papers-v1 待迁移完成后切换。
+
+**阶段 2（迁移脚本）：** `scripts/migrate-v2.mjs` + 498 个 cases-v1 资产：
+- 159 Case（`EVAL-B-PAIRED-TASK-22-OFF` → `paired-task-22`）
+- 318 CaseRevision（OFF/ON 拆两修订，`case_revision_id` 含 `.off`/`.on` 后缀）
+- 13 DatasetRelease + 4 Environment + 4 Candidate
+- 修复同 rev 冲突：PAIRED-TASK-157/158/159 的 OFF/ON 均 rev=1，用 variant 后缀区分
+
+**阶段 3（engine 新增）：** cases-v1 加载器（loadCasesV2/loadCaseRevisions/loadDatasetReleases/loadEnvironments/loadCandidates）+ `revisionDigest`（与迁移脚本 contentHash 语义一致）。新增测试 6 用例全过。
+
+**自审（7 项可证伪自测全过）：** 迁移数量完整性、字段映射正确性（318 全对）、OFF/ON 配对完整性（159 对严格 1:1）、content_hash 一致性（318 可独立重算）、schema 覆盖完整性（498 资产 0 非法）、唯一性与引用有效性、映射表字段 vs 类型定义（41 类型一致）。
+
+**阶段 4 发现缺陷（待决策）：** 迁移脚本拆分 freeze/room 时丢失 runner 执行必需字段（freeze.model_id/prompt_template/channel/tool_profile + room.host.model/agent/managed_agents/command）。已记录于 06 方案 §4.1，待决策「扩展 CandidateConfig/EnvironmentProfile」vs「新建 ModelRoutingProfile」后推进阶段 4a。
