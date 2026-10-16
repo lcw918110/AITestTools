@@ -15,6 +15,7 @@ export default tseslint.config(
       'src/drivers/cassette/**/*.mjs',
       'scripts/**',
       'apps/console/public/**',
+      '.diagnostics/**',
     ],
   },
   js.configs.recommended,

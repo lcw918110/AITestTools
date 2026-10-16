@@ -13,7 +13,9 @@
     "prompt_template": "tpl-v1"
   },
   "stimulus": { "kind": "task_prompt", "ref": "fixtures/NET-01/task.md" },
-  "expect": { "oracles": [{ "type": "schema_obedience", "tool": "todowrite", "required_fields": ["todos"] }] },
+  "expect": {
+    "oracles": [{ "type": "schema_obedience", "tool": "todowrite", "required_fields": ["todos"] }]
+  },
   "metrics": { "primary": ["b_schema_obedience_rate"] },
   "execution": { "deadline_ms": 60000, "requires_network": true }
 }

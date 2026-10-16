@@ -5,6 +5,7 @@ description: >-
   Use when editing .ts/.js in this repo (src, apps/console, tests).
 paths: '**/*.ts,**/*.js'
 ---
+
 > ⚠️ **基础约束：始终用简体中文回复。所有思考、对话、代码注释、报告都必须使用简体中文，不得使用英文。**
 
 # 编码规范（本仓）

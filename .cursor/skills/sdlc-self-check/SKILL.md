@@ -5,6 +5,7 @@ description: >-
   Use when finishing any implementation, doc, or asset change in this repo,
   or before saying 完成 / 已落地 / 已验收.
 ---
+
 > ⚠️ **基础约束：始终用简体中文回复。所有思考、对话、代码注释、报告都必须使用简体中文，不得使用英文。**
 
 # 完成前自测（本仓）
@@ -19,13 +20,13 @@ description: >-
 
 禁止只靠「看起来没问题」。有脚本先跑；没有就当场做最小检查。
 
-| 改了什么 | 至少做 |
-| :------- | :----- |
+| 改了什么                            | 至少做                                                                     |
+| :---------------------------------- | :------------------------------------------------------------------------- |
 | `src/` / `apps/console/*.ts` / 测试 | 相关 `vitest`；改 TypeScript 再 `npm run typecheck`；能跑则 `npm run lint` |
-| `apps/console/` UI | `npm run console:smoke`；有浏览器工具则走主路径点一遍 |
-| `examples/product-eval` 题/组卷 | `npm run validate:product-eval` |
-| 文档 | 链接能解析、术语与过程日志一致、不留两套口径 |
-| 纯问答 | 用原问题复核；引用的路径须存在或已执行 |
+| `apps/console/` UI                  | `npm run console:smoke`；有浏览器工具则走主路径点一遍                      |
+| `examples/product-eval` 题/组卷     | `npm run validate:product-eval`                                            |
+| 文档                                | 链接能解析、术语与过程日志一致、不留两套口径                               |
+| 纯问答                              | 用原问题复核；引用的路径须存在或已执行                                     |
 
 沙箱里 `git init` 失败时，用足够权限重跑该条，不要把沙箱失败写成产品失败。
 

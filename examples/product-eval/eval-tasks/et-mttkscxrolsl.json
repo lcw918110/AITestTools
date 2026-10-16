@@ -4,11 +4,7 @@
   "kind": "plugin",
   "paperset": "paired-off-effect-smoke",
   "testSetId": "effect-smoke",
-  "taskIds": [
-    "PAIRED-TASK-157",
-    "PAIRED-TASK-158",
-    "PAIRED-TASK-159"
-  ],
+  "taskIds": ["PAIRED-TASK-157", "PAIRED-TASK-158", "PAIRED-TASK-159"],
   "examMode": "both",
   "live": false,
   "createdAt": "2026-09-09T04:05:32.415Z",

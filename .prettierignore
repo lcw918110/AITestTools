@@ -5,3 +5,5 @@ tests/fixtures/invalid/
 examples/**/runs/
 # 外部题库本地副本：以被测仓格式为准，不经本仓 Prettier 改写
 examples/wanxiangshu-papers/
+# 运行时自动生成的诊断产物，不在版本控制内，也不应由 Prettier 改写
+.wanxiangshu/

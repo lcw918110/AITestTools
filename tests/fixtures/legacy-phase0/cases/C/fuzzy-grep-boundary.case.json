@@ -22,8 +22,14 @@
   },
   "expect": {
     "oracles": [
-      { "type": "tool_result_equals", "expected": { "kind": "structured_error", "success_not_faked": true } },
-      { "type": "tool_result_equals", "expected": { "truncated": true, "results_within_budget": true } },
+      {
+        "type": "tool_result_equals",
+        "expected": { "kind": "structured_error", "success_not_faked": true }
+      },
+      {
+        "type": "tool_result_equals",
+        "expected": { "truncated": true, "results_within_budget": true }
+      },
       { "type": "tool_side_effect", "file": "any-path" }
     ]
   },

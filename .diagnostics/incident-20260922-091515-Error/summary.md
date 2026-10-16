@@ -9,6 +9,7 @@
 ---
 
 ## 1. 现场致命错误线索 (Last Error Snippet)
+
 ```text
 timestamp=2026-09-21T16:30:39.165Z level=WARN run=1e4294ca message="failed to add snapshot files" exitCode=128 stderr="error: 'tests/fixtures/proctor-es-hit-l9DEWO/' does not have a commit checked out\nfatal: adding files failed\n"
 timestamp=2026-09-21T16:44:10.471Z level=ERROR run=1e4294ca message="Failed to fetch models.dev" cause=Cause([Fail(TimeoutError)])
@@ -35,16 +36,18 @@ timestamp=2026-09-21T18:56:27.130Z level=WARN run=1e4294ca message="failed to ad
 ---
 
 ## 2. 万象术组件状态快照
-| 检查项 | 检查结果 | 关联快照文件 |
-| :--- | :--- | :--- |
-| **模型调度器 (wanxiangshu.mjs)** | 语法正确 (Syntax OK) | `wanxiangshu.mjs` |
-| **持久化事件账本 (EventStore)** | 已捕获最新账本 (`57ed55f5d8e24a7f9f69f34f2e338b39.ndjson`，共 4240 条事件) | `latest-events.ndjson` |
-| **OpenCode 运行时流水** | 已截取最新 300 行调用栈 | `opencode-recent.log` |
-| **OpenCode 配置通道** | 已脱敏固化当前 Provider 与 Agent 映射 | `opencode-config.json` |
+
+| 检查项                           | 检查结果                                                                   | 关联快照文件           |
+| :------------------------------- | :------------------------------------------------------------------------- | :--------------------- |
+| **模型调度器 (wanxiangshu.mjs)** | 语法正确 (Syntax OK)                                                       | `wanxiangshu.mjs`      |
+| **持久化事件账本 (EventStore)**  | 已捕获最新账本 (`57ed55f5d8e24a7f9f69f34f2e338b39.ndjson`，共 4240 条事件) | `latest-events.ndjson` |
+| **OpenCode 运行时流水**          | 已截取最新 300 行调用栈                                                    | `opencode-recent.log`  |
+| **OpenCode 配置通道**            | 已脱敏固化当前 Provider 与 Agent 映射                                      | `opencode-config.json` |
 
 ---
 
 ## 3. 本次事故目录清单
+
 ```text
 incident-20260922-091515-Error/
 ├── summary.md            # 本事故总览（优先阅读）

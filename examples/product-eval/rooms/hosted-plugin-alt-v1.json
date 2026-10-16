@@ -5,9 +5,7 @@
   "model_driver": "live",
   "network": true,
   "workspace": "isolated",
-  "secrets": [
-    "env-only"
-  ],
+  "secrets": ["env-only"],
   "durable_log": "event-store",
   "durable_log_glob": "**/.git/refs/wanxiang/store",
   "attribution_tree": "attribution-tree-v1",
