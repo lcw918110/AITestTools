@@ -1,0 +1,1 @@
+﻿record_id,source_run_id,source_attempt_id,source_case_id,candidate_id,dataset_release_id,category,severity,symptom,expected_behavior,observed_behavior,evidence_refs,redaction_status,dedup_fingerprint,reproduction_method,reproduction_status,oracle_proposal,contract_confirmed_by,reviewer,approval_status,target_regression_release,created_at,notes

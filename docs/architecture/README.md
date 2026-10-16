@@ -14,5 +14,5 @@
 
 废止 ADR-0003 → [`../archive/design/adr-0003-scaffold-freeze.md`](../archive/design/adr-0003-scaffold-freeze.md)。
 
-上一栏：[需求 01-prd](../requirements/01-prd.md) · 术语：[../requirements/00-glossary.md](../requirements/00-glossary.md) · 下一栏：[设计 01～07](../design/)  
+上一栏：[需求](../01-产品需求规格说明书.md) · 术语：[../00-glossary.md](../00-glossary.md) · 架构：[../02-总体架构与领域设计.md](../02-总体架构与领域设计.md)  
 返回：[总索引](../README.md)

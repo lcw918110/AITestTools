@@ -39,7 +39,7 @@
 1. ~~**promptfoo CLI** 在 Node 22.16 需绕过 entrypoint~~ → 已用 Node **24.18** 走标准 bin（不达标仍保留 main.js 回退）。
 2. **API Key 曾出现在聊天**：请平台轮换；勿提交 `.env`。
 3. **未做 npm registry 公开发布**（本地 `dist` + `bin` 可用）。
-4. ~~**万象术 / Phase 2** 未开始~~ → Phase 2 最小面已绿（见 `docs/design/01-phase-outline.md` §B）；ST 真 git e2e 另议。
+4. ~~**万象术 / Phase 2** 未开始~~ → Phase 2 最小面已绿（见 `docs/archive/v1-design/01-phase-outline.md` §B）；ST 真 git e2e 另议。
 
 ---
 

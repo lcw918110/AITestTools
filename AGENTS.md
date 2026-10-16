@@ -13,4 +13,5 @@
 常驻规则：[.cursor/rules/dev-process-skills.mdc](.cursor/rules/dev-process-skills.mdc)
 
 产品口径与打开的任务见 `docs/process/01-changelog.md`。
-术语与概念（唯一实体）见 `docs/requirements/00-glossary.md`。
+术语与概念（唯一实体）见 `docs/00-glossary.md`。
+需求/架构/界面/实验权威文档见 `docs/` 下 00~04 五主文档（V2.17 基线）。

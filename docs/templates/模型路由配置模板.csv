@@ -1,0 +1,5 @@
+﻿model_routing_profile_id,profile_version,agent_id,role_id,participant_kind,provider_id,model_id,deployment_id,parameter_profile_id,fallback_policy_id,factor_id,route_observation_required,enabled,notes
+route-baseline,1,wanxiangshu,engineer,primary,YOUR_PROVIDER,MODEL_A,,params-default,fallback-none,fixed,true,true,通用路由目录示例，不是首轮ON/OFF实验变量。与同一Profile内其他角色行共同构成路由；首轮ON/OFF必须使用同一冻结ModelRoutingProfile。示例占位值需换为真实值。
+route-baseline,1,wanxiangshu,devops,primary,YOUR_PROVIDER,MODEL_A,,params-default,fallback-none,fixed,true,true,通用路由目录示例，不是首轮ON/OFF实验变量。与同一Profile内其他角色行共同构成路由；首轮ON/OFF必须使用同一冻结ModelRoutingProfile。示例占位值需换为真实值。
+route-engineer-model-b,1,wanxiangshu,engineer,primary,YOUR_PROVIDER,MODEL_B,,params-default,fallback-none,fixed,true,true,通用路由目录示例，不是首轮ON/OFF实验变量。与同一Profile内其他角色行共同构成路由；首轮ON/OFF必须使用同一冻结ModelRoutingProfile。示例占位值需换为真实值。
+route-engineer-model-b,1,wanxiangshu,devops,primary,YOUR_PROVIDER,MODEL_A,,params-default,fallback-none,fixed,true,true,通用路由目录示例，不是首轮ON/OFF实验变量。与同一Profile内其他角色行共同构成路由；首轮ON/OFF必须使用同一冻结ModelRoutingProfile。示例占位值需换为真实值。

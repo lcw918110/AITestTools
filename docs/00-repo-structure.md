@@ -8,7 +8,7 @@
 
 业务阅读序见 [README.md](README.md)：需求 → 架构 → 设计 → 过程 → 测试。下文用一棵树说明各路径做什么；`#` 后为注释。
 
-> 已删除 `40-评测工具/`：PRD 迁至 `docs/requirements/01-prd.md`，Phase 0 样例迁至 `tests/fixtures/legacy-phase0/`。
+> 已删除 `40-评测工具/`：PRD 迁至 `docs/01-产品需求规格说明书.md`（V2.17 基线），Phase 0 样例迁至 `tests/fixtures/legacy-phase0/`。
 
 ```text
 AITestTools/                              # agent-proctor 引擎仓（npm 包名 agent-proctor，CLI 名 proctor）
@@ -140,55 +140,43 @@ AITestTools/                              # agent-proctor 引擎仓（npm 包名
 │   │   └── legacy-phase0/                # 原 40-评测工具 harness 样例（兼容测试）
 │   └── helpers/
 │
-├── docs/                                 # 文档（按阅读序编号）
+├── docs/                                 # 文档（V2.17 基线，按阅读序编号）
 │   ├── README.md                         # 总索引
 │   ├── 00-repo-structure.md              # 本文：仓库地图
+│   ├── 00-glossary.md                    # 术语与概念（唯一实体）
 │   │
-│   ├── requirements/                     # ① 需求
-│   │   ├── README.md
-│   │   ├── 00-glossary.md                # 术语与概念（唯一实体）
-│   │   ├── 01-prd.md                     # 产品需求终稿
-│   │   ├── 02-console-prd.md              # 产品控制台 PRD
-│   │   └── 03-bank-editor-prd.md          # 题库录入 / 编辑 PRD
+│   ├── 00-项目总览与需求设计基线.md       # ① 产品定位、设计取舍、首期范围
+│   ├── 01-产品需求规格说明书.md           # ② 需求（FR-01~FR-16）
+│   ├── 02-总体架构与领域设计.md           # ③ 领域对象、状态、执行、安全契约
+│   ├── 03-界面与交互设计.md               # ④ 页面与交互
+│   ├── 04-首期实验方案与用例治理.md       # ⑤ ON/OFF 协议、快好省、用例治理
+│   ├── 需求追踪矩阵.csv                   # 63 条需求 → 验收 → 设计 → 验证
+│   ├── README_项目负责人阅读版.md          # 阅读导览（不替代权威规范）
+│   ├── 文档包质量检查报告.md               # 文档包静态检查记录
 │   │
-│   ├── architecture/                     # ② 架构
-│   │   ├── README.md
-│   │   └── adr/
-│   │       ├── 0001-tech-stack.md
-│   │       ├── 0002-repo-layout-and-assets.md
-│   │       ├── 0004-b-direct-adapter-strategy.md
-│   │       ├── 0005-naming-host-fold.md
-│   │       ├── 0006-final-review-decisions.md
-│   │       ├── 0007-promptfoo-spike-fixture.md
-│   │       └── 0008-local-sut-papers-copy.md
+│   ├── architecture/                     # 架构决策
+│   │   └── adr/                          # ADR 0001~0008
 │   │
-│   ├── design/                           # ③ 设计
-│   │   ├── README.md
-│   │   ├── 01-phase-outline.md           # Phase 1/2 提纲合并
-│   │   ├── 02-protocol-papers-v1.md
-│   │   ├── 03-fold-entry-contract.md
-│   │   ├── 04-state-predicate.md
-│   │   ├── 05-scripted-model.md
-│   │   ├── 06-host-contract-schema.md
-│   │   ├── 07-hosted-attribution-tree.md
-│   │   ├── 08-console-outline.md          # 产品控制台设计提纲
-│   │   └── 09-bank-editor.md              # 题库工作台设计
-│   │
-│   ├── process/                          # ④ 过程 / 验收
-│   │   ├── README.md
+│   ├── process/                          # 过程 / 验收
 │   │   ├── 01-changelog.md               # 唯一过程日志（当前态）
 │   │   ├── 02-unfreeze-checklist.md
 │   │   ├── 03-phase1-dod.md
-│   │   └── 04-final-review.md
+│   │   ├── 04-final-review.md
+│   │   ├── 05-full-code-audit.md
+│   │   └── 06-next-steps.md
 │   │
-│   ├── test/                             # ⑤ 测试操作
-│   │   ├── README.md
+│   ├── test/                             # 测试操作
 │   │   ├── 01-wanxiangshu-ops.md         # 测万象术 / 模型·Agent·插件 操作手册
 │   │   ├── 02-engine-regression.md       # 引擎 A/B/C 工程回归
 │   │   └── 03-console-ops.md              # 评测操作台测试手册
 │   │
+│   ├── templates/                        # 16 份 CSV 配置/治理模板
+│   ├── assets/                           # 架构图 / 领域图 / 线框图（22 张）
+│   ├── source/                           # 人工巡检原文（只读来源）
+│   │
 │   └── archive/                          # 追溯归档（非日常阅读）
-│       ├── README.md
+│       ├── v1-requirements/              # V1 需求（00-glossary/01-prd/02-console/03-bank）
+│       ├── v1-design/                    # V1 设计（01~09）
 │       ├── design/                       # 过时 RFP、一次审核等
 │       └── process/                      # 按日期的过程记录
 │

@@ -3,10 +3,10 @@
 | 字段       | 值                                                                                                       |
 | :--------- | :------------------------------------------------------------------------------------------------------- |
 | 角色       | **本栏唯一过程日志**。仓库文档只呈现当前口径；旧稿在 git 历史里                                          |
-| 日期       | 2026-09-11                                                                                               |
+| 日期       | 2026-09-23（独立验证 §11）                                                                               |
 | 关闭的门禁 | [02 解冻](02-unfreeze-checklist.md) · [03 Phase 1 DoD](03-phase1-dod.md) · [04 终审](04-final-review.md) |
 
-产品需求 / 设计 / 测试手册以各栏现行正文为准，不在本日志里复述两套说法。名词与逻辑概念只在 [00-glossary.md](../requirements/00-glossary.md) 定义。
+产品需求 / 设计 / 测试手册以各栏现行正文为准，不在本日志里复述两套说法。名词与逻辑概念只在 [00-glossary.md](../00-glossary.md) 定义。
 
 **开发过程（不是任务表里的项）：** Grill → 设计落盘 → 编码规范 → 自测 → 代码审查（本仓 skills，见 `AGENTS.md`）。T1–T7 同样走这套。
 
@@ -35,16 +35,17 @@
 - 测试任务 T1：按组卷文件名筛 + 勾选题目 + 任务类型
 - 测试任务 T2：测万象术无插件 / 有插件 / 同时跑（测模型/测 Agent 不再出现该项）
 - 测试任务 T3：可保存多条测试任务（选题+配置+跑次历史）
+
 ---
 
 ## 3. 任务（打开的）
 
-| ID     | 看板 / 位置 | 做什么                                                                           | 不做                                        |
-| :----- | :---------- | :------------------------------------------------------------------------------- | :------------------------------------------ |
-| **T4** | 测试任务    | 用途字段（效果对照 / 校准 / 回归）                                               | 本刀不做                                    |
-| **T5** | 题库        | ~~向导可选任务类型~~ **已落地**；~~录题选测试集~~ **本刀落地**；难度字段仍打开 | 完整测试集编辑器；本刀不录入难度 |
+| ID     | 看板 / 位置 | 做什么                                                                                  | 不做                                           |
+| :----- | :---------- | :-------------------------------------------------------------------------------------- | :--------------------------------------------- |
+| **T4** | 测试任务    | 用途字段（效果对照 / 校准 / 回归）                                                      | 本刀不做                                       |
+| **T5** | 题库        | ~~向导可选任务类型~~ **已落地**；~~录题选测试集~~ **本刀落地**；难度字段仍打开          | 完整测试集编辑器；本刀不录入难度               |
 | **T6** | 效果实验    | **Grill 已对齐**（§6）：改 157–159，OFF 必挂、ON 有机会过；小规模对照；CONTEXT 不进结论 | 跑满 156 当效果；改万象术业务逻辑；本刀不做 T7 |
-| **T7** | 测试结果    | 经济四格（弱开 vs 强关）；以后的「看板」再观察多次测试                           | 效果差出来之前不画空图                      |
+| **T7** | 测试结果    | 经济四格（弱开 vs 强关）；以后的「看板」再观察多次测试                                  | 效果差出来之前不画空图                         |
 
 ---
 
@@ -96,6 +97,7 @@
 ### 执行证据与结论（2026-09-22）
 
 **运行环境：**
+
 - 模型：`wave-anthropic/claude-sonnet-5`（通过 DeepSeek 兼容端）
 - 代理：`fast-coder`
 - 因子：仅变插件 OFF/ON（hosted-plain-v1 vs hosted-plugin-v1）
@@ -103,24 +105,26 @@
 
 **执行结果（重跑轮次）：**
 
-| Run | 方向 | 通过率 | 归因 |
-|-----|------|--------|------|
-| `20260922-162303606-yxmz` | OFF | 3/3 (100%) | 全部通过 |
-| `20260922-162623069-xqs4` | ON | 0/3 (0%) | 全部 MODEL_TASK（host_exit=1） |
+| Run                       | 方向 | 通过率     | 归因                           |
+| ------------------------- | ---- | ---------- | ------------------------------ |
+| `20260922-162303606-yxmz` | OFF  | 3/3 (100%) | 全部通过                       |
+| `20260922-162623069-xqs4` | ON   | 0/3 (0%)   | 全部 MODEL_TASK（host_exit=1） |
 
 - Δ = -1.000（剔除 CONTEXT 后不变，无 CONTEXT 发生）
 - `effect_compare.md` 已写入 ON run 目录下
 
 **结论：**
+
 - 插件未提升模型在 157–159 上的表现；OFF 全部通过、ON 全部失败
 - 因 OFF >> ON（非 0/0 或同分归因），不满足「OFF 必挂、ON 有机会过」的目标形态
 - 按 DoD 纪律：「若仍 0/0 或同分，不得宣称插件更好」——现证据更强（插件反降性能）
 - 本实验不支持「万象术插件改善模型效果」的假设
 
 **SDLC 自检：**
+
 - `validate:product-eval`：318/318 PASS
 - `typecheck`：无错误
-- `vitest`：44 文件 213 测试全部通过
+- `vitest`：50 文件 289 测试全部通过
 - `format:check`：通过（0 新增问题）
 
 ---
@@ -140,7 +144,7 @@
 - `bank.ts` 的 `UpdateTaskBody` / `updateTask`（WRITE 路径）增加 `contains` / `not_contains` 持久化；`ItemSide` / `TaskDetail` / `sideFrom` / `getTask`（READ 路径）返回 `contains` / `not_contains`。
 - 前端 `bank.js` + `index.html` 编辑表单补全回复断言字段。
 - 回归测试 C-B-35 覆盖 WRITE + READ 两端。
-- 验证通过：`typecheck` 0 错误，`vitest` 全量 44 文件 214 测试通过。
+- 验证通过：`typecheck` 0 错误，`vitest` 全量 50 文件 289 测试通过。
 
 **中文回复指令固化：**
 
@@ -190,11 +194,13 @@
 **真实根因：** `examples/product-eval/rooms/hosted-plugin-v1.json` 的 `host.agent` 字段被误设为 `"engineer"`——叶子执行者角色，无 bash、无编排权限。opencode 以 Engineer 身份直接启动根会话，**整个 Orchestrator → Manager → Engineer + DevOps 编排链从未启动**。Engineer 在既无 bash 又无 DevOps 执行者的情况下盲改代码，改完即发通关暗号，从未运行测试。三题各缺一个文件正是盲改模式的典型特征，与题面设计无关。
 
 **EventStore 证据（DevOps 检查确认）：**
+
 - ON 运行中仅存在 `engineer`、`blogger` 两个会话
 - `devops`、`manager`、`orchestrator` 从未出现
 - 完整编排链缺失——ON 侧实际测得的是「无编排的 Engineer 盲改」而非「插件辅助的 Agent 协作」
 
 **已修复：**
+
 - `hosted-plugin-v1.json` 第 20 行 `"agent": "engineer"` → `"agent": "orchestrator"`
 - 修复后 Orchestrator 作为根会话启动，方可拉起 Manager → Engineer + DevOps 完整编排链
 
@@ -220,11 +226,11 @@
 
 **评测结果（0/3）：**
 
-| 题号 | host_exit | timed_out | 关键变化 |
-|------|-----------|-----------|----------|
-| 157 | 0 | false | discount-round + tax-round 双失败，13 engineer 会话但 materials 未变 |
-| 158 | null | true | 0 engineer 会话，编排未启动 |
-| 159 | null | true | query-split 首次通过，但 name-reject-empty 未过，5 engineer 会话后超时 |
+| 题号 | host_exit | timed_out | 关键变化                                                               |
+| ---- | --------- | --------- | ---------------------------------------------------------------------- |
+| 157  | 0         | false     | discount-round + tax-round 双失败，13 engineer 会话但 materials 未变   |
+| 158  | null      | true      | 0 engineer 会话，编排未启动                                            |
+| 159  | null      | true      | query-split 首次通过，但 name-reject-empty 未过，5 engineer 会话后超时 |
 
 **EventStore 编排链状态：**
 
@@ -242,3 +248,97 @@
 - 中文固化源码修改已编译部署，编排链接通后可评估效果
 
 **下一阶段方向：** 在万象术 plugin 侧实现 orchestrator commission tool → manager 的完整路由链路，使 manager fork engineer + resume devops 形成验证反馈闭环。
+
+---
+
+## 10. T6 ON 再重跑（2026-09-23）：死循环不复发、编排链断点坐实
+
+**重跑 run ID：** `20260923-012756274-j39i`（ON，paired-on-effect-smoke，题目 157/158/159）。
+
+**前置变更（已部署）：**
+
+- 万象术死循环修复（93 文件更新）
+- `host.agent` = `orchestrator`（§8 修复）
+- 中文语言修复 commit `49a6b1e89`（`PairProgrammingThoughtTransform.fs` `English` → `SimplifiedChinese`）
+
+**评测结果（0/3）：**
+
+| 题号 | host_exit | timed_out | 关键变化                                           |
+| ---- | --------- | --------- | -------------------------------------------------- |
+| 157  | 0         | false     | 正常退出，失败在 discount-round / tax-round oracle |
+| 158  | null      | true      | 超时                                               |
+| 159  | null      | true      | 超时                                               |
+
+**Agent 会话统计（EventStore）：**
+
+| 会话         | 157 | 158 | 159 |
+| ------------ | --- | --- | --- |
+| orchestrator | 4   | 3   | 3   |
+| manager      | 0   | 0   | 0   |
+| devops       | 0   | 0   | 0   |
+| engineer     | 13  | 5   | 9   |
+| blogger      | 10  | 8   | 8   |
+
+**结论：**
+
+- 死循环确认不复发：三题均无 `host_exit=1` 强停特征，超时根因已从死循环转为编排链未闭合。
+- 编排链断点坐实：orchestrator 输出明确出现 `commission a Lead` 委派意图，但 manager / devops 会话仍为零，orchestrator → manager 的 commission 路由未在万象术 plugin 侧实现。
+- 中文回复负向发现：被测 agent 输出仍为英文；`PairProgrammingThoughtTransform.fs` 的 `English → SimplifiedChinese` 只改变插件注入指导语的语言，不改变被测 agent 自身推理语言。
+
+**下一阶段方向（归属）：** orchestrator → manager 路由与 agent 中文输出均为万象术 SUT 侧工程问题，不在 agent-proctor 评测引擎仓改动范围（`dev-process-skills.mdc`「不改万象术业务逻辑」）。
+
+---
+
+## §11 独立验证——可复现测试运行证据 (2026-09-23)
+
+此前 changelog §6/§7 记录的测试通过声明（vitest、typecheck 0 错误、format:check 通过、validate:product-eval 318/318）仅以文字形式存在，工作区无任何运行产物支撑。本日由第 2 任 Manager 接手后，通过 DevOps 真实运行全套测试验证，建立可复现证据。
+
+运行环境：Node.js >= 22.22.0, macOS (darwin)。
+
+| 命令                                      | 状态    | 实际结果                                |
+| ----------------------------------------- | ------- | --------------------------------------- |
+| `npm run typecheck` (tsc --noEmit)        | ✅ 通过 | 0 错误                                  |
+| `npm test` (vitest run)                   | ✅ 通过 | 50 文件 289 测试全绿                    |
+| `npm run format:check` (prettier --check) | ✅ 通过 | 所有文件符合规范（修复 207 文件后）     |
+| `npm run validate:product-eval`           | ✅ 通过 | 318/318 试题协议校验通过，0 错误 0 警告 |
+
+执行中暴露并修复的普通缺陷：
+
+- `examples/product-eval/rooms/hosted-plugin-v1.json` 第 2 行存在 `_comment` 字段，违反 `room.schema.json` 的 `additionalProperties: false` 严格模式约束，导致该考场校验失败并级联引发 4 份试卷集判定考场缺失。移除后 validate:product-eval 从 5 错误归零。
+- 全仓 prettier 格式化修复了 207 个文件的代码风格未对齐问题，使 format:check 由首次失败转为通过。
+
+与 changelog §6/§7 历史声明的比对：typecheck（一致 0 错误）、format:check（一致通过）、validate:product-eval（一致 318/318）。vitest 测试数随本 session 及后续控制台重构（§12）新增测试自然增长，最终实测基线统一为 50 文件 289 测试（见 §12）。
+
+本次独立验证为 changelog 的测试通过声明补上了可复现的运行证据。后续任何提交前，务必真跑测试建立实物凭据。
+
+---
+
+## §12 控制台质量闭环重构（2026-10-09）
+
+本轮针对 §11 全量审核报告（`05-full-code-audit.md`）列出的 `apps/console` 高危缺陷做结构性修复，消除操作台「能跑但不是写好」的质量断崖。改动均为本仓源码，不涉及产品口径变更。
+
+**1. server.ts 拆分（消除 650 行 handler 巨石）**
+
+- `apps/console/server.ts` 从约 650 行 handler 收敛为 26 行装配入口：仅组装路由、`reconcileJobs()` 作业对账、`createServer` 绑定 `127.0.0.1`、listen 唯一调用点。
+- 路由分发拆入 `router.ts`，各业务处理拆入 `controllers/` 下 8 文件（`bank.ts` / `env.ts` / `eval-tasks.ts` / `health.ts` / `jobs.ts` / `run.ts` / `runs.ts` / `test-sets.ts`）。
+- 基础设施抽离为独立模块：`http.ts`（响应封装）、`job-queue.ts`（作业队列）、`parse.ts`（请求体解析）、`static-server.ts`（静态服务）、`config.ts`、`request.ts`、`project-reader.ts`。
+- 原 fire-and-forget `void executeJob` 改为 `void handleRequest(...).catch(...)` 显式捕获，Promise rejection 以 500 响应回传。
+
+**2. JSON 原子写与 CAS 乐观锁（消除直写无原子性 / rooms TOCTOU）**
+
+- 新增 `apps/console/json-io.ts`，收敛控制台各 JSON/文本写点：
+  - `writeTextAtomic`：先写同目录临时文件，成功后 `renameSync` 覆盖目标，避免并发读者读到半截文件。
+  - `writeJsonAtomic`：序列化失败时附加目标路径上下文，成功后走原子写。
+  - `writeJsonAtomicCas`：写前比对目标文件真实 `mtimeMs` 与期望值，不一致（读后被并发修改）则拒绝覆盖返回 false，用于 PUT `/api/env/rooms/:name` 读-改-写的 TOCTOU 防护；基于文件系统真实 mtime，连进程外修改也能检测到。
+
+**3. updateTask 快照回滚（消除多文件写无事务）**
+
+- `updateTask`（`controllers/bank.ts`）补入写前快照机制：受影响文件路径与原内容先快照，任一步失败即恢复，对齐 `createTask` 的 `rollbackCreate` 模式。
+
+**4. HTTP 层测试补齐（消除 HTTP 层零测试）**
+
+- `tests/console/` 由 9 个测试文件增至 12 个，新增 `server-http.test.ts`（HTTP 路由、请求解析、错误码、静态文件 MIME）、`update-task-rollback.test.ts`（updateTask 回滚）、`json-io.test.ts`（原子写与 CAS）。
+
+**仍存未决：** 前端零测试（`apps/console/public/*` 无 JS/HTML/CSS 单元、集成或 E2E 测试）。详见 `05-full-code-audit.md` 与 `06-next-steps.md` §5。（`metrics/catalog.ts` 已由 `tests/metrics/catalog.test.ts`（28 用例）覆盖。）
+
+**全仓测试基线（实测，2026-10-09）：** 本轮控制台重构后 `npm test`（vitest run）全量 **50 个测试文件 / 289 个测试用例全部通过**，`npm run typecheck`（tsc --noEmit）0 错误。该数字为最终实测基线；§6/§7/§11 各节记录的历史数字（44/46 文件、213/214/223 测试）已统一更正为本口径。

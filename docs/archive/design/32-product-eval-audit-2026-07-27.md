@@ -116,4 +116,4 @@
 
 - 测万象术（主入口）：[`../../test/01-wanxiangshu-ops.md`](../../test/01-wanxiangshu-ops.md)
 - 引擎回归：[`../../test/02-engine-regression.md`](../../test/02-engine-regression.md)
-- PRD：[`../../requirements/01-prd.md`](../../requirements/01-prd.md)
+- PRD：[`../../archive/v1-requirements/01-prd.md`](../../archive/v1-requirements/01-prd.md)

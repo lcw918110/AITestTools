@@ -1,0 +1,32 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1040" viewBox="0 0 1600 1040">
+<defs><marker id="arr" markerWidth="10" markerHeight="10" refX="8" refY="3" orient="auto"><path d="M0,0 L0,6 L9,3 z" fill="#5b6f88"/></marker><style>
+.bg{fill:#f7f9fc}.title{font:700 30px 'Noto Sans CJK SC',Arial,sans-serif;fill:#142338}.subtitle{font:16px 'Noto Sans CJK SC',Arial,sans-serif;fill:#4b5b70}.head{font:700 19px 'Noto Sans CJK SC',Arial,sans-serif;fill:#172b45}.body{font:15px 'Noto Sans CJK SC',Arial,sans-serif;fill:#253a52}.small{font:13px 'Noto Sans CJK SC',Arial,sans-serif;fill:#4b5b70}.box{fill:#fff;stroke:#a8b8ca;stroke-width:1.5;rx:14}.blue{fill:#e8f2ff;stroke:#8aaed8}.green{fill:#e7f7ef;stroke:#83bca0}.amber{fill:#fff4dd;stroke:#d9b36c}.violet{fill:#f1eaff;stroke:#b4a0db}.line{stroke:#5b6f88;stroke-width:2;fill:none;marker-end:url(#arr)}.dashed{stroke-dasharray:7 5}
+</style></defs><rect class="bg" width="1600" height="1040"/>
+<text x="60" y="54" class="title">AITestTools：扩展实验矩阵与测试集治理闭环</text><text x="60" y="83" class="subtitle">通用扩展视图（非首轮主实验）：版本化配置 → 合法候选矩阵 → 冻结计划执行 → 比较 / 异常沉淀回归</text>
+<!-- upper matrix -->
+<rect x="50" y="115" width="1500" height="385" class="box"/><text x="78" y="151" class="head">A. 模型 × Agent / 角色是多对多关系</text>
+<rect x="85" y="183" width="260" height="86" class="box blue"/><text x="108" y="215" class="head">Model Catalog</text><text x="108" y="241" class="body">Provider / Model / Deployment</text>
+<rect x="405" y="183" width="310" height="86" class="box violet"/><text x="428" y="215" class="head">ModelRoutingProfile@version</text><text x="428" y="241" class="body">role → model / params / fallback</text>
+<rect x="775" y="183" width="295" height="86" class="box blue"/><text x="798" y="215" class="head">CandidateConfig</text><text x="798" y="241" class="body">Host + Agent + Plugin + Route</text>
+<rect x="1130" y="183" width="350" height="86" class="box green"/><text x="1153" y="215" class="head">Experiment Matrix</text><text x="1153" y="241" class="body">Candidate × Case Block × Repeat</text>
+<path d="M345 226 H405" class="line"/><path d="M715 226 H775" class="line"/><path d="M1070 226 H1130" class="line"/>
+<text x="94" y="306" class="small">一个模型可服务多个 Agent/角色</text><text x="411" y="306" class="small">一个 Agent 的不同角色可使用不同模型</text><text x="780" y="306" class="small">比较单位是完整候选，不是单一模型名</text><text x="1135" y="306" class="small">先校验合法性、预算、固定条件</text>
+<rect x="85" y="344" width="430" height="115" class="box"/><text x="108" y="376" class="head">实验模式 1：单角色模型影响</text><text x="108" y="402" class="body">固定其他条件，只改 Engineer 或指定角色模型</text><text x="108" y="428" class="small">仅当实际路由可观察，才做角色级归因</text>
+<rect x="585" y="344" width="430" height="115" class="box"/><text x="608" y="376" class="head">实验模式 2：整套路由对比</text><text x="608" y="402" class="body">比较两个版本化路由 Profile</text><text x="608" y="428" class="small">结论属于 Profile 组合，不归因单个模型</text>
+<rect x="1085" y="344" width="395" height="115" class="box"/><text x="1108" y="376" class="head">实验模式 3：系统组合选型</text><text x="1108" y="402" class="body">可比较 Agent / 插件 / 模型整体组合</text><text x="1108" y="428" class="small">多个因素变化时只做组合结论</text>
+<!-- lower lifecycle -->
+<rect x="50" y="530" width="1500" height="450" class="box"/><text x="78" y="566" class="head">B. 测试集运行、异常与反例的闭环</text>
+<rect x="80" y="600" width="250" height="105" class="box blue"/><text x="104" y="631" class="head">1. Dataset Release</text><text x="104" y="656" class="body">Case 多轴分类</text><text x="104" y="680" class="small">用途 / 能力 / 行为 / 风险</text>
+<rect x="390" y="600" width="250" height="105" class="box blue"/><text x="414" y="631" class="head">2. SuitePlan</text><text x="414" y="656" class="body">顺序、依赖、预算、重复</text><text x="414" y="680" class="small">stop / continue 策略冻结</text>
+<rect x="700" y="600" width="250" height="105" class="box amber"/><text x="724" y="631" class="head">3. Runner 执行</text><text x="724" y="656" class="body">每个候选独立工作区</text><text x="724" y="680" class="small">Run / Attempt / Event / Artifact</text>
+<rect x="1010" y="600" width="230" height="105" class="box green"/><text x="1034" y="631" class="head">4. Oracle / Score</text><text x="1034" y="656" class="body">规则 / 模型 / 人工</text><text x="1034" y="680" class="small">质量、时间、成本、可信度</text>
+<rect x="1300" y="600" width="215" height="105" class="box violet"/><text x="1324" y="631" class="head">5. 报告</text><text x="1324" y="656" class="body">候选与 Case 差异</text><text x="1324" y="680" class="small">Gate / 分母 / 证据</text>
+<path d="M330 652 H390" class="line"/><path d="M640 652 H700" class="line"/><path d="M950 652 H1010" class="line"/><path d="M1240 652 H1300" class="line"/>
+<path d="M825 705 V758 H270 V790" class="line dashed"/>
+<rect x="80" y="790" width="300" height="118" class="box amber"/><text x="104" y="821" class="head">异常 / 反例候选</text><text x="104" y="847" class="body">选择 Run 事件与证据 → 脱敏</text><text x="104" y="873" class="small">分类、指纹去重、最小复现</text>
+<rect x="445" y="790" width="300" height="118" class="box"/><text x="469" y="821" class="head">合同与 Oracle 确认</text><text x="469" y="847" class="body">expected / actual 清晰</text><text x="469" y="873" class="small">区分缺陷、负例、环境问题、flaky</text>
+<rect x="810" y="790" width="300" height="118" class="box violet"/><text x="834" y="821" class="head">独立审核</text><text x="834" y="847" class="body">未批准前不可成为门禁</text><text x="834" y="873" class="small">不允许运行失败自动入库</text>
+<rect x="1175" y="790" width="340" height="118" class="box green"/><text x="1199" y="821" class="head">新 Case Revision / Release</text><text x="1199" y="847" class="body">发布为回归或诊断集新版本</text><text x="1199" y="873" class="small">保留来源链接，旧 Release 不覆盖</text>
+<path d="M380 849 H445" class="line"/><path d="M745 849 H810" class="line"/><path d="M1110 849 H1175" class="line"/><path d="M1345 790 V743 H205 V705" class="line dashed"/>
+<text x="60" y="1015" class="small">原则：计划模型不等于实际模型；运行失败不等于预期负例；未运行/阻塞/未知不计通过；历史记录不自动改写正式测试集。</text>
+</svg>

@@ -10,7 +10,7 @@
 > **测万象术 / 三对象请先看**：[wanxiangshu-ops](01-wanxiangshu-ops.md)  
 > **本文**只描述引擎内部三轴如何自测/回归。
 
-本文按引擎三轴，写到**可照做**的操作步骤、关注指标、用例形态与**更新原则**。协议细节见 [`../design/`](../design/)；过程收口见 [`../process/`](../process/)。
+本文按引擎三轴，写到**可照做**的操作步骤、关注指标、用例形态与**更新原则**。协议细节见 [`../archive/v1-design/`](../archive/v1-design/)；过程收口见 [`../process/`](../process/)。
 
 ---
 
@@ -198,13 +198,13 @@ npm run proctor -- run --axis A --paperset st-import-L1 --project "$PROJECT"
 
 #### 情况 B2：B-hosted（真宿主轨迹）
 
-| 步  | 操作                                                                                        | 期望                                                                                 |
-| :-- | :------------------------------------------------------------------------------------------ | :----------------------------------------------------------------------------------- |
-| 1   | `SUT_ROOT` 指向被测仓；room `hosted-*` 能拉起真宿主 + 插件                                  | 宿主二进制可用                                                                       |
-| 2   | 试题 `channel=hosted`，`requires_network=true`，`requires_durable_log=true`                 | 不进默认离线 CI                                                                      |
-| 3   | `npm run proctor -- run --axis B --paperset hosted-smoke --project "$PROJECT"`              | exit 与 oracle（常为进程/`exit_code`）一致                                           |
+| 步  | 操作                                                                                                                                                                                                    | 期望                                                                                                                            |
+| :-- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------ |
+| 1   | `SUT_ROOT` 指向被测仓；room `hosted-*` 能拉起真宿主 + 插件                                                                                                                                              | 宿主二进制可用                                                                                                                  |
+| 2   | 试题 `channel=hosted`，`requires_network=true`，`requires_durable_log=true`                                                                                                                             | 不进默认离线 CI                                                                                                                 |
+| 3   | `npm run proctor -- run --axis B --paperset hosted-smoke --project "$PROJECT"`                                                                                                                          | exit 与 oracle（常为进程/`exit_code`）一致                                                                                      |
 | 4   | 检查 `hosted-run.json` 的 `event_store_present` / `event_store_source` + `event_store_kinds`；确认含探针 `RuntimeStarted` / `JournalEnvelope`（EventStore 读 `refs/wanxiang/store` + `pending` events） | 无 EventStore → 归因 **CONTEXT**（插件可能未挂或未触发 git）；有 EventStore 但缺探针 → **PROTOCOL**；探针正常仍错 → **MODEL_*** |
-| 5   | 按设计 `12-hosted-attribution-tree` 分诊；**不得**把 hosted 聚合率写进 paperset 硬 gates    | `b_hosted_attribution_share` 仅报告                                                  |
+| 5   | 按设计 `12-hosted-attribution-tree` 分诊；**不得**把 hosted 聚合率写进 paperset 硬 gates                                                                                                                | `b_hosted_attribution_share` 仅报告                                                                                             |
 
 #### 情况 B3：模型对比实验（操作约定）
 
@@ -351,11 +351,11 @@ SUT_ROOT=/path/to/wanxiangshu npm run smoke:wanxiangshu:l1   # foldEnvelope 最�
 
 | 文档                                                                  | 用途                |
 | :-------------------------------------------------------------------- | :------------------ |
-| [02-protocol-papers-v1](../design/02-protocol-papers-v1.md)           | 试题/试卷 JSON 协议 |
-| [03-fold-entry-contract](../design/03-fold-entry-contract.md)         | L1 Fold 入口        |
-| [06-host-contract-schema](../design/06-host-contract-schema.md)       | L2 宿主契约         |
-| [07-hosted-attribution-tree](../design/07-hosted-attribution-tree.md) | B-hosted 分诊       |
-| [04-state-predicate](../design/04-state-predicate.md)                 | 谓词白名单          |
+| [02-protocol-papers-v1](../archive/v1-design/02-protocol-papers-v1.md)           | 试题/试卷 JSON 协议 |
+| [03-fold-entry-contract](../archive/v1-design/03-fold-entry-contract.md)         | L1 Fold 入口        |
+| [06-host-contract-schema](../archive/v1-design/06-host-contract-schema.md)       | L2 宿主契约         |
+| [07-hosted-attribution-tree](../archive/v1-design/07-hosted-attribution-tree.md) | B-hosted 分诊       |
+| [04-state-predicate](../archive/v1-design/04-state-predicate.md)                 | 谓词白名单          |
 | [ADR-0008](../architecture/adr/0008-local-sut-papers-copy.md)         | 题库本地副本        |
 | [01-wanxiangshu-ops](01-wanxiangshu-ops.md)                           | 测万象术（产品）    |
-| PRD [`../requirements/01-prd.md`](../requirements/01-prd.md) 附录 B/C | Oracle 与指标总表   |
+| PRD [`../archive/v1-requirements/01-prd.md`](../archive/v1-requirements/01-prd.md) 附录 B/C | Oracle 与指标总表   |

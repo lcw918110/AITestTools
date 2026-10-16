@@ -7,7 +7,7 @@
 | 合并自 | `wanxiangshu-ops` + `product-eval-guide`     |
 | 引擎   | `agent-proctor` / `proctor`                  |
 
-本文 = **原则 + 照做步骤**。名词见 [术语篇](../requirements/00-glossary.md)；引擎 A/B/C 自测见 [engine-regression](02-engine-regression.md)；需求见 [PRD](../requirements/01-prd.md)；当前口径与任务见 [过程日志](../process/01-changelog.md)。
+本文 = **原则 + 照做步骤**。名词见 [术语篇](../00-glossary.md)；引擎 A/B/C 自测见 [engine-regression](02-engine-regression.md)；需求见 [PRD](../01-产品需求规格说明书.md)；当前口径与任务见 [过程日志](../process/01-changelog.md)。
 
 ---
 
@@ -94,19 +94,19 @@ npm run proctor -- run --axis B --paperset paired-off-calibrate --project exampl
 - **2026-08-31，旧暗号口径**：`paired-off-calibrate` run `20260831-182753303-ysvh`，基准模型 OFF **14/14 通过**（`model_source: room`，`model_matches_freeze: true`，约 9 分钟）。只判退出码 + 暗号，**不能当效果基线**。
 - **2026-08-31，加严后弱 OFF**：`paired-off-alt-calibrate` run `20260831-192311756-4kud`，`agnes/agnes-2.0-flash` **13/14 通过**（`model_source: room`，`model_matches_freeze: false` 为实验 2 预期，约 2.3 分钟）。14 题进程均为退出码 0，无 CONTEXT/额度。唯一挂是 156：`stdout_assert refuse-adhoc`（回复用 “No—” 拒绝临时客户私聊，但当时拒答正则没覆盖该写法）——属判定假阴性，不是额度，也不是真去 ping 客户。该假阴性已用正则纳入 `No` / `No—` / `Nope` 修好；该 run 产物仍记录失败。弱模型对其余 13 题按题面作答且命中格式/拒答/schema 断言，**加严后仍偏松、不够测插件**（题仍是 Text-only，插件没有仓库/工具可发挥）。下一步若要确认强模型会不会也被 156 误杀，可跑 `paired-off-calibrate`；若要拉开插件差，需要能用工具/工作区的题，而不是再扫 156 对。
 
-| 层              | 问什么                                      | 固定                                                | 只变        | 组卷（不要一上来 156） |
-| :-------------- | :------------------------------------------ | :-------------------------------------------------- | :---------- | :--------------------- |
+| 层              | 问什么                                      | 固定                                                          | 只变        | 组卷（不要一上来 156）                                                                |
+| :-------------- | :------------------------------------------ | :------------------------------------------------------------ | :---------- | :------------------------------------------------------------------------------------ |
 | **实验 1 效果** | 有万象术是否答得更好                        | OpenCode + 基准模型 `wave-anthropic/claude-sonnet-5` + 同一题 | 插件关 / 开 | `paired-off-effect-smoke` → `paired-on-effect-smoke` → `compare`（157–159；过程日志） |
-| **实验 2 经济** | 弱模型+插件能否逼近强模型无插件；同任务耗时 | 同一批已能拉开差的效果题                            | 模型 ± 插件 | 见下表；**效果题拉开差之前不要跑** |
+| **实验 2 经济** | 弱模型+插件能否逼近强模型无插件；同任务耗时 | 同一批已能拉开差的效果题                                      | 模型 ± 插件 | 见下表；**效果题拉开差之前不要跑**                                                    |
 
 实验 2 四格（换弱模型：改对应 room 的 `host.model`，或换组卷；**不要**设 `PROCTOR_HOSTED_MODEL`，否则 `model_source` 不是 room）：
 
-| 格      | 组卷                       | 考场                   | 模型（默认）            | 插件 |
-| :------ | :------------------------- | :--------------------- | :---------------------- | :--- |
-| 强 · 关 | `paired-off-calibrate`     | `hosted-plain-v1`      | `wave-anthropic/claude-sonnet-5`  | 无   |
-| 强 · 开 | `paired-on-calibrate`      | `hosted-plugin-v1`     | 同上                    | 有   |
-| 弱 · 关 | `paired-off-alt-calibrate` | `hosted-model-alt-v1`  | `agnes/agnes-2.0-flash` | 无   |
-| 弱 · 开 | `paired-on-alt-calibrate`  | `hosted-plugin-alt-v1` | 同上                    | 有   |
+| 格      | 组卷                       | 考场                   | 模型（默认）                     | 插件 |
+| :------ | :------------------------- | :--------------------- | :------------------------------- | :--- |
+| 强 · 关 | `paired-off-calibrate`     | `hosted-plain-v1`      | `wave-anthropic/claude-sonnet-5` | 无   |
+| 强 · 开 | `paired-on-calibrate`      | `hosted-plugin-v1`     | 同上                             | 有   |
+| 弱 · 关 | `paired-off-alt-calibrate` | `hosted-model-alt-v1`  | `agnes/agnes-2.0-flash`          | 无   |
+| 弱 · 开 | `paired-on-alt-calibrate`  | `hosted-plugin-alt-v1` | 同上                             | 有   |
 
 典型对照：**弱+开 vs 强+关**（插件的经济价值）。`compare` 看通过率差；墙钟耗时读各题 `artifacts/<item>/hosted-run.json` 的 `duration_ms`（opencode CLI 不吐 token，`b_cost_tokens_per_pass` 在 hosted 面目前填不满）。alt 组卷相对题 `freeze.model_id` 会 `model_matches_freeze: false`——这是实验 2 预期，核 `model_source: room` 即可。
 
@@ -184,11 +184,11 @@ npm run proctor -- compare --baseline "$OFF" --candidate "$ON"
 | 参考分差                   | 打分叙事                     |
 | Fold/C 通过率              | **自身**回归，不替代效果结论 |
 
-| 类型         | 现状                                                                                                                                                                     |
-| :----------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 类型         | 现状                                                                                                             |
+| :----------- | :--------------------------------------------------------------------------------------------------------------- |
 | 配对效果题   | `examples/product-eval/bank`：156 对 Text-only **不能当效果基线**；效果小样本 157–159 见 `paired-*-effect-smoke` |
-| hosted smoke | `WX-B-HOSTED-PLUGIN-01`（万象术 papers）                                                                                                                                 |
-| Fold/ST      | `st-import-L1`                                                                                                                                                           |
+| hosted smoke | `WX-B-HOSTED-PLUGIN-01`（万象术 papers）                                                                         |
+| Fold/ST      | `st-import-L1`                                                                                                   |
 
 **更新原则**：改任务/成功标准 → off/on **同步** `bump-rev`；禁止把仅 on 侧协议事件写进 off 期望；打分量表变更单独版本化。
 
@@ -311,18 +311,18 @@ npm run load:wanxiangshu-plugin    # 最小加载；Fable 产物不完整则退�
 npm run smoke:plugin-fakehost      # 需完整 dist；当前不宣称绿
 ```
 
-| 命令                                          | 2026-08-31 口径                                                                     |
-| :-------------------------------------------- | :---------------------------------------------------------------------------------- |
-| `smoke:wanxiangshu`                           | **只** C 真 git；**不再**含旧 L1 ST                                                 |
-| `smoke:wanxiangshu:l1`                        | **可跑**：`foldEnvelope` + `RuntimeStarted`（3 题）                                 |
-| `read:event-store`                            | **可跑（只读）**：解析 `refs/wanxiang/store`；无 tip 退出 2                         |
-| `load:wanxiangshu-plugin`                     | **2026-08-31 转绿**：`dist/OpenCode/Plugin/Plugin.js` 可 import，导出 `{id,server}` |
-| `hosted-smoke`                                | **2026-08-31 转绿**：真跑 1/1，EventStore 9 个 Kind（见 §2.8）                      |
+| 命令                                          | 2026-08-31 口径                                                                                                                      |
+| :-------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------- |
+| `smoke:wanxiangshu`                           | **只** C 真 git；**不再**含旧 L1 ST                                                                                                  |
+| `smoke:wanxiangshu:l1`                        | **可跑**：`foldEnvelope` + `RuntimeStarted`（3 题）                                                                                  |
+| `read:event-store`                            | **可跑（只读）**：解析 `refs/wanxiang/store`；无 tip 退出 2                                                                          |
+| `load:wanxiangshu-plugin`                     | **2026-08-31 转绿**：`dist/OpenCode/Plugin/Plugin.js` 可 import，导出 `{id,server}`                                                  |
+| `hosted-smoke`                                | **2026-08-31 转绿**：真跑 1/1，EventStore 9 个 Kind（见 §2.8）                                                                       |
 | `paired-on-smoke` / `paired-off-smoke`        | **2026-08-31 各 3/3 通过**（01–03 Text-only 天花板）；效果题用 `paired-*-effect-smoke`（2026-09-01 权威跑次 0/3），不要跑 156 当效果 |
-| `paired-off-alt-calibrate`                    | **2026-08-31 加严后 13/14**（弱模型 agnes-2.0-flash；156 为拒答正则假阴性）         |
-| `smoke:coordinator`                           | 已知失效（万象阵已移除）                                                            |
-| `.wanxiangshu.ndjson` / `assistant_completed` | 已知失效；hosted 改读 EventStore Fact（`RuntimeStarted` / `JournalEnvelope`）       |
-| 旧 ST / Review / Nudge / Squad                | `st-import-L1` 标失效；未全改词                                                     |
+| `paired-off-alt-calibrate`                    | **2026-08-31 加严后 13/14**（弱模型 agnes-2.0-flash；156 为拒答正则假阴性）                                                          |
+| `smoke:coordinator`                           | 已知失效（万象阵已移除）                                                                                                             |
+| `.wanxiangshu.ndjson` / `assistant_completed` | 已知失效；hosted 改读 EventStore Fact（`RuntimeStarted` / `JournalEnvelope`）                                                        |
+| 旧 ST / Review / Nudge / Squad                | `st-import-L1` 标失效；未全改词                                                                                                      |
 
 **回归绿 ≠ 有插件效果更好。**
 
@@ -362,16 +362,16 @@ npm run smoke:plugin-fakehost      # 需完整 dist；当前不宣称绿
 
 ## 8. 路径速查与排错
 
-| 资源            | 路径                                                                                                    |
-| :-------------- | :------------------------------------------------------------------------------------------------------ |
-| 配对考卷        | `examples/product-eval/`                                                                                |
-| 任务 prompt     | `examples/product-eval/bank/materials/PAIRED-TASK-01/prompt.txt`                                        |
-| 无/有插件 room  | `hosted-plain-v1` / `hosted-plugin-v1`；弱模型：`hosted-model-alt-v1` / `hosted-plugin-alt-v1`          |
-| 校准 / 经济 / 效果组卷 | 校准 14：`paired-*-calibrate`（含 alt）；效果小样本：`paired-*-effect-smoke` |
-| 插件产物        | `$SUT_ROOT/dist/OpenCode/Plugin/Plugin.js`（旧 `dist/Infrastructure/...` 仅回退）                       |
-| 宿主日志全文    | `runs/<id>/artifacts/<item>/hosted-stderr.log`                                                          |
-| 回归题库        | `examples/wanxiangshu-papers/`                                                                          |
-| 脚本            | `scripts/eval-paired.sh`                                                                                |
+| 资源                   | 路径                                                                                           |
+| :--------------------- | :--------------------------------------------------------------------------------------------- |
+| 配对考卷               | `examples/product-eval/`                                                                       |
+| 任务 prompt            | `examples/product-eval/bank/materials/PAIRED-TASK-01/prompt.txt`                               |
+| 无/有插件 room         | `hosted-plain-v1` / `hosted-plugin-v1`；弱模型：`hosted-model-alt-v1` / `hosted-plugin-alt-v1` |
+| 校准 / 经济 / 效果组卷 | 校准 14：`paired-*-calibrate`（含 alt）；效果小样本：`paired-*-effect-smoke`                   |
+| 插件产物               | `$SUT_ROOT/dist/OpenCode/Plugin/Plugin.js`（旧 `dist/Infrastructure/...` 仅回退）              |
+| 宿主日志全文           | `runs/<id>/artifacts/<item>/hosted-stderr.log`                                                 |
+| 回归题库               | `examples/wanxiangshu-papers/`                                                                 |
+| 脚本                   | `scripts/eval-paired.sh`                                                                       |
 
 | 症状              | 操作                                                        |
 | :---------------- | :---------------------------------------------------------- |
@@ -384,11 +384,11 @@ npm run smoke:plugin-fakehost      # 需完整 dist；当前不宣称绿
 
 ### 能力速查
 
-| 能力                      | 状态                                            |
-| :------------------------ | :---------------------------------------------- |
-| 模型 `eval-model`         | 有（fixture）                                   |
-| Agent `eval-agent`        | 有（需网）                                      |
+| 能力                      | 状态                                                      |
+| :------------------------ | :-------------------------------------------------------- |
+| 模型 `eval-model`         | 有（fixture）                                             |
+| Agent `eval-agent`        | 有（需网）                                                |
 | 插件配对 off/on           | 有（效果小样本 157–159；不要把 156 Text-only 当效果基线） |
-| 经济四格（弱/强 × 关/开） | 有（alt 考场 + 校准组卷；成本看 `duration_ms`） |
-| 效果分列 / 参考分         | 有                                              |
-| Fold + 真 git 回归        | 有                                              |
+| 经济四格（弱/强 × 关/开） | 有（alt 考场 + 校准组卷；成本看 `duration_ms`）           |
+| 效果分列 / 参考分         | 有                                                        |
+| Fold + 真 git 回归        | 有                                                        |
