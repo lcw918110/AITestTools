@@ -410,4 +410,6 @@
 - 修复类型滞后：`Case` 补 `pair_key`、`CaseRevision.stimulus` 补 `hosted_pass_token`、`EnvironmentProfile.recipe` 补 `host_plugin`/`durable_log_glob`（此前 schema/产物有、类型定义缺）
 - 新增 `src/run/cases-v1-adapter.ts`（绞杀者模式）：`caseRevisionToItemDoc`、`environmentToRoom` 把 cases-v1 资产还原为 runner 旧形状
 - 可证伪自测：318 ItemDoc + 4 RoomDoc 还原的关键执行字段与 V1 原始数据 0 处不符（适配层测试 3 用例 + 逐字段对比脚本）
-- 待决策：run.ts 数据源切换的 CLI 口径（`--dataset/--environment` 显式组合 vs DatasetRelease 加 environment 引用）；`intent.statement` 归属
+- run.ts 数据源切换：`AssetKind` 扩展 cases-v1 目录；`runCommandV2` 走 dataset-release→case-revision→适配层→复用 `runOneItem`；CLI 新增 `--dataset/--environment` 显式组合（与 papers-v1 路径并存）
+- 端到端验证：`proctor run --dataset eval-agent --environment hosted-plain-v1 --only paired-task-22-off` 单题跑通 PASS
+- 决策：CLI 显式组合（DatasetRelease 保持纯冻结闭包）；`intent.statement` 不使用则去掉
