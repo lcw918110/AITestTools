@@ -1,0 +1,69 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-159",
+  "case_revision_id": "paired-task-159.r1.off",
+  "revision_number": 1,
+  "content_hash": "74685e2b23e8614d97defda0196ba3610a7c12d7cf04b19f699b4f00d0f8ceb8",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-159/prompt.txt",
+    "notes": "Implement query parser and name validator; keep CLI_WIRE. Seal QUERY_WIRE.",
+    "hosted_pass_token": "QUERY_WIRE"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      },
+      {
+        "id": "query-split",
+        "type": "workspace_assert",
+        "path": "lib/query.js",
+        "contains": "split",
+        "not_contains": "stub: true"
+      },
+      {
+        "id": "name-reject-empty",
+        "type": "workspace_assert",
+        "path": "lib/validate.js",
+        "contains": "^[A-Za-z]",
+        "not_contains": "return Boolean(s)"
+      },
+      {
+        "id": "cli-hold",
+        "type": "workspace_assert",
+        "path": "cli.js",
+        "contains": "CLI_WIRE"
+      },
+      {
+        "id": "fixture-hold",
+        "type": "workspace_assert",
+        "path": "fixtures/allowed.json",
+        "contains": "\"keep\": true"
+      },
+      {
+        "id": "tests-hold",
+        "type": "workspace_assert",
+        "path": "tests/query.test.mjs",
+        "contains": "parseQuery('a=1&b=2')"
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 240000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev1": "效果实验：必须改仓库的解析+校验题"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-103",
+  "title": "配对任务 103（有插件）：混沌演练假设 CHAOS_HYP + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-103.r4.on",
+  "pair_key": "PAIRED-TASK-103"
+}

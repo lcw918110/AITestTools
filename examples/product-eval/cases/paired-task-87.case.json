@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-87",
+  "title": "配对任务 87（有插件）：特性开关默认安全 FLAG_SAFE + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-87.r3.on",
+  "pair_key": "PAIRED-TASK-87"
+}

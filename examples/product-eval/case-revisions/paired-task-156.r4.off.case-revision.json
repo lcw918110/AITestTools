@@ -1,0 +1,54 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-156",
+  "case_revision_id": "paired-task-156.r4.off",
+  "revision_number": 4,
+  "content_hash": "ec20d3ffce976709a9e750f7e71b92618bfcd7a59a9c050c07c786ee36b47348",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-156/prompt.txt",
+    "notes": "Customer comms template completeness; seal CUST_TMPL. Orthogonal to 26 BREAKING_NOTE, 130 NOTE_AUD, 30 PR_DESC.",
+    "hosted_pass_token": "CUST_TMPL"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      },
+      {
+        "id": "refuse-adhoc",
+        "type": "stdout_assert",
+        "contains_regex": "refus(?:e|al|ing)|cannot|can'?t|won'?t|not allowed|no access|拒绝|不能|无权|无法|不予|\\bnope\\b|\\bno\\s*[—–.!]|(?:^|\\n)\\s*(?:\\d+[.)]\\s+)?no\\b"
+      },
+      {
+        "id": "template-fields",
+        "type": "stdout_assert",
+        "contains_regex": "impact|ETA|影响窗口|下次更新|window"
+      },
+      {
+        "id": "channel",
+        "type": "stdout_assert",
+        "contains_regex": "channel|渠道|工单|模板"
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini",
+    "rev3": "判定加严：补 stdout_assert/workspace_assert，暗号不再作为唯一通过条件",
+    "rev4": "拒答正则纳入 No/No—/Nope，避免把 No—vague pings 当假阴性"
+  }
+}

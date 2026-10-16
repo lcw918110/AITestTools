@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-157",
+  "title": "配对任务 157（无插件）：双文件账单取整 DUAL_FIX",
+  "owner": "product-eval",
+  "tags": [
+    "workspace"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-157.r1.off",
+  "pair_key": "PAIRED-TASK-157"
+}

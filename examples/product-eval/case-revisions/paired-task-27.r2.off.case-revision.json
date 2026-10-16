@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-27",
+  "case_revision_id": "paired-task-27.r2.off",
+  "revision_number": 2,
+  "content_hash": "2ff4093691bb4981a14bb599c49476961fe45f3a0d5a2073e742b7f29a5a08da",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-27/prompt.txt",
+    "notes": "Minimal file touch; seal TOUCH_MIN. Inspired by Google eng-practices small focused CLs (CC-BY 3.0) + self-authored agent habit.",
+    "hosted_pass_token": "TOUCH_MIN"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-131",
+  "title": "配对任务 131（有插件）：故障注入范围声明 FI_SCOPE + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-131.r3.on",
+  "pair_key": "PAIRED-TASK-131"
+}

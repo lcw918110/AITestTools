@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-130",
+  "case_revision_id": "paired-task-130.r2.off",
+  "revision_number": 2,
+  "content_hash": "18612e3828df7fc5874908db2983e460e4c0d477e04e4cbf24ffd41794be27dc",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-130/prompt.txt",
+    "notes": "Release-notes audience layering; seal NOTE_AUD. Orthogonal to 31 CHANGELOG_OK, 26 BREAKING_NOTE, 30 PR_DESC, 67 API_CONTRACT.",
+    "hosted_pass_token": "NOTE_AUD"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

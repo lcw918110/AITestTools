@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../schemas/candidate.schema.json",
+  "candidate_id": "hosted-plain",
+  "name": "真 OpenCode、不挂插件（测模型 / 测 Agent / 配对 baseline）。",
+  "host": {
+    "name": "opencode",
+    "version": "1.18.5"
+  },
+  "agent": {
+    "name": "fast-coder"
+  },
+  "plugin": null,
+  "model_routing": "hosted-plain-v1",
+  "environment_profile": "hosted-plain-v1"
+}

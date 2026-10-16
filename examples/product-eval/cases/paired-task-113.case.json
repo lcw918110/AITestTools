@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-113",
+  "title": "配对任务 113（有插件）：幂等键设计复核 IDEMP_REV + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-113.r3.on",
+  "pair_key": "PAIRED-TASK-113"
+}

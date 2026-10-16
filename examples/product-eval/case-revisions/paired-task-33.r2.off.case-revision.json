@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-33",
+  "case_revision_id": "paired-task-33.r2.off",
+  "revision_number": 2,
+  "content_hash": "2e4f82d6deebe0215b4c141d3e2c52e91d09e9f72cf93303bf7699a9258a0cef",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-33/prompt.txt",
+    "notes": "Refuse oversized CL; seal SMALL_CL. Adapted from Google eng-practices small CLs (CC-BY 3.0).",
+    "hosted_pass_token": "SMALL_CL"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

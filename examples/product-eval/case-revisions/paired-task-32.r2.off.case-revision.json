@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-32",
+  "case_revision_id": "paired-task-32.r2.off",
+  "revision_number": 2,
+  "content_hash": "4da7002f14bf326e778d2a1a61b284a90ee264341ca85804e6acb285f971228e",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-32/prompt.txt",
+    "notes": "Separate refactor from fix PR; seal REFACTOR_SEP. Adapted from Google eng-practices small CLs (CC-BY 3.0).",
+    "hosted_pass_token": "REFACTOR_SEP"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

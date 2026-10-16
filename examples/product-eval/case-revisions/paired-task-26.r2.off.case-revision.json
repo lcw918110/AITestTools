@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-26",
+  "case_revision_id": "paired-task-26.r2.off",
+  "revision_number": 2,
+  "content_hash": "31eb6c3a0c782dcb4d99373a5f7831ae0b5b4faf5bb2bc6a2e4e71be3bfeba5b",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-26/prompt.txt",
+    "notes": "Breaking change communication; seal BREAKING_NOTE. Adapted from Conventional Commits (MIT) + SemVer (CC-BY 3.0).",
+    "hosted_pass_token": "BREAKING_NOTE"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

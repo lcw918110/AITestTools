@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-56",
+  "case_revision_id": "paired-task-56.r2.off",
+  "revision_number": 2,
+  "content_hash": "e60c327c31202f7eda6a52467fa04c6280b563eed83d5efd7f3c67d8cff554be",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-56/prompt.txt",
+    "notes": "Concrete implement steps + one contract line; seal IMPL_STEPS. Self-authored coding-daily fill for 07 encoding gap.",
+    "hosted_pass_token": "IMPL_STEPS"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

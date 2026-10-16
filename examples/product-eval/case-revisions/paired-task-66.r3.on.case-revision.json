@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-66",
+  "case_revision_id": "paired-task-66.r3.on",
+  "revision_number": 3,
+  "content_hash": "f49b4a9d4a59d70c24801a125a41a57af154514e7998532a25ea8903d80671c8",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-66/prompt.txt",
+    "notes": "Split PR by CODEOWNERS teams; seal OWN_SPLIT. Orthogonal to CODEOWNER_OK (refuse write), SMALL_CL (size), REFACTOR_SEP.",
+    "hosted_pass_token": "OWN_SPLIT"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [
+    "RuntimeStarted",
+    "JournalEnvelope"
+  ],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": true
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini",
+    "rev3": "协议探针换血：assistant_completed 属万象术 0.8 前 NDJSON 面，已消失；改用 2026-08-31 hosted 真跑实测命中的 EventStore Kind（RuntimeStarted / JournalEnvelope）"
+  }
+}

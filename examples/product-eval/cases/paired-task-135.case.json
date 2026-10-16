@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-135",
+  "title": "配对任务 135（有插件）：客户端超时对齐 TO_ALIGN + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-135.r3.on",
+  "pair_key": "PAIRED-TASK-135"
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-144",
+  "title": "配对任务 144（有插件）：特性文档与实现漂移 DOC_DRIFT + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-144.r3.on",
+  "pair_key": "PAIRED-TASK-144"
+}

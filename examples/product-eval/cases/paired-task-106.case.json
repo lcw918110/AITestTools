@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-106",
+  "title": "配对任务 106（有插件）：会话固定/CSRF 防护清单 CSRF_SESS + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-106.r3.on",
+  "pair_key": "PAIRED-TASK-106"
+}

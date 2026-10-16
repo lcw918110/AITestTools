@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "paired-on-smoke",
+  "name": "paired-on-smoke",
+  "description": "配对 treatment 的 3 题冒烟：与 paired-off-smoke 同题，验证插件挂载与协议探针后再跑全量 156",
+  "case_revisions": [
+    {
+      "case_id": "paired-task",
+      "case_revision_id": "paired-task.r3.on",
+      "content_hash": "701f25076470480f33fb20a06c649c2846f3c6b86d3721c0a7c3f350ec8b0fe9"
+    },
+    {
+      "case_id": "paired-task-02",
+      "case_revision_id": "paired-task-02.r7.on",
+      "content_hash": "b73f222684dc6716b499f7a5c6410f24e634ce88730284b9874784a26d32dde7"
+    },
+    {
+      "case_id": "paired-task-03",
+      "case_revision_id": "paired-task-03.r3.on",
+      "content_hash": "7b0bacaab8fa4057f18c9e77666e71519e154b12a07f9db673a586a369d74b5f"
+    }
+  ],
+  "closure_hash": "df390a1b7b81011e50e75e69bf55fc63cc836011abfb6e5662d08f6ca4bbdf18"
+}

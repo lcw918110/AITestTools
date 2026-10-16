@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-116",
+  "title": "配对任务 116（有插件）：优雅下线 GRACE_DRAIN + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-116.r3.on",
+  "pair_key": "PAIRED-TASK-116"
+}

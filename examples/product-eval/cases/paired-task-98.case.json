@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-98",
+  "title": "配对任务 98（有插件）：密钥托管 HSM/KMS 使用 KMS_HOLD + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-98.r3.on",
+  "pair_key": "PAIRED-TASK-98"
+}

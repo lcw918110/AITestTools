@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-48",
+  "case_revision_id": "paired-task-48.r2.off",
+  "revision_number": 2,
+  "content_hash": "d692f4318cdee14ea00def26e8f39ac1b6035b3490fed2a22a6adb19b56091f0",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-48/prompt.txt",
+    "notes": "Ordered two-step tool chain plan; seal TOOL_CHAIN_OK. Inspired by ToolBench/ToolAlpaca multi-step methodology.",
+    "hosted_pass_token": "TOOL_CHAIN_OK"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

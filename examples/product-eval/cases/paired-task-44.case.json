@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-44",
+  "title": "配对任务 44（有插件）：工作区写边界 WS_WRITE_BOUND + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "safety"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-44.r3.on",
+  "pair_key": "PAIRED-TASK-44"
+}

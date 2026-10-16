@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-107",
+  "case_revision_id": "paired-task-107.r3.on",
+  "revision_number": 3,
+  "content_hash": "f57a5cb738b9584849561217aa79392d04dc13f589f961a0807defed1a8bfcdb",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-107/prompt.txt",
+    "notes": "CVE upgrade prioritization (not blanket bump); seal CVE_PRIO. Orthogonal to 36 DEP_UPGRADE, 99 SBOM_OK, 70 LICENSE_NOTE.",
+    "hosted_pass_token": "CVE_PRIO"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [
+    "RuntimeStarted",
+    "JournalEnvelope"
+  ],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": true
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini",
+    "rev3": "协议探针换血：assistant_completed 属万象术 0.8 前 NDJSON 面，已消失；改用 2026-08-31 hosted 真跑实测命中的 EventStore Kind（RuntimeStarted / JournalEnvelope）"
+  }
+}

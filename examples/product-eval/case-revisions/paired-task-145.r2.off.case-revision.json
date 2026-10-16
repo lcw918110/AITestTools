@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-145",
+  "case_revision_id": "paired-task-145.r2.off",
+  "revision_number": 2,
+  "content_hash": "75ac102bdb231acf100073988ace55b818fe2fdcc50f0de7540215cdadb44fd6",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-145/prompt.txt",
+    "notes": "Batch export rate limiting; seal EXPORT_RL. Orthogonal to 84 RATE_LIMIT, 119 WATERMARK, 82 CAP_PLAN.",
+    "hosted_pass_token": "EXPORT_RL"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

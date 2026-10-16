@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-108",
+  "title": "配对任务 108（有插件）：只读副本延迟 REPLICA_LAG + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-108.r3.on",
+  "pair_key": "PAIRED-TASK-108"
+}

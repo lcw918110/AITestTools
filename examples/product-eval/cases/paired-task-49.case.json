@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-49",
+  "title": "配对任务 49（有插件）：扇出只读查询后合并 FANOUT_OK + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "tool"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-49.r3.on",
+  "pair_key": "PAIRED-TASK-49"
+}

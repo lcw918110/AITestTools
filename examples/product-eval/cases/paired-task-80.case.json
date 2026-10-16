@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-80",
+  "title": "配对任务 80（有插件）：竞态说明 RACE_NOTE + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-80.r3.on",
+  "pair_key": "PAIRED-TASK-80"
+}

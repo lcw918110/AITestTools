@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../schemas/candidate.schema.json",
+  "candidate_id": "hosted-plugin",
+  "name": "真 OpenCode + 万象术 Plugin（配对 treatment）。plugin 相对 SUT_ROOT。耐久为 EventStore（refs/wanxiang/store）。",
+  "host": {
+    "name": "opencode",
+    "version": "1.18.5"
+  },
+  "agent": {
+    "name": "orchestrator"
+  },
+  "plugin": {
+    "name": "wanxiangshu"
+  },
+  "model_routing": "hosted-plugin-v1",
+  "environment_profile": "hosted-plugin-v1"
+}

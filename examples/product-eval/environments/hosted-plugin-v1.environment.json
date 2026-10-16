@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../schemas/environment.schema.json",
+  "environment_profile_id": "hosted-plugin-v1",
+  "name": "hosted-plugin-v1",
+  "lifecycle": "active",
+  "recipe": {
+    "runtime": "opencode",
+    "host": "opencode@1.18.5",
+    "network_policy": "allow",
+    "isolation_profile": "isolated"
+  }
+}

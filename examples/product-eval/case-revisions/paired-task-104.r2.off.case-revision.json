@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-104",
+  "case_revision_id": "paired-task-104.r2.off",
+  "revision_number": 2,
+  "content_hash": "d2c306627c0c010d2447843884bf52a6e4644855f654b87872b888f9a0158f84",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-104/prompt.txt",
+    "notes": "Feature-flag blast-radius recheck before 100% ramp; seal FLAG_BLAST. Orthogonal to 87 FLAG_SAFE, 68 FLAG_CLEANUP, 76 CANARY_OK, 95 BLAST_RAD.",
+    "hosted_pass_token": "FLAG_BLAST"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

@@ -1,0 +1,94 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "paired-off-calibrate",
+  "name": "paired-off-calibrate",
+  "description": "难度校准：14 道 Text-only 旧题 + 3 道必须改仓库的效果题（157–159）。旧 14 题几乎全过、没有信息量；效果实验请跑 paired-off-effect-smoke。不要一上来跑 156。",
+  "case_revisions": [
+    {
+      "case_id": "paired-task-12",
+      "case_revision_id": "paired-task-12.r3.off",
+      "content_hash": "507d8ce9830fc0f25beccd57f041304e015d6f8d42fc5acc866b54ed7a2ab71a"
+    },
+    {
+      "case_id": "paired-task-15",
+      "case_revision_id": "paired-task-15.r3.off",
+      "content_hash": "c83bb8c96bd15957fbee32c2445736749b908af1d4ee8d178a163f9c49f812db"
+    },
+    {
+      "case_id": "paired-task-18",
+      "case_revision_id": "paired-task-18.r3.off",
+      "content_hash": "3bc03774a85565085a072b28f5f1a7c2d8746e662be8e7e95de6734c313e5cc8"
+    },
+    {
+      "case_id": "paired-task-19",
+      "case_revision_id": "paired-task-19.r3.off",
+      "content_hash": "0e3ef03343d4133081c7a8fbf1406a2b4602af02c76f4d7f7db60ed11b5afd42"
+    },
+    {
+      "case_id": "paired-task-41",
+      "case_revision_id": "paired-task-41.r3.off",
+      "content_hash": "517040fd15324b83686742766180630151b94b02550f469b9a1465d8c50bfa70"
+    },
+    {
+      "case_id": "paired-task-53",
+      "case_revision_id": "paired-task-53.r3.off",
+      "content_hash": "c95d985d971439d145aa3841cc182b9bea16ced56baed682ee52ef07504b12d9"
+    },
+    {
+      "case_id": "paired-task-54",
+      "case_revision_id": "paired-task-54.r3.off",
+      "content_hash": "0d06c1d2153eb6f85093e729288c92772ad841e0eebc6309bb9d2092d37bb294"
+    },
+    {
+      "case_id": "paired-task-76",
+      "case_revision_id": "paired-task-76.r3.off",
+      "content_hash": "94f3e651adfde52a0d039fdfeefc655c3c5e3da1f532492bb179feee498068c4"
+    },
+    {
+      "case_id": "paired-task-90",
+      "case_revision_id": "paired-task-90.r3.off",
+      "content_hash": "d33d171c26efcd6600493496cd25ffbd9d957fe950464b7634246035fd8bce52"
+    },
+    {
+      "case_id": "paired-task-92",
+      "case_revision_id": "paired-task-92.r3.off",
+      "content_hash": "42c21d0fe81e21eafbfa3120e9879af8d84779b929701433020b20dae74791b8"
+    },
+    {
+      "case_id": "paired-task-93",
+      "case_revision_id": "paired-task-93.r3.off",
+      "content_hash": "1bdacbd5dc908bebc5450ffcc84050270b931d9f6de55b582958c25861bfe713"
+    },
+    {
+      "case_id": "paired-task-103",
+      "case_revision_id": "paired-task-103.r3.off",
+      "content_hash": "d243ffcde17452dea991def69921d6e580d87748c510bf63b4d1383d45c582b8"
+    },
+    {
+      "case_id": "paired-task-105",
+      "case_revision_id": "paired-task-105.r3.off",
+      "content_hash": "157fac38db0b2bec8f451f263aeb9cef6b35f47df7bf9685acf2be037446b2bf"
+    },
+    {
+      "case_id": "paired-task-156",
+      "case_revision_id": "paired-task-156.r4.off",
+      "content_hash": "ec20d3ffce976709a9e750f7e71b92618bfcd7a59a9c050c07c786ee36b47348"
+    },
+    {
+      "case_id": "paired-task-157",
+      "case_revision_id": "paired-task-157.r1.off",
+      "content_hash": "1ba03fb41c82725ad6514bd1eb88bd8eaa9118265142a1b8bb0328474f9b30b6"
+    },
+    {
+      "case_id": "paired-task-158",
+      "case_revision_id": "paired-task-158.r1.off",
+      "content_hash": "091ab06393e9960d2e61c1173fa179d522f5ab90fc6ea6a70f1f367886de4722"
+    },
+    {
+      "case_id": "paired-task-159",
+      "case_revision_id": "paired-task-159.r1.off",
+      "content_hash": "74685e2b23e8614d97defda0196ba3610a7c12d7cf04b19f699b4f00d0f8ceb8"
+    }
+  ],
+  "closure_hash": "e8e23d68adcbab0df58d0d4310adf6c41d329d63f0ba83451c054f4adc9e13df"
+}

@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "paired-on-effect-smoke",
+  "name": "paired-on-effect-smoke",
+  "description": "实验 1 效果小样本：与 paired-off-effect-smoke 同题号的 ON 侧（有插件）。只变插件。",
+  "case_revisions": [
+    {
+      "case_id": "paired-task-157",
+      "case_revision_id": "paired-task-157.r1.on",
+      "content_hash": "1ba03fb41c82725ad6514bd1eb88bd8eaa9118265142a1b8bb0328474f9b30b6"
+    },
+    {
+      "case_id": "paired-task-158",
+      "case_revision_id": "paired-task-158.r1.on",
+      "content_hash": "091ab06393e9960d2e61c1173fa179d522f5ab90fc6ea6a70f1f367886de4722"
+    },
+    {
+      "case_id": "paired-task-159",
+      "case_revision_id": "paired-task-159.r1.on",
+      "content_hash": "74685e2b23e8614d97defda0196ba3610a7c12d7cf04b19f699b4f00d0f8ceb8"
+    }
+  ],
+  "closure_hash": "88379161b032fd4a10155066e5f2b3a9024162877e8408acb7fedea8753c29e8"
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-117",
+  "title": "配对任务 117（有插件）：配置热更新风险 CFG_HOT + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-117.r3.on",
+  "pair_key": "PAIRED-TASK-117"
+}

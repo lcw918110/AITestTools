@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-48",
+  "title": "配对任务 48（有插件）：有序工具链规划 TOOL_CHAIN_OK + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "tool"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-48.r3.on",
+  "pair_key": "PAIRED-TASK-48"
+}

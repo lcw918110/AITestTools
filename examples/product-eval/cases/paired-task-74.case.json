@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-74",
+  "title": "配对任务 74（有插件）：i18n 检查点 I18N_OK + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-74.r3.on",
+  "pair_key": "PAIRED-TASK-74"
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-125",
+  "title": "配对任务 125（有插件）：合成监控探针 SYNTH_OK + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-125.r3.on",
+  "pair_key": "PAIRED-TASK-125"
+}

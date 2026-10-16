@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-54",
+  "title": "配对任务 54（有插件）：工具必填参数 Schema 齐全 SCHEMA_OK + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "tool"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-54.r4.on",
+  "pair_key": "PAIRED-TASK-54"
+}

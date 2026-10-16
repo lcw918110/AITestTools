@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-50",
+  "title": "配对任务 50（有插件）：已采纳 ADR 变更纪律 ADR_STATUS + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "docs"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-50.r3.on",
+  "pair_key": "PAIRED-TASK-50"
+}

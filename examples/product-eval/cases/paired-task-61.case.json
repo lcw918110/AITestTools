@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-61",
+  "title": "配对任务 61（有插件）：功能迁移回滚计划 ROLLBACK_PLAN + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-61.r3.on",
+  "pair_key": "PAIRED-TASK-61"
+}

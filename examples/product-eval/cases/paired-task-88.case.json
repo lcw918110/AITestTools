@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-88",
+  "title": "配对任务 88（有插件）：告警疲劳治理 ALERT_GOV + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-88.r3.on",
+  "pair_key": "PAIRED-TASK-88"
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-59",
+  "title": "配对任务 59（有插件）：成功工具回包字段引用 RESULT_CITE + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "tool"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-59.r3.on",
+  "pair_key": "PAIRED-TASK-59"
+}

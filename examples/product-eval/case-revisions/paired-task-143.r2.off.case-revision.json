@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-143",
+  "case_revision_id": "paired-task-143.r2.off",
+  "revision_number": 2,
+  "content_hash": "4fa3c6af6c5037c73bd3ce7338d43402ecd6966012c200dc2d51a2cf9e8bcf1c",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-143/prompt.txt",
+    "notes": "Clock source NTP dependency; seal NTP_SRC. Orthogonal to 111 CLOCK_TTL, 122 LOCK_LEASE, 128 CERT_EXP.",
+    "hosted_pass_token": "NTP_SRC"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

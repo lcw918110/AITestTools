@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-17",
+  "title": "配对任务 17（有插件）：闲聊不调工具 TOOL_SKIP + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "tool"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-17.r3.on",
+  "pair_key": "PAIRED-TASK-17"
+}

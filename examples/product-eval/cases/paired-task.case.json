@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task",
+  "title": "配对任务（有插件）：同输入终态须含 ok 且写出 NDJSON",
+  "owner": "product-eval",
+  "tags": [],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task.r3.on",
+  "pair_key": "PAIRED-TASK-01"
+}

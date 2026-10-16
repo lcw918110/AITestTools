@@ -1,0 +1,74 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-158",
+  "case_revision_id": "paired-task-158.r1.on",
+  "revision_number": 1,
+  "content_hash": "091ab06393e9960d2e61c1173fa179d522f5ab90fc6ea6a70f1f367886de4722",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-158/prompt.txt",
+    "notes": "Align public port from test fixture; leave legacy. Seal PORT_SYNC.",
+    "hosted_pass_token": "PORT_SYNC"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      },
+      {
+        "id": "config-port",
+        "type": "workspace_assert",
+        "path": "config/app.json",
+        "contains": "\"port\": 8443",
+        "not_contains": "\"port\": 3000"
+      },
+      {
+        "id": "listen-port",
+        "type": "workspace_assert",
+        "path": "src/listen.js",
+        "contains": "8443",
+        "not_contains": "8080"
+      },
+      {
+        "id": "runbook-port",
+        "type": "workspace_assert",
+        "path": "docs/runbook.md",
+        "contains": "8443",
+        "not_contains": "9000"
+      },
+      {
+        "id": "legacy-hold",
+        "type": "workspace_assert",
+        "path": "src/legacy-compat.js",
+        "contains": "LEGACY_PORT = 7777",
+        "not_contains": "8443"
+      },
+      {
+        "id": "tests-hold",
+        "type": "workspace_assert",
+        "path": "tests/port.test.mjs",
+        "contains": "EXPECTED_PUBLIC_PORT = 8443"
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [
+    "RuntimeStarted",
+    "JournalEnvelope"
+  ],
+  "execution": {
+    "deadline_ms": 240000,
+    "requires_network": true,
+    "requires_durable_log": true
+  },
+  "change_log": {
+    "rev1": "效果实验：必须改仓库的三处端口对齐题"
+  }
+}

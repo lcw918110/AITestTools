@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-159",
+  "title": "配对任务 159（无插件）：查询解析与姓名校验 QUERY_WIRE",
+  "owner": "product-eval",
+  "tags": [
+    "workspace"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-159.r1.off",
+  "pair_key": "PAIRED-TASK-159"
+}

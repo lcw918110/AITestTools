@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../schemas/candidate.schema.json",
+  "candidate_id": "hosted-model-alt",
+  "name": "实验 2：同题换模型、无插件（相对 hosted-plain-v1 只改 host.model；默认 agnes/agnes-2.0-flash）。受管 agent 与 plain 同构，避免对照混入 agent 配置差。不要用 PROCTOR_HOSTED_MODEL 覆盖（会让 model_source 不再是 room）。",
+  "host": {
+    "name": "opencode",
+    "version": "1.18.5"
+  },
+  "agent": {
+    "name": "fast-coder"
+  },
+  "plugin": null,
+  "model_routing": "hosted-model-alt-v1",
+  "environment_profile": "hosted-model-alt-v1"
+}

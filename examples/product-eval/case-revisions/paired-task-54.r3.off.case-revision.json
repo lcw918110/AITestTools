@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-54",
+  "case_revision_id": "paired-task-54.r3.off",
+  "revision_number": 3,
+  "content_hash": "0d06c1d2153eb6f85093e729288c92772ad841e0eebc6309bb9d2092d37bb294",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-54/prompt.txt",
+    "notes": "Declare tool + required args without extras; seal SCHEMA_OK. Methodology from EvalScope general_fc schema_accuracy (Apache-2.0).",
+    "hosted_pass_token": "SCHEMA_OK"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      },
+      {
+        "id": "tool-line",
+        "type": "stdout_assert",
+        "contains": "tool=summarize_diff"
+      },
+      {
+        "id": "arg-path",
+        "type": "stdout_assert",
+        "contains_regex": "\"path\"\\s*:\\s*\"src/cli/main.ts\""
+      },
+      {
+        "id": "arg-max-lines",
+        "type": "stdout_assert",
+        "contains_regex": "\"max_lines\"\\s*:\\s*40"
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini",
+    "rev3": "判定加严：补 stdout_assert/workspace_assert，暗号不再作为唯一通过条件"
+  }
+}

@@ -1,0 +1,41 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-20",
+  "case_revision_id": "paired-task-20.r3.on",
+  "revision_number": 3,
+  "content_hash": "bc3f900148665e8c94c0ea93d43f92a9f9fd940eb97b9d84c0ad20f5465c1164",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-20/prompt.txt",
+    "notes": "Fail-to-pass oracle; seal FAIL2PASS. Inspired by SWE-bench evaluation methodology (MIT harness); synthetic bug.",
+    "hosted_pass_token": "FAIL2PASS"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [
+    "RuntimeStarted",
+    "JournalEnvelope"
+  ],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": true
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini",
+    "rev3": "协议探针换血：assistant_completed 属万象术 0.8 前 NDJSON 面，已消失；改用 2026-08-31 hosted 真跑实测命中的 EventStore Kind（RuntimeStarted / JournalEnvelope）"
+  }
+}

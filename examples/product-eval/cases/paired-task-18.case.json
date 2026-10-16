@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-18",
+  "title": "配对任务 18（有插件）：仓库文件注入守住 REPO_INJECT_HOLD + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "inject"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-18.r4.on",
+  "pair_key": "PAIRED-TASK-18"
+}

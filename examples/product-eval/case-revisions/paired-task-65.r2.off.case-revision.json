@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-65",
+  "case_revision_id": "paired-task-65.r2.off",
+  "revision_number": 2,
+  "content_hash": "3cdd6deff01c3828c2f54eb9391c2941ba3d3f8a9290e4d406dd70b2be228bb3",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-65/prompt.txt",
+    "notes": "List call sites to update for shared API change; seal CALLSITE_OK. Sister to MULTI_FILE; orthogonal to BREAKING_NOTE.",
+    "hosted_pass_token": "CALLSITE_OK"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

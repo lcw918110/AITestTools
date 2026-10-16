@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-152",
+  "case_revision_id": "paired-task-152.r2.off",
+  "revision_number": 2,
+  "content_hash": "dcfc3487cf34461c0aa804ebeb9fa5af749d8b13c7e70fd257c3045238ac24c8",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-152/prompt.txt",
+    "notes": "Health-check depth beyond liveness; seal HC_DEPTH. Orthogonal to 125 SYNTH_OK, 77 ERR_BUDGET, 88 ALERT_GOV.",
+    "hosted_pass_token": "HC_DEPTH"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

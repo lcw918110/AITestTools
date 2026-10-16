@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-83",
+  "title": "配对任务 83（有插件）：备份恢复演练清单 DR_DRILL + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-83.r3.on",
+  "pair_key": "PAIRED-TASK-83"
+}

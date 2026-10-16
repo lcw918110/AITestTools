@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-77",
+  "case_revision_id": "paired-task-77.r2.off",
+  "revision_number": 2,
+  "content_hash": "735d14533310a30ff71f18fe9e3b7a6dfd5beafcb8521694c157eb50f60cad16",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-77/prompt.txt",
+    "notes": "Error-budget/SLO gate before risky change; seal ERR_BUDGET. Orthogonal to PERF_WATCH, OBS_POINT, RISK_OK.",
+    "hosted_pass_token": "ERR_BUDGET"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

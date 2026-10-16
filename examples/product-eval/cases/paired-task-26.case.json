@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-26",
+  "title": "配对任务 26（有插件）：破坏性变更沟通 BREAKING_NOTE + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-26.r3.on",
+  "pair_key": "PAIRED-TASK-26"
+}

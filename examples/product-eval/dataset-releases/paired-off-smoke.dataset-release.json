@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "paired-off-smoke",
+  "name": "paired-off-smoke",
+  "description": "配对 baseline 的 3 题冒烟：先验证 LIVE 链路通，再跑全量 156，避免一上来烧额度",
+  "case_revisions": [
+    {
+      "case_id": "paired-task",
+      "case_revision_id": "paired-task.r2.off",
+      "content_hash": "701f25076470480f33fb20a06c649c2846f3c6b86d3721c0a7c3f350ec8b0fe9"
+    },
+    {
+      "case_id": "paired-task-02",
+      "case_revision_id": "paired-task-02.r6.off",
+      "content_hash": "b73f222684dc6716b499f7a5c6410f24e634ce88730284b9874784a26d32dde7"
+    },
+    {
+      "case_id": "paired-task-03",
+      "case_revision_id": "paired-task-03.r2.off",
+      "content_hash": "7b0bacaab8fa4057f18c9e77666e71519e154b12a07f9db673a586a369d74b5f"
+    }
+  ],
+  "closure_hash": "935c26dcf2ea74d4dc43b9d65ef04f51c4cd33ba20856ebbdd3b24e7fc773f46"
+}

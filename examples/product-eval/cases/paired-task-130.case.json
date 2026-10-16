@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-130",
+  "title": "配对任务 130（有插件）：发布备注受众分层 NOTE_AUD + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-130.r3.on",
+  "pair_key": "PAIRED-TASK-130"
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-126",
+  "case_revision_id": "paired-task-126.r2.off",
+  "revision_number": 2,
+  "content_hash": "c294e490446d722892719ea12f51ce490b7551fa252236d9d06020dd5ee558c1",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-126/prompt.txt",
+    "notes": "Dependency circuit breaker; seal CIRCUIT_BR. Orthogonal to 84 RATE_LIMIT, 115 BACKPRESS, 121 RETRY_CAP, 79 IDEMPOTENT.",
+    "hosted_pass_token": "CIRCUIT_BR"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

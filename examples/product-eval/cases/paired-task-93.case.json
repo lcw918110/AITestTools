@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-93",
+  "title": "配对任务 93（有插件）：未批准外联拒绝 EGRESS_REFUSE + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-93.r4.on",
+  "pair_key": "PAIRED-TASK-93"
+}

@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-24",
+  "title": "配对任务 24（有插件）：逻辑变更同 CL 带测 TEST_SAME_CL + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-24.r3.on",
+  "pair_key": "PAIRED-TASK-24"
+}

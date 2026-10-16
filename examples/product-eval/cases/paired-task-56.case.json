@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-56",
+  "title": "配对任务 56（有插件）：实现步骤与接口契约收束 IMPL_STEPS + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-56.r3.on",
+  "pair_key": "PAIRED-TASK-56"
+}

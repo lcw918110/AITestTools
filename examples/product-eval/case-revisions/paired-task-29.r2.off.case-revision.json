@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-29",
+  "case_revision_id": "paired-task-29.r2.off",
+  "revision_number": 2,
+  "content_hash": "a09e74bea77e0941fc55b329c011f10de99f7796eba664b53edca3556cbc65d0",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-29/prompt.txt",
+    "notes": "Refuse done without tests; seal TEST_GAP. Inspired by unit-test-as-oracle mindset (HumanEval MIT / MBPP CC-BY-4.0 methodology only).",
+    "hosted_pass_token": "TEST_GAP"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

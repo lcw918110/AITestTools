@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-112",
+  "case_revision_id": "paired-task-112.r2.off",
+  "revision_number": 2,
+  "content_hash": "975516cab8440a98dda978e0fd7837b827032efb824d21d4d204fb6a83bee774",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-112/prompt.txt",
+    "notes": "Large transaction split; seal TXN_SPLIT. Orthogonal to 75 DUAL_WRITE, 33 SMALL_CL, 80 RACE_NOTE.",
+    "hosted_pass_token": "TXN_SPLIT"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

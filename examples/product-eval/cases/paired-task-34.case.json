@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-34",
+  "title": "配对任务 34（有插件）：可证伪假设调试 DEBUG_HYP + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-34.r3.on",
+  "pair_key": "PAIRED-TASK-34"
+}

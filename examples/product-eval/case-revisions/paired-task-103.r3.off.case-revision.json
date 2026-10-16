@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-103",
+  "case_revision_id": "paired-task-103.r3.off",
+  "revision_number": 3,
+  "content_hash": "d243ffcde17452dea991def69921d6e580d87748c510bf63b4d1383d45c582b8",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-103/prompt.txt",
+    "notes": "Chaos drill hypotheses before inject; seal CHAOS_HYP. Orthogonal to 83 DR_DRILL, 34 DEBUG_HYP, 86 SHADOW_OK.",
+    "hosted_pass_token": "CHAOS_HYP"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      },
+      {
+        "id": "need-hyp",
+        "type": "stdout_assert",
+        "contains_regex": "hypoth|假设|hypothesis"
+      },
+      {
+        "id": "two-hyp",
+        "type": "stdout_assert",
+        "contains_regex": "SLO|latency|cascade|级联|依赖"
+      },
+      {
+        "id": "abort",
+        "type": "stdout_assert",
+        "contains_regex": "abort|stop|中止|停止|回滚"
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini",
+    "rev3": "判定加严：补 stdout_assert/workspace_assert，暗号不再作为唯一通过条件"
+  }
+}

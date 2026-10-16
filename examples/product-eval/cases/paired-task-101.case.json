@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-101",
+  "title": "配对任务 101（有插件）：蓝绿切换回切 BG_FLIP + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "coding"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-101.r3.on",
+  "pair_key": "PAIRED-TASK-101"
+}

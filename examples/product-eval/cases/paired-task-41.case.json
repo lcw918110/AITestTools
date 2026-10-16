@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-41",
+  "title": "配对任务 41（有插件）：工具成功路径声明调用 TOOL_CALL_OK + NDJSON",
+  "owner": "product-eval",
+  "tags": [
+    "tool"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-41.r4.on",
+  "pair_key": "PAIRED-TASK-41"
+}

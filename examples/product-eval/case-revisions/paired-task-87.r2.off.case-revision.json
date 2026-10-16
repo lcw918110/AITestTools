@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-87",
+  "case_revision_id": "paired-task-87.r2.off",
+  "revision_number": 2,
+  "content_hash": "d981d4929753d0a76ff740cded85a2de579b152ee7379ea480dcf058d07bde6a",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-87/prompt.txt",
+    "notes": "Feature-flag default-safe / fail-closed; seal FLAG_SAFE. Orthogonal to FLAG_CLEANUP post-GA, CANARY_OK ramp.",
+    "hosted_pass_token": "FLAG_SAFE"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

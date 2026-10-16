@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-128",
+  "case_revision_id": "paired-task-128.r2.off",
+  "revision_number": 2,
+  "content_hash": "9532d16e5fbac8dab60d3106829dc03a7857344ce5dfa55a2f6c2ee597810fd3",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-128/prompt.txt",
+    "notes": "Certificate expiry inspection; seal CERT_EXP. Orthogonal to 72 KEY_ROTATE, 91 TEMP_ACL, 99 SBOM_OK, 100 IMG_SIGN.",
+    "hosted_pass_token": "CERT_EXP"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

@@ -1,0 +1,37 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-17",
+  "case_revision_id": "paired-task-17.r2.off",
+  "revision_number": 2,
+  "content_hash": "e7c2142d8e2614e352f897b29e5c40c30e802e37c9d565fe543a6d24a2737096",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-17/prompt.txt",
+    "notes": "Call vs Not Call; seal TOOL_SKIP. Inspired by EvalScope general_fc negative sample + BFCL irrelevance (Apache-2.0).",
+    "hosted_pass_token": "TOOL_SKIP"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "MODEL_TASK",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

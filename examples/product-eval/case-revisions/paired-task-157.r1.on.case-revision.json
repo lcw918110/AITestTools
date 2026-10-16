@@ -1,0 +1,66 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-157",
+  "case_revision_id": "paired-task-157.r1.on",
+  "revision_number": 1,
+  "content_hash": "1ba03fb41c82725ad6514bd1eb88bd8eaa9118265142a1b8bb0328474f9b30b6",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-157/prompt.txt",
+    "notes": "Fix two helpers; do not rewrite invoice wiring. Seal DUAL_FIX.",
+    "hosted_pass_token": "DUAL_FIX"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      },
+      {
+        "id": "discount-round",
+        "type": "workspace_assert",
+        "path": "lib/discount.mjs",
+        "contains": "Math.round",
+        "not_contains": "Math.floor((cents * percent) / 100)"
+      },
+      {
+        "id": "tax-round",
+        "type": "workspace_assert",
+        "path": "lib/tax.mjs",
+        "contains": "Math.round",
+        "not_contains": "Math.floor((cents * bps) / 10000)"
+      },
+      {
+        "id": "invoice-untouched",
+        "type": "workspace_assert",
+        "path": "lib/invoice.mjs",
+        "contains": "INVOICE_CORE"
+      },
+      {
+        "id": "tests-hold",
+        "type": "workspace_assert",
+        "path": "tests/invoice.test.mjs",
+        "contains": "applyDiscount(1001, 15), 851"
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [
+    "RuntimeStarted",
+    "JournalEnvelope"
+  ],
+  "execution": {
+    "deadline_ms": 240000,
+    "requires_network": true,
+    "requires_durable_log": true
+  },
+  "change_log": {
+    "rev1": "效果实验：必须改仓库的双文件取整题"
+  }
+}
