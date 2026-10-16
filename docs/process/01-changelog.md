@@ -413,3 +413,15 @@
 - run.ts 数据源切换：`AssetKind` 扩展 cases-v1 目录；`runCommandV2` 走 dataset-release→case-revision→适配层→复用 `runOneItem`；CLI 新增 `--dataset/--environment` 显式组合（与 papers-v1 路径并存）
 - 端到端验证：`proctor run --dataset eval-agent --environment hosted-plain-v1 --only paired-task-22-off` 单题跑通 PASS
 - 决策：CLI 显式组合（DatasetRelease 保持纯冻结闭包）；`intent.statement` 不使用则去掉
+
+**item_id 还原 + 历史 run 兼容（2026-10-17）：**
+
+- 适配层 `caseIdToV1ItemId` 反向映射 case_id→V1 item_id（`EVAL-B-` 前缀 + 大写 + 变体后缀），318 个 item.id 精确还原 0 处不符
+- 历史 run 兼容验证：45 个历史 run 全部可读 0 失败（`loadRunArtifacts` 只读 results.ndjson/metrics/scores，格式稳定）；compare 新旧 run、历史 paired-off vs paired-on 配对均正常对齐
+- 清理 2 个测试残留 run（id 还原修复前的产物），runs 目录恢复纯历史数据
+
+**测试补强（2026-10-17）：**
+
+- `revisionDigest` 全量验证 318 个（原抽查 3 个），固化「引擎 digest 与迁移脚本 contentHash 语义一致」的无损保证
+- 适配层测试补 318 个 item.id 全量还原 V1 格式
+- 抽取 `resolveDatasetItems` 纯函数，新增 run-v2 测试 4 用例（数据加载链路 / OFF-ON 跨 release 配对 / 错误路径）
