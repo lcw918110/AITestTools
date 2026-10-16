@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { ItemDoc } from './types.ts';
+import type { CaseRevision, ItemDoc } from './types.ts';
 
 export function canonicalize(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
@@ -15,6 +15,7 @@ function sha256(input: string): string {
   return createHash('sha256').update(input, 'utf8').digest('hex');
 }
 
+/** @deprecated 使用 revisionDigest。基于 V1 字段（axis/freeze/...）。 */
 export function semanticDigest(doc: ItemDoc): string {
   return sha256(
     canonicalize({
@@ -24,6 +25,23 @@ export function semanticDigest(doc: ItemDoc): string {
       expect: doc.expect,
       metrics: doc.metrics,
       execution: doc.execution,
+    }),
+  );
+}
+
+/**
+ * CaseRevision 内容摘要（cases-v1）。
+ * 基于输入/前提/预期/Oracle/Rubric/证据/清理 的规范化摘要。
+ * 与 scripts/migrate-v2.mjs 的 contentHash 语义一致。
+ */
+export function revisionDigest(doc: CaseRevision): string {
+  return sha256(
+    canonicalize({
+      stimulus: doc.stimulus,
+      preconditions: doc.preconditions ?? [],
+      expect: doc.expect,
+      evidence_requirements: doc.evidence_requirements ?? [],
+      setup_cleanup: doc.setup_cleanup ?? [],
     }),
   );
 }

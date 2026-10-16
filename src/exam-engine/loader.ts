@@ -13,9 +13,26 @@
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative, resolve } from 'node:path';
-import type { ItemDoc, LoadedAsset, PapersetDoc, RoomDoc } from './types.ts';
+import type {
+  CandidateConfig,
+  Case,
+  CaseRevision,
+  DatasetRelease,
+  EnvironmentProfile,
+  ItemDoc,
+  LoadedAsset,
+  PapersetDoc,
+  RoomDoc,
+} from './types.ts';
 
 export const ITEM_SUFFIX = '.item.json';
+
+// ── cases-v1 资产后缀（V2.17 深迁移） ──
+export const CASE_SUFFIX_V2 = '.case.json';
+export const CASE_REVISION_SUFFIX_V2 = '.case-revision.json';
+export const DATASET_RELEASE_SUFFIX_V2 = '.dataset-release.json';
+export const ENVIRONMENT_SUFFIX_V2 = '.environment.json';
+export const CANDIDATE_SUFFIX_V2 = '.candidate.json';
 
 export function collectFiles(dir: string, suffix: string): string[] {
   if (!existsSync(dir)) return [];
@@ -74,3 +91,30 @@ export const loadCases = loadItems;
 export const loadSuites = loadPapersets;
 /** @deprecated */
 export const loadProfiles = loadRooms;
+
+// ── cases-v1 加载器（V2.17 深迁移） ──
+
+/** 加载 Case 逻辑身份（*.case.json）。 */
+export function loadCasesV2(dir: string, root: string): LoadedAsset<Case>[] {
+  return collectFiles(dir, CASE_SUFFIX_V2).map((f) => read<Case>(f, root));
+}
+
+/** 加载 CaseRevision 不可变修订（*.case-revision.json）。 */
+export function loadCaseRevisions(dir: string, root: string): LoadedAsset<CaseRevision>[] {
+  return collectFiles(dir, CASE_REVISION_SUFFIX_V2).map((f) => read<CaseRevision>(f, root));
+}
+
+/** 加载 DatasetRelease 冻结闭包（*.dataset-release.json）。 */
+export function loadDatasetReleases(dir: string, root: string): LoadedAsset<DatasetRelease>[] {
+  return collectFiles(dir, DATASET_RELEASE_SUFFIX_V2).map((f) => read<DatasetRelease>(f, root));
+}
+
+/** 加载 EnvironmentProfile 环境配方（*.environment.json）。 */
+export function loadEnvironments(dir: string, root: string): LoadedAsset<EnvironmentProfile>[] {
+  return collectFiles(dir, ENVIRONMENT_SUFFIX_V2).map((f) => read<EnvironmentProfile>(f, root));
+}
+
+/** 加载 CandidateConfig 候选配置（*.candidate.json）。 */
+export function loadCandidates(dir: string, root: string): LoadedAsset<CandidateConfig>[] {
+  return collectFiles(dir, CANDIDATE_SUFFIX_V2).map((f) => read<CandidateConfig>(f, root));
+}
