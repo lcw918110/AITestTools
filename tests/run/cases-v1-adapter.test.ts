@@ -32,8 +32,9 @@ describe('cases-v1 适配层（阶段 4a）', () => {
     expect(item.intent.attribution_focus).toBe(rev.attribution_focus);
     expect(item.intent.effect_pair).toBe(caseDoc.pair_key);
     // freeze（基准模型）
-    expect(item.freeze.model_id).toBe(rev.model_id);
-    expect(item.freeze.channel).toBe('hosted');
+    expect(item.freeze.model_driver).toBe('live');
+    expect('model_id' in item.freeze ? item.freeze.model_id : undefined).toBe(rev.model_id);
+    expect('channel' in item.freeze ? item.freeze.channel : undefined).toBe('hosted');
     // stimulus（含暗号）
     expect(item.stimulus.ref).toBe(rev.stimulus.ref);
     expect(item.stimulus.hosted_pass_token).toBe(rev.stimulus.hosted_pass_token);

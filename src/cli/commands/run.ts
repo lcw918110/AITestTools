@@ -1,5 +1,13 @@
 import { join } from 'node:path';
-import { loadItems, loadPapersets, loadRooms } from '../../exam-engine/loader.ts';
+import {
+  loadItems,
+  loadPapersets,
+  loadRooms,
+  loadCasesV2,
+  loadCaseRevisions,
+  loadDatasetReleases,
+  loadEnvironments,
+} from '../../exam-engine/loader.ts';
 import { loadProject } from '../../exam-engine/project.ts';
 import type { FreezeA, ItemDoc, RoomDoc } from '../../exam-engine/types.ts';
 import { runBDirectItem } from '../../run/b-runner.ts';
@@ -10,6 +18,10 @@ import { runL2Item, type AxisItemResult } from '../../run/l2-runner.ts';
 import { runL3Item } from '../../run/l3-runner.ts';
 import { writeRunArtifacts } from '../../run/write-artifacts.ts';
 import { formatPassTokenCell } from '../../run/hosted-pass-token.ts';
+import {
+  caseRevisionToItemDoc,
+  environmentToRoom,
+} from '../../run/cases-v1-adapter.ts';
 import {
   formatHostExitCell,
   formatTimedOutCell,
@@ -25,6 +37,10 @@ export interface RunOptions {
   concurrency?: number | undefined;
   /** 只跑试卷中的这些试题 id；不写回组卷。 */
   only?: string[] | undefined;
+  /** cases-v1：dataset-release 名（与 environment 组合，替代 paperset）。 */
+  dataset?: string | undefined;
+  /** cases-v1：environment 名（与 dataset 组合）。 */
+  environment?: string | undefined;
 }
 
 function runId(): string {
@@ -116,6 +132,11 @@ async function runOneItem(opts: {
 }
 
 export async function runCommand(options: RunOptions): Promise<number> {
+  // cases-v1 路径：dataset-release × environment 显式组合（V2.17 口径）
+  if (options.dataset !== undefined && options.environment !== undefined) {
+    return runCommandV2(options);
+  }
+
   const project = loadProject(options.project);
   const papersets = loadPapersets(project.dirs.papersets, project.root);
   const ps = papersets.find((p) => p.doc.name === options.paperset);
@@ -240,6 +261,125 @@ export async function runCommand(options: RunOptions): Promise<number> {
       for (const g of gate_evaluations) {
         console.log(`  ${g.pass ? 'PASS' : 'FAIL'}  ${g.name}: ${g.message}`);
       }
+    }
+  }
+
+  return itemsPass && gates_pass ? 0 : 1;
+}
+
+/**
+ * cases-v1 执行路径（阶段 4a）：dataset-release × environment 显式组合。
+ *
+ * 与 V1 路径（paperset 绑死 room）的区别：
+ * - 数据源：dataset-release（冻结闭包）→ case-revision，environment → room
+ * - 组合：运行时显式指定 --dataset + --environment，不写回资产
+ * - 执行：适配层还原 ItemDoc/RoomDoc 后复用 runOneItem（绞杀者模式）
+ */
+async function runCommandV2(options: RunOptions): Promise<number> {
+  const project = loadProject(options.project);
+  const datasetName = options.dataset!;
+  const environmentName = options.environment!;
+
+  const releases = loadDatasetReleases(project.dirs.dataset_releases, project.root);
+  const release = releases.find((r) => r.doc.dataset_release_id === datasetName);
+  if (release === undefined) {
+    console.error(`找不到 dataset-release：${datasetName}`);
+    return 1;
+  }
+
+  const envs = loadEnvironments(project.dirs.environments, project.root);
+  const env = envs.find((e) => e.doc.environment_profile_id === environmentName);
+  if (env === undefined) {
+    console.error(`找不到 environment：${environmentName}`);
+    return 1;
+  }
+
+  const cases = loadCasesV2(project.dirs.cases, project.root);
+  const revisions = loadCaseRevisions(project.dirs.case_revisions, project.root);
+  const caseById = new Map(cases.map((c) => [c.doc.case_id, c.doc]));
+  const revById = new Map(revisions.map((r) => [r.doc.case_revision_id, r.doc]));
+
+  // 还原 ItemDoc（按 dataset-release 的 case_revisions 顺序）
+  const selected: ItemDoc[] = [];
+  for (const ref of release.doc.case_revisions) {
+    const rev = revById.get(ref.case_revision_id);
+    const caseDoc = caseById.get(ref.case_id);
+    if (rev === undefined || caseDoc === undefined) {
+      console.error(
+        `dataset-release 引用了不存在的修订：${ref.case_revision_id}（case=${ref.case_id}）`,
+      );
+      return 1;
+    }
+    selected.push(caseRevisionToItemDoc(rev, caseDoc));
+  }
+
+  const only = options.only;
+  let filtered = selected;
+  if (only !== undefined && only.length > 0) {
+    const allow = new Set(only);
+    filtered = selected.filter((s) => allow.has(s.id));
+    if (filtered.length === 0) {
+      console.error('--only 过滤后没有试题');
+      return 1;
+    }
+  }
+
+  const rid = runId();
+  const runsRoot = project.dirs.runs;
+  const room = environmentToRoom(env.doc);
+  const models = resolveModels(undefined);
+  const sutEnv = project.manifest.system_under_test?.root_env;
+  const sutRoot = sutEnv !== undefined ? process.env[sutEnv] : undefined;
+
+  const concurrency = Math.max(1, options.concurrency ?? 1);
+
+  let batchResults: AxisItemResult[][];
+  try {
+    batchResults = await mapPool(filtered, concurrency, async (item) => {
+      const artifactDir = join(runsRoot, rid, 'artifacts', item.id);
+      return runOneItem({
+        item,
+        room,
+        projectRoot: project.root,
+        artifactDir,
+        models,
+        sutRoot,
+      });
+    });
+  } catch (e) {
+    console.error((e as Error).message);
+    return 2;
+  }
+
+  const results = batchResults.flat();
+
+  const { dir, gate_evaluations, gates_pass } = writeRunArtifacts({
+    runsRoot,
+    meta: {
+      run_id: rid,
+      axis: 'B',
+      paperset: datasetName,
+      room: env.doc.environment_profile_id,
+      started_at: new Date().toISOString(),
+      project_root: project.root,
+      items: filtered.map((i) => ({ id: i.id, rev: i.rev })),
+    },
+    results,
+    gates: undefined,
+  });
+
+  const itemsPass = results.every((r) => r.pass);
+
+  if (options.json) {
+    console.log(JSON.stringify({ run_dir: dir, results, gate_evaluations, gates_pass }, null, 2));
+  } else {
+    const passed = results.filter((r) => r.pass).length;
+    console.log(`run 完成：${dir}`);
+    console.log(`${passed}/${results.length} 试题通过`);
+    for (const r of results) {
+      const mark = r.pass ? 'PASS' : 'FAIL';
+      console.log(`  ${mark}  ${r.item_id}@rev${r.item_rev}${r.attribution ? ` [${r.attribution}]` : ''}`);
+      for (const f of r.oracle_failures) console.log(`        - ${f.oracle_id}: ${f.message}`);
     }
   }
 

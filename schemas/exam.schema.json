@@ -43,7 +43,12 @@
         "cassettes": { "type": "string" },
         "contracts": { "type": "string" },
         "shells": { "type": "string" },
-        "runs": { "type": "string" }
+        "runs": { "type": "string" },
+        "cases": { "type": "string" },
+        "case_revisions": { "type": "string" },
+        "dataset_releases": { "type": "string" },
+        "environments": { "type": "string" },
+        "candidates": { "type": "string" }
       }
     },
     "defaults": {

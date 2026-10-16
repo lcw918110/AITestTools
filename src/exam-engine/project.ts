@@ -15,6 +15,11 @@ const DEFAULT_PATHS: Record<AssetKind, string> = {
   contracts: 'contracts',
   shells: 'shells',
   runs: 'runs',
+  cases: 'cases',
+  case_revisions: 'case-revisions',
+  dataset_releases: 'dataset-releases',
+  environments: 'environments',
+  candidates: 'candidates',
 };
 
 export interface ExamProject {

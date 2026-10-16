@@ -415,7 +415,8 @@ export interface ExamManifest {
 /** @deprecated 使用 Artifact。 */
 export type AssetKind =
   | 'items' | 'papersets' | 'rooms' | 'materials'
-  | 'scripts' | 'cassettes' | 'contracts' | 'shells' | 'runs';
+  | 'scripts' | 'cassettes' | 'contracts' | 'shells' | 'runs'
+  | 'cases' | 'case_revisions' | 'dataset_releases' | 'environments' | 'candidates';
 
 /** @deprecated 使用 Artifact。 */
 export interface LoadedAsset<T> {

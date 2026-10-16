@@ -35,6 +35,7 @@ const HELP = `agent-proctor — 第三方独立 Agent 监考/评测引擎
   proctor cassette record --from <trace> --id <名>
   proctor run --axis A --paperset <名>    执行试卷（A-L1 / A-L2 / A-L3）
   proctor run --axis C --paperset <名>    C 轴 CLI 壳
+  proctor run --dataset <名> --environment <名>   cases-v1：测试集 × 运行环境组合开跑
   proctor compare --baseline <run> --candidate <run>
   proctor baseline pin --run <run> --name <别名>
   proctor score write --run <run> --item <id> --value <分> [--max 5]
@@ -50,6 +51,7 @@ const HELP = `agent-proctor — 第三方独立 Agent 监考/评测引擎
   --name <名称>        init / baseline / 变更说明 / score 备注
   --id / --layer / --title / --map / --from / --contract / --script
   --axis / --paperset  run
+  --dataset / --environment  run（cases-v1：测试集 × 运行环境组合）
   --only <试题id>      run：只跑试卷中的这些题（可重复；不写回组卷）
   --concurrency <N>    run 试题并发（默认 1；hosted 建议 1）
   --metric / --limit   report trend
@@ -89,6 +91,8 @@ export async function main(argv: string[]): Promise<number> {
         axis: { type: 'string' },
         paperset: { type: 'string' },
         suite: { type: 'string' },
+        dataset: { type: 'string' },
+        environment: { type: 'string' },
         only: { type: 'string', multiple: true },
         concurrency: { type: 'string' },
         metric: { type: 'string' },
@@ -128,8 +132,26 @@ export async function main(argv: string[]): Promise<number> {
   if (group === 'run') {
     const axis = values.axis;
     const paperset = values.paperset ?? values.suite;
+    const dataset = values.dataset;
+    const environment = values.environment;
+    // cases-v1 路径：--dataset + --environment 显式组合（无 --axis/--paperset）
+    if (dataset !== undefined && environment !== undefined) {
+      const concRaw = values.concurrency;
+      const concurrency =
+        concRaw === undefined ? undefined : Math.max(1, Number.parseInt(concRaw, 10) || 1);
+      return runCommand({
+        project: values.project,
+        axis: 'B',
+        paperset: dataset,
+        json: values.json === true,
+        concurrency,
+        dataset,
+        environment,
+        ...(values.only !== undefined ? { only: values.only } : {}),
+      });
+    }
     if (axis === undefined || paperset === undefined) {
-      console.error('用法错误：proctor run 需要 --axis 与 --paperset');
+      console.error('用法错误：proctor run 需要 --axis 与 --paperset，或 --dataset 与 --environment');
       return 2;
     }
     const concRaw = values.concurrency;
