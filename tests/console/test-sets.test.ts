@@ -2,60 +2,119 @@ import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import {
-  createTestSet,
-  listTestSets,
-  testSetIdFromPaperset,
-} from '../../apps/console/test-sets.ts';
+import { createTestSet, listTestSets, testSetIdFromRelease } from '../../apps/console/test-sets.ts';
 
+/**
+ * 阶段 5 步骤 1：test-sets 读路径从 papersets/ 切换到 dataset-releases/。
+ * 红测：seed cases-v1 资产（dataset-release），验证 listTestSets 等价归并。
+ */
 function seed(): string {
   const root = mkdtempSync(join(tmpdir(), 'proctor-ts-'));
+  mkdirSync(join(root, 'dataset-releases'), { recursive: true });
   mkdirSync(join(root, 'papersets'), { recursive: true });
-  const files: Array<[string, string[]]> = [
-    ['paired-off.json', ['EVAL-B-PAIRED-TASK-02-OFF']],
-    ['paired-on.json', ['EVAL-B-PAIRED-TASK-02-ON']],
-    ['paired-off-effect-smoke.json', ['EVAL-B-PAIRED-TASK-157-OFF']],
-    ['paired-on-effect-smoke.json', ['EVAL-B-PAIRED-TASK-157-ON']],
-    ['eval-model.json', ['EVAL-B-PAIRED-TASK-02-OFF']],
-    ['eval-agent.json', ['EVAL-B-PAIRED-TASK-02-OFF']],
+  const files: Array<
+    [string, Array<{ case_id: string; case_revision_id: string; content_hash: string }>]
+  > = [
+    [
+      'paired-off',
+      [
+        {
+          case_id: 'paired-task-02',
+          case_revision_id: 'paired-task-02.r6.off',
+          content_hash: 'h1',
+        },
+      ],
+    ],
+    [
+      'paired-on',
+      [{ case_id: 'paired-task-02', case_revision_id: 'paired-task-02.r7.on', content_hash: 'h2' }],
+    ],
+    [
+      'paired-off-effect-smoke',
+      [
+        {
+          case_id: 'paired-task-157',
+          case_revision_id: 'paired-task-157.r2.off',
+          content_hash: 'h3',
+        },
+      ],
+    ],
+    [
+      'paired-on-effect-smoke',
+      [
+        {
+          case_id: 'paired-task-157',
+          case_revision_id: 'paired-task-157.r3.on',
+          content_hash: 'h4',
+        },
+      ],
+    ],
+    [
+      'eval-model',
+      [
+        {
+          case_id: 'paired-task-02',
+          case_revision_id: 'paired-task-02.r6.off',
+          content_hash: 'h1',
+        },
+      ],
+    ],
+    [
+      'eval-agent',
+      [
+        {
+          case_id: 'paired-task-02',
+          case_revision_id: 'paired-task-02.r6.off',
+          content_hash: 'h1',
+        },
+      ],
+    ],
   ];
-  for (const [name, items] of files) {
+  for (const [name, caseRevisions] of files) {
     writeFileSync(
-      join(root, 'papersets', name),
-      `${JSON.stringify({ name: name.replace(/\.json$/, ''), items }, null, 2)}\n`,
+      join(root, 'dataset-releases', `${name}.dataset-release.json`),
+      `${JSON.stringify({ dataset_release_id: name, name, case_revisions: caseRevisions }, null, 2)}\n`,
     );
   }
   return root;
 }
 
-describe('test-sets', () => {
+describe('test-sets（cases-v1 读路径）', () => {
   let root = '';
   afterEach(() => {
     if (root) rmSync(root, { recursive: true, force: true });
     root = '';
   });
 
-  it('从成对 paperset 归并，排除 eval-model', () => {
+  it('从成对 dataset-release 归并，排除 eval-model', () => {
     root = seed();
     const sets = listTestSets(root);
     expect(sets.map((s) => s.id).sort()).toEqual(['effect-smoke', 'full'].sort());
     expect(sets.find((s) => s.id === 'full')?.label).toBe('全量');
     expect(sets.find((s) => s.id === 'effect-smoke')?.taskIds).toEqual(['PAIRED-TASK-157']);
-    expect(testSetIdFromPaperset('eval-model')).toBeUndefined();
+    expect(testSetIdFromRelease('eval-model')).toBeUndefined();
   });
 
-  it('新建空测试集写两侧文件', () => {
+  it('新建空测试集写两侧 dataset-release 文件', () => {
     root = seed();
     const created = createTestSet(root, { name: '本周对照', description: '自建' });
     expect('error' in created).toBe(false);
     if ('error' in created) return;
     expect(created.id).toMatch(/^ts-[a-z0-9]+$/);
-    expect(created.offPaperset).toBe(`paired-off-${created.id}`);
-    expect(existsSync(join(root, 'papersets', `${created.offPaperset}.json`))).toBe(true);
+    expect(created.offRelease).toBe(`paired-off-${created.id}`);
+    expect(
+      existsSync(join(root, 'dataset-releases', `${created.offRelease}.dataset-release.json`)),
+    ).toBe(true);
     const off = JSON.parse(
-      readFileSync(join(root, 'papersets', `${created.offPaperset}.json`), 'utf8'),
-    ) as { items: string[] };
-    expect(off.items).toEqual([]);
+      readFileSync(
+        join(root, 'dataset-releases', `${created.offRelease}.dataset-release.json`),
+        'utf8',
+      ),
+    ) as { case_revisions: unknown[] };
+    expect(off.case_revisions).toEqual([]);
+    // 过渡：写路径（bank.ts）迁移前，须同步创建 papersets 兼容文件供录题。
+    expect(existsSync(join(root, 'papersets', `${created.offRelease}.json`))).toBe(true);
+    expect(existsSync(join(root, 'papersets', `${created.onRelease}.json`))).toBe(true);
     expect(listTestSets(root).some((s) => s.id === created.id)).toBe(true);
   });
 });

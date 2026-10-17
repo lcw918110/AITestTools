@@ -14,7 +14,7 @@ import {
   type ExamMode,
   type ExperimentId,
 } from './run-plan.ts';
-import { getTestSet, testSetIdFromPaperset } from './test-sets.ts';
+import { getTestSet, testSetIdFromRelease } from './test-sets.ts';
 
 export const EVAL_TASK_ID_RE = /^et-[a-z0-9]+$/;
 
@@ -94,11 +94,11 @@ function resolveTestSetRef(
   if (sid) {
     const ts = getTestSet(project, sid);
     if ('error' in ts) return ts;
-    return { testSetId: ts.id, paperset: ts.offPaperset };
+    return { testSetId: ts.id, paperset: ts.offRelease };
   }
   const ps = paperset?.trim();
   if (ps) {
-    const derived = testSetIdFromPaperset(ps) ?? 'full';
+    const derived = testSetIdFromRelease(ps) ?? 'full';
     return { paperset: ps, testSetId: derived };
   }
   return { paperset: defaultPaperset(kind), testSetId: 'full' };
@@ -146,7 +146,7 @@ function readTaskFile(file: string): { ok: true; task: EvalTask } | { ok: false;
   const testSetId =
     typeof doc.testSetId === 'string' && doc.testSetId
       ? doc.testSetId
-      : (testSetIdFromPaperset(paperset) ?? 'full');
+      : (testSetIdFromRelease(paperset) ?? 'full');
   const out: EvalTask = {
     id,
     name: clipName(typeof doc.name === 'string' ? doc.name : undefined),

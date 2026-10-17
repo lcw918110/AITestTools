@@ -35,6 +35,33 @@ export function taskIdFromItemId(itemId: string): string | undefined {
   return m[1];
 }
 
+/** 从 case_revision_id（如 paired-task-02.r6.off）提取人题号（PAIRED-TASK-02）。 */
+export function taskIdFromCaseRevisionId(caseRevisionId: string): string | undefined {
+  const m = caseRevisionId.match(/^([a-z0-9-]+?)\.r\d+\.(off|on)$/);
+  if (!m?.[1]) return undefined;
+  const base = m[1];
+  if (base === 'paired-task') return 'PAIRED-TASK-01';
+  return base.toUpperCase();
+}
+
+/** 从 dataset-release 的 case_revisions 提取人题号列表（去重保序）。 */
+export function taskIdsOfCaseRevisions(
+  caseRevisions: Array<{ case_revision_id?: string }>,
+): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const ref of caseRevisions) {
+    const id = ref.case_revision_id;
+    if (id === undefined) continue;
+    const t = taskIdFromCaseRevisionId(id);
+    if (t !== undefined && !seen.has(t)) {
+      seen.add(t);
+      out.push(t);
+    }
+  }
+  return out;
+}
+
 export function counterpartPaperset(name: string, side: 'off' | 'on'): string {
   if (name.includes('-off')) {
     return side === 'off' ? name : name.replace('-off', '-on');

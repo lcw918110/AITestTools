@@ -37,7 +37,7 @@ export async function run(body: RunBody): Promise<HttpResponse> {
     if ('error' in ts) {
       return { status: ts.code, body: { error: ts.error } };
     }
-    paperset = ts.offPaperset;
+    paperset = ts.offRelease;
   }
   const live = Boolean(body.live);
   if (live) {

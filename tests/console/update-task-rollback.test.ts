@@ -9,6 +9,7 @@ function seedProject(): string {
   mkdirSync(join(root, 'bank/materials'), { recursive: true });
   mkdirSync(join(root, 'bank/items/B'), { recursive: true });
   mkdirSync(join(root, 'papersets'), { recursive: true });
+  mkdirSync(join(root, 'dataset-releases'), { recursive: true });
   for (const name of [
     'paired-off.json',
     'paired-on.json',
@@ -18,6 +19,13 @@ function seedProject(): string {
     writeFileSync(
       join(root, 'papersets', name),
       `${JSON.stringify({ name: name.replace(/\.json$/, ''), items: [] }, null, 2)}\n`,
+    );
+  }
+  // 读路径（getTestSet）已切到 dataset-releases/，须同步 seed cases-v1 资产。
+  for (const name of ['paired-off-calibrate', 'paired-on-calibrate']) {
+    writeFileSync(
+      join(root, 'dataset-releases', `${name}.dataset-release.json`),
+      `${JSON.stringify({ dataset_release_id: name, name, case_revisions: [] }, null, 2)}\n`,
     );
   }
   return root;

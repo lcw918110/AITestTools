@@ -425,3 +425,33 @@
 - `revisionDigest` 全量验证 318 个（原抽查 3 个），固化「引擎 digest 与迁移脚本 contentHash 语义一致」的无损保证
 - 适配层测试补 318 个 item.id 全量还原 V1 格式
 - 抽取 `resolveDatasetItems` 纯函数，新增 run-v2 测试 4 用例（数据加载链路 / OFF-ON 跨 release 配对 / 错误路径）
+
+**阶段 4b：统一 ExecutionAdapter 状态机（2026-10-17，已提交）：**
+
+- 新增 `src/run/execution-adapter.ts`：8 阶段接口（discover/preflight/prepare/submit/collect/evaluate/cleanup）+ `AdapterError`（kind/attribution/retryable）+ `ObservedFactsRecorder` 三值记录器
+- 新增 `src/run/run-orchestrator.ts`：`RunOrchestrator` 落地 Run/CaseExecution/Attempt 三级状态机 + `RUN_TRANSITIONS` 校验（`beginRun`/`transitionRun`/`executeCase`/`sealRun`）
+- 本阶段只落地内存状态机；`timed_out`/`attribution` 细分与 7 个 runner 迁移推迟 Phase 2
+- 测试 10 项全绿，typecheck/prettier 通过，Bugbot 审查 5 findings 全部收口
+
+**阶段 5：console 全量重写（2026-10-18，进行中）：**
+
+- 设计稿 `docs/08-Console全量重写设计.md`：把「测试集=成对 paperset」替换为「dataset-release + case-revision 配对」
+- 待审决策（按推荐执行，明日复核）：
+  1. UI「测试集」概念保留，仅底层字段 `paperset`→`release`
+  2. API 字段 `offPaperset`→`offRelease`（彻底去除 paperset 概念）
+  3. `content_hash` 复用 `src/exam-engine/digest.ts` 的 `revisionDigest`
+  4. OFF/ON 的 `revision_number` 保留独立递增
+  5. 录题默认模型 `DEFAULT_MODEL` 保留
+- 分步实施：读路径（project-reader/test-sets/run-plan）→ 写路径（bank）→ env → UI
+
+**阶段 5 步骤 1（读路径切换，2026-10-18，已提交）：**
+
+- `test-sets.ts`：目录 `papersets/`→`dataset-releases/`，`readPaperset`→`readDatasetRelease`（`items`→`case_revisions`），导出 `offRelease/onRelease`、`testSetIdFromRelease`、`releaseFilesForTestSet`
+- `run-plan.ts`：新增 `taskIdFromCaseRevisionId`（`paired-task-02.r6.off`→`PAIRED-TASK-02`）与 `taskIdsOfCaseRevisions`
+- `eval-tasks.ts` / `controllers/run.ts`：`offPaperset`→`offRelease`、`testSetIdFromPaperset`→`testSetIdFromRelease`
+- 过渡兼容（步骤 2 写路径迁移后移除）：
+  - `taskIdsOfRelease`：case_revisions 为空时回退读 papersets items（写路径仍写 papersets）
+  - `createTestSet` 同步创建 papersets 空文件（供 `appendPapersetItem` 录题）
+  - `papersetFilesForTestSet` 保留旧语义（papersets 文件名）
+- 测试：`test-sets.test.ts` 重写为 cases-v1 seed；`bank.test.ts`/`update-task-rollback.test.ts` seed 补 dataset-releases
+- 76 个 console 测试全绿，typecheck/prettier 通过；Bugbot 1 finding（新建测试集无法录题）已修复
