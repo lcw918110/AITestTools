@@ -8,9 +8,8 @@ import { formatHostExitCell, formatTimedOutCell, formatWorkspaceCell } from './h
 
 export interface RunMeta {
   run_id: string;
-  axis: string;
-  paperset: string;
-  room: string;
+  dataset: string;
+  environment: string;
   started_at: string;
   project_root: string;
   items: Array<{ id: string; rev: number }>;
@@ -112,9 +111,8 @@ export function writeRunArtifacts(opts: {
   const lines = [
     `# Run ${opts.meta.run_id}`,
     '',
-    `- axis: ${opts.meta.axis}`,
-    `- paperset: ${opts.meta.paperset}`,
-    `- room: ${opts.meta.room}`,
+    `- dataset: ${opts.meta.dataset}`,
+    `- environment: ${opts.meta.environment}`,
     `- pass_rate: ${passRate}`,
     `- gates: ${gates_pass ? 'PASS' : 'FAIL'}`,
     '',

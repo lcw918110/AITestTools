@@ -23,7 +23,7 @@ describe('eval-tasks store', () => {
     const created = createEvalTask(root, {
       name: '效果烟卷',
       kind: 'plugin',
-      paperset: 'paired-off-effect-smoke',
+      release: 'paired-off-effect-smoke',
       taskIds: ['PAIRED-TASK-157'],
       examMode: 'both',
     });
@@ -73,7 +73,7 @@ describe('eval-tasks store', () => {
     expect('error' in created).toBe(false);
     if ('error' in created) return;
     expect(created.examMode).toBe('off');
-    expect(created.paperset).toBe('paired-off');
+    expect(created.release).toBe('paired-off');
     expect(created.testSetId).toBe('full');
   });
 

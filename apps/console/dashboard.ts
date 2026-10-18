@@ -21,8 +21,8 @@ export interface HostedSnap {
 }
 
 export interface DashConfig {
-  paperset?: string;
-  room?: string;
+  dataset?: string;
+  environment?: string;
   plugin: 'on' | 'off' | 'unknown';
   model?: string;
   model_source?: string;
@@ -65,13 +65,13 @@ export interface RunDashboard {
   matrix: DashMatrixRow[];
 }
 
-function parseRunMeta(text: string | null): { paperset?: string; room?: string } {
+function parseRunMeta(text: string | null): { dataset?: string; environment?: string } {
   if (!text) return {};
   try {
-    const doc = JSON.parse(text) as { paperset?: string; room?: string };
-    const out: { paperset?: string; room?: string } = {};
-    if (typeof doc.paperset === 'string') out.paperset = doc.paperset;
-    if (typeof doc.room === 'string') out.room = doc.room;
+    const doc = JSON.parse(text) as { dataset?: string; environment?: string };
+    const out: { dataset?: string; environment?: string } = {};
+    if (typeof doc.dataset === 'string') out.dataset = doc.dataset;
+    if (typeof doc.environment === 'string') out.environment = doc.environment;
     return out;
   } catch {
     return {};
@@ -168,8 +168,8 @@ export function buildRunDashboard(opts: {
     plugin: pluginOn ? 'on' : pluginOff ? 'off' : 'unknown',
     materials_seeded: seeded(opts.hostedSnaps),
   };
-  if (meta.paperset) config.paperset = meta.paperset;
-  if (meta.room) config.room = meta.room;
+  if (meta.dataset) config.dataset = meta.dataset;
+  if (meta.environment) config.environment = meta.environment;
   if (snap?.model) config.model = snap.model;
   if (snap?.model_source) config.model_source = snap.model_source;
   if (snap?.model_matches_freeze !== undefined) {

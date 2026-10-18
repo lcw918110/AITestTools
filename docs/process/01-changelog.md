@@ -591,3 +591,47 @@
 - `npm run typecheck`：0 错误
 - `npm run lint`：通过
 - `format:check`：本次改动文件全部干净；cases-v1 资产（case.json 等）的 prettier 格式问题为既有遗留（见上「阶段 6 遗留」第 3 项），未纳入本阶段
+
+## §16 V2.17 深迁移阶段 6 收尾补遗（字段名统一 + item new cases-v1 化，2026-10-18）
+
+本轮补齐阶段 6 切片 F 之后的三项遗留：run meta 字段名统一、`item new` 命令 cases-v1 化、console 层 `paperset` 字段命名统一。
+
+**1. run meta 字段名统一（阶段 6 遗留第 2 项）**
+
+- `src/run/write-artifacts.ts`：`RunMeta` 删除 `axis` 字段，`paperset`→`dataset`、`room`→`environment`；report.md 输出同步（`- dataset:`/`- environment:`，删 `- axis:`）。
+- `src/cli/commands/run.ts`：meta 写入删 `axis: 'B'` 硬编码，`paperset: datasetName`→`dataset: datasetName`、`room: environmentName`→`environment: environmentName`。
+- `src/cli/commands/report-trend.ts`：`ReportTrendOptions.paperset`→`dataset`、`RunPoint` 删 `axis`/`paperset`→`dataset`、读 `meta.dataset`；JSON/表格输出同步。
+- `src/cli/main.ts`：`report trend --paperset`→`--dataset`；删除 `--axis`/`--paperset`/`--suite` 选项定义；HELP 文本更新。
+- `apps/console/dashboard.ts`：`parseRunMeta` 读 `dataset`/`environment`；`DashConfig.paperset`→`dataset`、`room`→`environment`。
+- `apps/console/public/app.js`：`c.paperset`→`c.dataset`。
+- 测试：`report-trend.test.ts`、`dashboard.test.ts`、`hosted-runner-pass-token.test.ts`、`hosted-runner-timeout-workspace.test.ts` 断言对齐。
+
+**2. `item new` 命令 cases-v1 化（切片 F 归档引入的断裂）**
+
+- 根因：切片 F 把 `items/` `git mv` 到 `legacy/items/` 后，`item new` 仍写 papers-v1 `.item.json`（`--axis A|B|C`），会重建空 `items/` 目录并产出无效资产。
+- 方案：`src/cli/commands/item-new.ts` 重写为 cases-v1 录题——`--id <case_id>`（小写连字符）+ `--mode fold|scripted|cassette|hosted|direct_tool`（对齐 `execution_profile.mode`）+ 可选 `--layer`/`--title`/`--dataset`；产出 `cases/<case_id>.case.json` + `case-revisions/<case_id>.r1.case-revision.json`（`content_hash` 用 `revisionDigest` 计算），`--dataset` 可选挂载 dataset-release（创建或追加引用并重算 `closure_hash`）；写 JSON 用 `prettier.format` 对齐 `format:check` 口径。
+- `src/cli/main.ts`：`item new` 分支传 `--mode`/`--dataset`。
+- 新增 `tests/cli/item-new.test.ts`（5 用例：缺参/非法 case_id/非法 mode/fold 录题含 content_hash 校验/挂 dataset-release）。
+
+**3. console 层 `paperset` 字段命名统一为 `release`**
+
+- 根因：`run-plan.ts` 早已定名 `release`（`resolveRunPlan` 入参 `release`、`RunPlan.release`、`RunStep.release`），但调用方 `controllers/run.ts` 仍传 `paperset`，经 spread 展开被 TS 静默忽略，导致 console 指定测试集不生效（真实 bug）。
+- `apps/console/controllers/run.ts`：`RunBody.paperset`→`release`，`resolveRunPlan` 传 `release`（修复参数被忽略）。
+- `apps/console/eval-tasks.ts`：`EvalTask.paperset`/`EvalTaskInput.paperset`/`resolveTestSetRef` 的 `paperset`→`release`。
+- `apps/console/controllers/health.ts`：PRESETS 的 `paperset`→`release`、`defaultPaperset`→`defaultRelease`。
+- 数据迁移：`examples/product-eval/eval-tasks/*.json`（2 文件）`paperset`→`release`。
+- `scripts/console-l0.sh`：`defaultPaperset`→`defaultRelease` 断言。
+- 测试：`eval-tasks.test.ts` 断言对齐。
+
+**4. `job-queue.ts` 删除 `--axis B` 硬编码（Bugbot 审查发现）**
+
+- 根因：本轮从 `main.ts` 的 `parseArgs` options 删除 `--axis` 后，`node:util` 的 `parseArgs` 默认严格模式，`job-queue.ts` 三处 CLI 调用仍硬编码 `--axis B`，会抛 `ERR_PARSE_ARGS_UNKNOWN_OPTION`，使 console 提交的每次 run 任务以退出码 2 失败。
+- 修复：`apps/console/job-queue.ts` 的 `proctorRunArgs`、`legacy === 'model'` 分支、`legacy === 'agent'` 分支删除 `'--axis', 'B'`，仅保留 `--dataset`/`--environment`/`--project`。
+
+**验证（实测，2026-10-18）：**
+
+- `npm test`：59 文件 339 测试通过（`event-store.test.ts` 的 4 个 git init 用例仍为沙箱权限问题，非沙箱重跑全绿，非本次改动引入）
+- `npm run typecheck`：0 错误
+- `npm run lint`：通过
+- `format:check`：全部干净
+- `npm run validate:examples`：318/318 试题通过协议校验

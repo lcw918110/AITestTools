@@ -150,9 +150,8 @@ describe('hosted 超时仍跑 workspace_assert', () => {
       runsRoot,
       meta: {
         run_id: 'to-ok',
-        axis: 'B',
-        paperset: 'paired-off-effect-smoke',
-        room: 'hosted-plain-test',
+        dataset: 'paired-off-effect-smoke',
+        environment: 'hosted-plain-test',
         started_at: '2026-09-01T00:00:00.000Z',
         project_root: projectRoot,
         items: [{ id: item.id, rev: item.rev }],

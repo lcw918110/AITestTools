@@ -4,7 +4,7 @@ import { loadProject } from '../../exam-engine/project.ts';
 
 export interface ReportTrendOptions {
   project?: string | undefined;
-  paperset?: string | undefined;
+  dataset?: string | undefined;
   metric?: string | undefined;
   limit?: number | undefined;
   json: boolean;
@@ -14,8 +14,7 @@ interface RunPoint {
   run_id: string;
   run_dir: string;
   started_at?: string;
-  paperset?: string;
-  axis?: string;
+  dataset?: string;
   aggregates: Record<string, number>;
   gates_pass?: boolean;
 }
@@ -36,8 +35,7 @@ function loadPoint(runDir: string): RunPoint | null {
     const meta = JSON.parse(readFileSync(runJson, 'utf8')) as {
       run_id?: string;
       started_at?: string;
-      paperset?: string;
-      axis?: string;
+      dataset?: string;
     };
     const metrics = JSON.parse(readFileSync(metricsJson, 'utf8')) as {
       aggregates?: Record<string, number>;
@@ -52,8 +50,7 @@ function loadPoint(runDir: string): RunPoint | null {
       aggregates: metrics.aggregates ?? {},
     };
     if (meta.started_at !== undefined) point.started_at = meta.started_at;
-    if (meta.paperset !== undefined) point.paperset = meta.paperset;
-    if (meta.axis !== undefined) point.axis = meta.axis;
+    if (meta.dataset !== undefined) point.dataset = meta.dataset;
     if (gates_pass !== undefined) point.gates_pass = gates_pass;
     return point;
   } catch {
@@ -61,7 +58,7 @@ function loadPoint(runDir: string): RunPoint | null {
   }
 }
 
-/** 从 runs/ 扫描同一 paperset 的 metrics 时间线（Phase 3 最小面）。 */
+/** 从 runs/ 扫描同一 dataset 的 metrics 时间线（Phase 3 最小面）。 */
 export function runReportTrend(options: ReportTrendOptions): number {
   const project = loadProject(options.project);
   const limit = Math.max(1, options.limit ?? 20);
@@ -70,7 +67,7 @@ export function runReportTrend(options: ReportTrendOptions): number {
   for (const dir of listRunDirs(project.dirs.runs)) {
     const p = loadPoint(dir);
     if (p === null) continue;
-    if (options.paperset !== undefined && p.paperset !== options.paperset) continue;
+    if (options.dataset !== undefined && p.dataset !== options.dataset) continue;
     points.push(p);
   }
   // 按 started_at / run_id 倒序取最近 N 条，再正序展示
@@ -82,13 +79,12 @@ export function runReportTrend(options: ReportTrendOptions): number {
       JSON.stringify(
         {
           project: project.root,
-          paperset: options.paperset ?? null,
+          dataset: options.dataset ?? null,
           metric,
           points: recent.map((p) => ({
             run_id: p.run_id,
             started_at: p.started_at,
-            paperset: p.paperset,
-            axis: p.axis,
+            dataset: p.dataset,
             value: p.aggregates[metric],
             aggregates: p.aggregates,
             gates_pass: p.gates_pass,
@@ -104,19 +100,19 @@ export function runReportTrend(options: ReportTrendOptions): number {
 
   if (recent.length === 0) {
     console.log(
-      `无匹配 run（project=${project.root}${options.paperset ? ` paperset=${options.paperset}` : ''}）`,
+      `无匹配 run（project=${project.root}${options.dataset ? ` dataset=${options.dataset}` : ''}）`,
     );
     return 0;
   }
 
   console.log(`# trend  metric=${metric}  n=${recent.length}`);
-  console.log('| started_at | run_id | paperset | value | gates |');
+  console.log('| started_at | run_id | dataset | value | gates |');
   console.log('| --- | --- | --- | --- | --- |');
   for (const p of recent) {
     const v = p.aggregates[metric];
     const g = p.gates_pass === undefined ? '-' : p.gates_pass ? 'PASS' : 'FAIL';
     console.log(
-      `| ${p.started_at ?? '-'} | ${p.run_id} | ${p.paperset ?? '-'} | ${v === undefined ? '-' : v} | ${g} |`,
+      `| ${p.started_at ?? '-'} | ${p.run_id} | ${p.dataset ?? '-'} | ${v === undefined ? '-' : v} | ${g} |`,
     );
   }
   return 0;

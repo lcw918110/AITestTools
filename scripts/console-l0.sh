@@ -30,7 +30,7 @@ curl -sf "$BASE/api/presets" | grep -q '"id": "plugin"'
 curl -sf "$BASE/api/bank/tasks" | python3 -c 'import sys,json; d=json.load(sys.stdin); t=next(x for x in d["tasks"] if x["taskId"]=="PAIRED-TASK-02"); assert t.get("promptPreview"); assert "notes" in t'
 
 # C-A-02 presets 含默认测试集
-curl -sf "$BASE/api/presets" | python3 -c 'import sys,json; d=json.load(sys.stdin); ps={p["id"]:p for p in d["presets"]}; assert ps["plugin"]["defaultExamMode"]=="both"; assert ps["model"]["defaultPaperset"]=="paired-off"; assert ps["model"]["defaultTestSetId"]=="full"'
+curl -sf "$BASE/api/presets" | python3 -c 'import sys,json; d=json.load(sys.stdin); ps={p["id"]:p for p in d["presets"]}; assert ps["plugin"]["defaultExamMode"]=="both"; assert ps["model"]["defaultRelease"]=="paired-off"; assert ps["model"]["defaultTestSetId"]=="full"'
 
 # C-A-03 / C-A-50 测试集不含 eval-model
 curl -sf "$BASE/api/project" | python3 -c 'import sys,json; d=json.load(sys.stdin); ids={t["id"] for t in d["testSets"]}; assert "effect-smoke" in ids and "full" in ids and "eval-model" not in ids'

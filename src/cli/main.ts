@@ -28,7 +28,7 @@ const HELP = `agent-proctor — 第三方独立 Agent 监考/评测引擎
 用法：
   proctor init [目录]                     生成考卷库骨架
   proctor item validate [文件...]         校验试题（cases-v1）
-  proctor item new --id <ID> --axis A|B|C [--layer L1|L2|L3]
+  proctor item new --id <case_id> --mode <fold|scripted|cassette|hosted|direct_tool>
   proctor item bump-rev <id|文件>         试题升 rev
   proctor item retire <id|文件>           退役（deprecated）
   proctor item migrate <id|文件> --map Old:New
@@ -38,7 +38,7 @@ const HELP = `agent-proctor — 第三方独立 Agent 监考/评测引擎
   proctor baseline pin --run <run> --name <别名>
   proctor score write --run <run> --item <id> --value <分> [--max 5]
   proctor report show --run <run>
-  proctor report trend [--paperset <名>] [--metric <名>] [--limit N]
+  proctor report trend [--dataset <名>] [--metric <名>] [--limit N]
   proctor contract verify --host opencode@1.18.5
   proctor --version | --help
 
@@ -48,7 +48,7 @@ const HELP = `agent-proctor — 第三方独立 Agent 监考/评测引擎
   --strict / --json / --verbose / --force
   --name <名称>        init / baseline / 变更说明 / score 备注
   --id / --layer / --title / --map / --from / --contract / --script
-  --axis              item new（A|B|C）
+  --mode               item new（fold|scripted|cassette|hosted|direct_tool）
   --dataset / --environment  run（cases-v1：测试集 × 运行环境组合）
   --only <试题id>      run：只跑测试集中的这些题（可重复；不写回组卷）
   --concurrency <N>    run 试题并发（默认 1；hosted 建议 1）
@@ -56,7 +56,7 @@ const HELP = `agent-proctor — 第三方独立 Agent 监考/评测引擎
   --baseline / --candidate / --run / --host
   --item / --value / --max   score write（参考分，不进硬门禁）
 
-别名：case → item；--suite → --paperset
+别名：case → item
 
 退出码：0 通过；1 失败；2 用法错误。`;
 
@@ -86,9 +86,7 @@ export async function main(argv: string[]): Promise<number> {
         from: { type: 'string' },
         contract: { type: 'string' },
         script: { type: 'string' },
-        axis: { type: 'string' },
-        paperset: { type: 'string' },
-        suite: { type: 'string' },
+        mode: { type: 'string' },
         dataset: { type: 'string' },
         environment: { type: 'string' },
         only: { type: 'string', multiple: true },
@@ -215,7 +213,7 @@ export async function main(argv: string[]): Promise<number> {
         limRaw === undefined ? undefined : Math.max(1, Number.parseInt(limRaw, 10) || 20);
       return runReportTrend({
         project: values.project,
-        paperset: values.paperset ?? values.suite,
+        dataset: values.dataset,
         metric: values.metric,
         limit,
         json: values.json === true,
@@ -251,12 +249,13 @@ export async function main(argv: string[]): Promise<number> {
       return 2;
     }
     if (sub === 'new') {
-      return runItemNew({
+      return await runItemNew({
         project: values.project,
         id: values.id,
-        axis: values.axis,
+        mode: values.mode,
         layer: values.layer,
         title: values.title,
+        dataset: values.dataset,
         name: values.name,
         json: values.json === true,
       });

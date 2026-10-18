@@ -84,8 +84,8 @@ describe('测试看板 dashboard', () => {
     ];
     const dash = buildRunDashboard({
       runJsonText: JSON.stringify({
-        paperset: 'paired-on-effect-smoke',
-        room: 'hosted-plugin-v1',
+        dataset: 'paired-on-effect-smoke',
+        environment: 'hosted-plugin-v1',
       }),
       resultsText: on.map((r) => JSON.stringify(r)).join('\n'),
       metricsText: JSON.stringify({ aggregates: { a_case_pass_rate: 0 } }),

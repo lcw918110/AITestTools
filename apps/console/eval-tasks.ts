@@ -28,7 +28,7 @@ export type EvalTask = {
   id: string;
   name: string;
   kind: ExperimentId;
-  paperset: string;
+  release: string;
   testSetId: string;
   taskIds: string[];
   examMode: ExamMode;
@@ -44,7 +44,7 @@ export type EvalTask = {
 export type EvalTaskInput = {
   name?: string;
   kind?: string;
-  paperset?: string;
+  release?: string;
   testSetId?: string;
   taskIds?: string[];
   examMode?: string;
@@ -87,21 +87,21 @@ function examModeFor(kind: ExperimentId, raw: string | undefined): ExamMode {
 function resolveTestSetRef(
   project: string,
   kind: ExperimentId,
-  paperset?: string,
+  release?: string,
   testSetId?: string,
-): { paperset: string; testSetId: string } | { error: string; code: number } {
+): { release: string; testSetId: string } | { error: string; code: number } {
   const sid = testSetId?.trim();
   if (sid) {
     const ts = getTestSet(project, sid);
     if ('error' in ts) return ts;
-    return { testSetId: ts.id, paperset: ts.offRelease };
+    return { testSetId: ts.id, release: ts.offRelease };
   }
-  const ps = paperset?.trim();
+  const ps = release?.trim();
   if (ps) {
     const derived = testSetIdFromRelease(ps) ?? 'full';
-    return { paperset: ps, testSetId: derived };
+    return { release: ps, testSetId: derived };
   }
-  return { paperset: defaultRelease(kind), testSetId: 'full' };
+  return { release: defaultRelease(kind), testSetId: 'full' };
 }
 
 function clipName(name: string | undefined): string {
@@ -141,17 +141,17 @@ function readTaskFile(file: string): { ok: true; task: EvalTask } | { ok: false;
           typeof (r as Record<string, unknown>).jobId === 'string',
       )
     : [];
-  const paperset =
-    typeof doc.paperset === 'string' && doc.paperset ? doc.paperset : defaultRelease(kind);
+  const release =
+    typeof doc.release === 'string' && doc.release ? doc.release : defaultRelease(kind);
   const testSetId =
     typeof doc.testSetId === 'string' && doc.testSetId
       ? doc.testSetId
-      : (testSetIdFromRelease(paperset) ?? 'full');
+      : (testSetIdFromRelease(release) ?? 'full');
   const out: EvalTask = {
     id,
     name: clipName(typeof doc.name === 'string' ? doc.name : undefined),
     kind,
-    paperset,
+    release,
     testSetId,
     taskIds,
     examMode,
@@ -220,7 +220,7 @@ export function createEvalTask(
   if (kind === 'plugin' && body.examMode !== undefined && !isExamMode(body.examMode)) {
     return { error: 'examMode 须为 off / on / both', code: 400 };
   }
-  const ref = resolveTestSetRef(project, kind, body.paperset, body.testSetId);
+  const ref = resolveTestSetRef(project, kind, body.release, body.testSetId);
   if ('error' in ref) return ref;
   const now = new Date().toISOString();
   let id = newId();
@@ -229,7 +229,7 @@ export function createEvalTask(
     id,
     name: clipName(body.name),
     kind,
-    paperset: ref.paperset,
+    release: ref.release,
     testSetId: ref.testSetId,
     taskIds: body.taskIds ?? [],
     examMode: examModeFor(kind, body.examMode),
@@ -272,15 +272,15 @@ export function updateEvalTask(
     return { error: 'examMode 须为 off / on / both', code: 400 };
   }
   const ref =
-    body.testSetId !== undefined || body.paperset !== undefined
-      ? resolveTestSetRef(project, kind, body.paperset ?? existing.paperset, body.testSetId)
-      : { paperset: existing.paperset, testSetId: existing.testSetId };
+    body.testSetId !== undefined || body.release !== undefined
+      ? resolveTestSetRef(project, kind, body.release ?? existing.release, body.testSetId)
+      : { release: existing.release, testSetId: existing.testSetId };
   if ('error' in ref) return ref;
   const next: EvalTask = {
     ...existing,
     kind,
     name: body.name !== undefined ? clipName(body.name) : existing.name,
-    paperset: ref.paperset,
+    release: ref.release,
     testSetId: ref.testSetId,
     taskIds: body.taskIds !== undefined ? body.taskIds : existing.taskIds,
     examMode: examModeFor(kind, body.examMode !== undefined ? body.examMode : existing.examMode),

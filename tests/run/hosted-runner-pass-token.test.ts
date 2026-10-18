@@ -135,9 +135,8 @@ describe('hosted_pass_token 降为辅助', () => {
       runsRoot,
       meta: {
         run_id: 'aux-token',
-        axis: 'B',
-        paperset: 'paired-off-effect-smoke',
-        room: 'hosted-plain-test',
+        dataset: 'paired-off-effect-smoke',
+        environment: 'hosted-plain-test',
         started_at: '2026-09-01T00:00:00.000Z',
         project_root: projectRoot,
         items: [{ id: item.id, rev: item.rev }],

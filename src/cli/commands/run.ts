@@ -222,9 +222,8 @@ export async function runCommand(options: RunOptions): Promise<number> {
     runsRoot,
     meta: {
       run_id: rid,
-      axis: 'B',
-      paperset: datasetName,
-      room: environmentName,
+      dataset: datasetName,
+      environment: environmentName,
       started_at: new Date().toISOString(),
       project_root: project.root,
       items: filtered.map((i) => ({ id: i.id, rev: i.rev })),

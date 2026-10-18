@@ -20,7 +20,7 @@ export interface RunBody {
   agent?: string;
   sutRoot?: string;
   examMode?: string;
-  paperset?: string;
+  release?: string;
   testSetId?: string;
   taskIds?: string[];
   evalTaskId?: string;
@@ -31,13 +31,13 @@ export async function run(body: RunBody): Promise<HttpResponse> {
   if (!isExperimentId(experiment)) {
     return { status: 400, body: { error: 'unknown experiment' } };
   }
-  let paperset = body.paperset;
+  let release = body.release;
   if (body.testSetId !== undefined && body.testSetId.trim()) {
     const ts = getTestSet(PROJECT, body.testSetId.trim());
     if ('error' in ts) {
       return { status: ts.code, body: { error: ts.error } };
     }
-    paperset = ts.offRelease;
+    release = ts.offRelease;
   }
   const live = Boolean(body.live);
   if (live) {
@@ -65,7 +65,7 @@ export async function run(body: RunBody): Promise<HttpResponse> {
   const resolved = resolveRunPlan({
     experiment,
     ...(body.examMode !== undefined ? { examMode: body.examMode } : {}),
-    ...(paperset !== undefined ? { paperset } : {}),
+    ...(release !== undefined ? { release } : {}),
     ...(body.taskIds !== undefined ? { taskIds: body.taskIds } : {}),
     releases: loadReleaseIndex(),
     tasks: bankTasks.map((t) => ({

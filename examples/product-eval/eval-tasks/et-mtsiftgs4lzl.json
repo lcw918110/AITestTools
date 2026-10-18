@@ -2,7 +2,6 @@
   "id": "et-mtsiftgs4lzl",
   "name": "效果烟卷",
   "kind": "agent",
-  "paperset": "paired-off",
   "testSetId": "full",
   "taskIds": [
     "PAIRED-TASK-01",
@@ -166,5 +165,6 @@
   "live": false,
   "createdAt": "2026-09-08T10:12:01.900Z",
   "updatedAt": "2026-09-09T12:19:03.324Z",
-  "runs": []
+  "runs": [],
+  "release": "paired-off"
 }

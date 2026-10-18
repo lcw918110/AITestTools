@@ -388,7 +388,7 @@ function renderDashboard(d) {
   }
   const c = d.config ?? {};
   const pills = [];
-  if (c.paperset) pills.push(['测试集 ' + c.paperset, '']);
+  if (c.dataset) pills.push(['测试集 ' + c.dataset, '']);
   if (c.plugin === 'on') pills.push(['插件 开', 'on']);
   else if (c.plugin === 'off') pills.push(['插件 关', 'off']);
   if (c.model) pills.push(['模型 ' + c.model, '']);
