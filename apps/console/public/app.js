@@ -42,7 +42,6 @@ let currentEvalId = '';
 let filling = false;
 let saveTimer;
 let presets = [];
-let papersets = [];
 let testSets = [];
 let bankTasks = [];
 let evalTasks = [];
@@ -811,7 +810,6 @@ document.getElementById('runCompare').addEventListener('click', async () => {
 const { presets: presetList } = await api('/api/presets');
 const proj = await api('/api/project');
 const bank = await api('/api/bank/tasks');
-papersets = proj.papersets || [];
 testSets = proj.testSets || [];
 bankTasks = bank.tasks || [];
 presets = presetList;

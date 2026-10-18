@@ -129,7 +129,12 @@ function lastRunDirFromLog(job: Job): string | undefined {
   return undefined;
 }
 
-function proctorRunArgs(paperset: string, itemIds: string[]): string[] {
+/** side → environment 名（cases-v1：off 无插件、on 有插件）。 */
+function environmentForSide(side: 'off' | 'on'): string {
+  return side === 'on' ? 'hosted-plugin-v1' : 'hosted-plain-v1';
+}
+
+function proctorRunArgs(dataset: string, environment: string, itemIds: string[]): string[] {
   const args = [
     'run',
     'proctor',
@@ -137,8 +142,10 @@ function proctorRunArgs(paperset: string, itemIds: string[]): string[] {
     'run',
     '--axis',
     'B',
-    '--paperset',
-    paperset,
+    '--dataset',
+    dataset,
+    '--environment',
+    environment,
     '--project',
     'examples/product-eval',
   ];
@@ -218,8 +225,10 @@ export async function executeJob(
           'run',
           '--axis',
           'B',
-          '--paperset',
+          '--dataset',
           'eval-model',
+          '--environment',
+          'hosted-plain-v1',
           '--project',
           'examples/product-eval',
         ],
@@ -236,8 +245,10 @@ export async function executeJob(
           'run',
           '--axis',
           'B',
-          '--paperset',
+          '--dataset',
           'eval-agent',
+          '--environment',
+          'hosted-plain-v1',
           '--project',
           'examples/product-eval',
         ],
@@ -254,7 +265,12 @@ export async function executeJob(
           appendLog(job, `跳过空侧：${step.release}`);
           continue;
         }
-        code = await runCommand(job, npm, proctorRunArgs(step.release, step.itemIds), env);
+        code = await runCommand(
+          job,
+          npm,
+          proctorRunArgs(step.release, environmentForSide(step.side), step.itemIds),
+          env,
+        );
         const dir = lastRunDirFromLog(job);
         if (dir) runDirs.push(dir);
         if (code !== 0) break;

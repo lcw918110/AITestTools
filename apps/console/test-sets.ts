@@ -6,7 +6,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { writeJsonAtomic } from './json-io.ts';
 import { join } from 'node:path';
-import { taskIdsOfCaseRevisions, taskIdsOfItems } from './run-plan.ts';
+import { taskIdsOfCaseRevisions } from './run-plan.ts';
 
 export const ENV_RELEASE_NAMES = new Set(['eval-model', 'eval-agent', 'eval-model-alt']);
 export const TEST_SET_ID_RE = /^[a-z][a-z0-9-]{0,40}$/;
@@ -76,23 +76,13 @@ export function labelOfTestSet(id: string, description?: string): string {
   return id;
 }
 
-/** 从 dataset-release 的 case_revisions 提取人题号；为空时回退读 papersets items（写路径迁移前）。 */
+/** 从 dataset-release 的 case_revisions 提取人题号。 */
 function taskIdsOfRelease(
-  project: string,
-  releaseName: string,
+  _project: string,
+  _releaseName: string,
   caseRevisions: Array<{ case_revision_id?: string }>,
 ): string[] {
-  const fromRevisions = taskIdsOfCaseRevisions(caseRevisions);
-  if (fromRevisions.length > 0) return fromRevisions;
-  // 步骤 2 写路径迁移到 cases-v1 前，papersets items 仍是 taskIds 的权威来源。
-  const papersetPath = join(project, 'papersets', `${releaseName}.json`);
-  if (!existsSync(papersetPath)) return [];
-  try {
-    const doc = JSON.parse(readFileSync(papersetPath, 'utf8')) as { items?: string[] };
-    return taskIdsOfItems(doc.items ?? []);
-  } catch {
-    return [];
-  }
+  return taskIdsOfCaseRevisions(caseRevisions);
 }
 
 export function listTestSets(project: string): TestSet[] {
@@ -186,13 +176,6 @@ export function createTestSet(
     description,
     case_revisions: [],
   });
-  // 过渡：bank.ts 写路径（步骤 2）迁移前仍向 papersets/ 追加 item，
-  // 须同步创建空的 papersets 文件，否则新建测试集无法录题。
-  const papersetsDir = join(project, 'papersets');
-  if (existsSync(papersetsDir)) {
-    writeJsonAtomic(join(papersetsDir, `${offName}.json`), { name: offName, items: [] });
-    writeJsonAtomic(join(papersetsDir, `${onName}.json`), { name: onName, items: [] });
-  }
   const created = getTestSet(project, id);
   if ('error' in created) return created;
   return { ...created, label };
@@ -202,17 +185,6 @@ export function releaseFilesForTestSet(id: string): { offFile: string; onFile: s
   return {
     offFile: `${offReleaseOf(id)}.dataset-release.json`,
     onFile: `${onReleaseOf(id)}.dataset-release.json`,
-  };
-}
-
-/**
- * 过渡：bank.ts 写路径（步骤 2）迁移前仍写 papersets/ 目录下的 .json 文件。
- * 保持旧语义（papersets 文件名），步骤 2 写路径迁移到 cases-v1 后移除。
- */
-export function papersetFilesForTestSet(id: string): { offFile: string; onFile: string } {
-  return {
-    offFile: `${offReleaseOf(id)}.json`,
-    onFile: `${onReleaseOf(id)}.json`,
   };
 }
 

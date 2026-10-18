@@ -496,3 +496,13 @@
 - `project-reader.ts` `projectSummary`：`rooms` 字段从 `rooms/*.json`（`host.model`/`host.plugin`）切到 `environments/*.environment.json`（`recipe.host_model`/`recipe.host_plugin`），`name` 用 `name ?? environment_profile_id`
 - **决策（明日复核）**：`controllers/env.ts` 的 `envRoomsList`/`envRoomsUpdate`（房间 CRUD）与 `parse.ts` 的 `sanitizeRoomUpdate` 留切片 C2（与步骤 4 前端 `env.js` 字段联动一起切），因 API 字段 `host`/`workspace`/`network` 与前端强耦合，避免「读 environments 写 rooms」的中间断裂
 - 测试：`env-catalog.test.ts` seed 从 rooms 改为 environments（`recipe.host_model` 等），83 个 console 测试全绿，typecheck 通过
+
+**阶段 5 步骤 4（引擎参数切换 + papers 过渡清理，2026-10-18，已提交）：**
+
+- `job-queue.ts`：引擎调用 `--paperset`→`--dataset` + `--environment`；新增 `environmentForSide`（off→`hosted-plain-v1`、on→`hosted-plugin-v1`，与 `tests/cli/run-v2.test.ts` 一致）；`proctorRunArgs` 签名改 `(dataset, environment, itemIds)`；`legacy==='model'/'agent'` 分支内联 `--dataset eval-model/eval-agent --environment hosted-plain-v1`
+- `test-sets.ts`：删除过渡代码 `papersetFilesForTestSet`、`createTestSet` 的 papersets 空文件创建、`taskIdsOfRelease` 的 papersets items 回退（写路径切 cases-v1 后不再需要）
+- `project-reader.ts` `projectSummary`：移除 `papersets` 字段（读 `papersets/` 目录的 papers-v1 遗留，前端 `app.js` 已不读）
+- `public/app.js`：移除死字段 `papersets` 变量与 `proj.papersets` 赋值
+- **关键发现（阶段 6 待办）**：`legacy==='paired'` 分支仍走 `npm run eval:paired`（`scripts/eval-paired.sh`），脚本内用 `--paperset paired-off/paired-on`（V1 路径）；`package.json` 的 `eval:model` 脚本也用 `--paperset eval-model`。这些是引擎层 npm 脚本，依赖 papers-v1 资产（`papersets/`+`rooms/`），阶段 6 删除 papers-v1 资产前需切 cases-v1（`--dataset`+`--environment`）
+- **决策（明日复核）**：run meta 字段名 `paperset`/`room`（引擎 `runCommandV2` 写产物）暂不改，`dashboard.ts` 读 `meta.paperset`/`meta.room` 仍正确；字段名统一属阶段 6
+- 测试：`test-sets.test.ts` 移除 papersets 兼容文件断言；320 个测试全绿（含 83 console），typecheck 通过

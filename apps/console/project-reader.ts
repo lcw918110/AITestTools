@@ -4,8 +4,8 @@
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { parseJsonObject, str, strArray } from './parse.ts';
-import { taskIdsOfCaseRevisions, taskIdsOfItems, type ReleaseIndex } from './run-plan.ts';
+import { parseJsonObject, str } from './parse.ts';
+import { taskIdsOfCaseRevisions, type ReleaseIndex } from './run-plan.ts';
 import { listTestSets } from './test-sets.ts';
 import { PROJECT } from './config.ts';
 
@@ -44,41 +44,6 @@ export function projectSummary() {
   } catch (e) {
     errors.push(`exam.json：读取失败（${(e as Error).message}）`);
   }
-
-  const papersetsDir = join(PROJECT, 'papersets');
-  const papersets = readdirSync(papersetsDir)
-    .filter((f) => f.endsWith('.json'))
-    .map((f) => {
-      try {
-        const text = readFileSync(join(papersetsDir, f), 'utf8');
-        const parsed = parseJsonObject(text, `papersets/${f}`);
-        if (!parsed.ok) {
-          errors.push(parsed.error);
-          return undefined;
-        }
-        const doc = parsed.value;
-        const name = str(doc.name);
-        if (name === undefined) {
-          errors.push(`papersets/${f}：缺少 name`);
-          return undefined;
-        }
-        const desc = str(doc.description) ?? '';
-        const room = str(doc.room) ?? '';
-        const items = strArray(doc.items) ?? [];
-        return {
-          file: f.replace(/\.json$/, ''),
-          name,
-          description: desc,
-          room,
-          itemCount: items.length,
-          taskIds: taskIdsOfItems(items),
-        };
-      } catch (e) {
-        errors.push(`papersets/${f}：读取失败（${(e as Error).message}）`);
-        return undefined;
-      }
-    })
-    .filter((x): x is NonNullable<typeof x> => x !== undefined);
 
   const roomsDir = join(PROJECT, 'environments');
   const rooms = readdirSync(roomsDir)
@@ -120,7 +85,6 @@ export function projectSummary() {
     project: 'examples/product-eval',
     exam: examName,
     description: examDescription,
-    papersets,
     testSets: listTestSets(PROJECT),
     rooms,
     tasks: materials,

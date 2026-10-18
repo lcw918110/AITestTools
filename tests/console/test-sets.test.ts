@@ -112,9 +112,6 @@ describe('test-sets（cases-v1 读路径）', () => {
       ),
     ) as { case_revisions: unknown[] };
     expect(off.case_revisions).toEqual([]);
-    // 过渡：写路径（bank.ts）迁移前，须同步创建 papersets 兼容文件供录题。
-    expect(existsSync(join(root, 'papersets', `${created.offRelease}.json`))).toBe(true);
-    expect(existsSync(join(root, 'papersets', `${created.onRelease}.json`))).toBe(true);
     expect(listTestSets(root).some((s) => s.id === created.id)).toBe(true);
   });
 });
