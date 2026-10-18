@@ -2,16 +2,7 @@
  * V2.17 领域对象模型——唯一权威类型。
  * 本文件重新导出 src/domain/types.ts 的全部领域对象。
  *
- * 迁移映射：
- *   ItemDoc     → Case + CaseRevision（逻辑身份 + 不可变修订）
- *   PapersetDoc → DatasetRelease（冻结的 CaseRevision 引用闭包）
- *   RoomDoc     → EnvironmentProfile / CandidateConfig
- *   ExamManifest → 配置快照（RunPlanSnapshot）
- *   FreezeA/B   → CandidateConfig（候选配置）
- *   Axis        → 不再使用（A/B/C 轴已废除）
- *   effect_pair → PairKey（case_revision_id + replicate_index）
- *
- * 旧类型（ItemDoc/PapersetDoc/RoomDoc 等）已彻底删除；
+ * papers-v1（ItemDoc/PapersetDoc/RoomDoc 等旧类型）已彻底删除；
  * 迁移期间需要的旧字段名（如 legacy_item_id）作为领域对象上的显式字段保留。
  */
 

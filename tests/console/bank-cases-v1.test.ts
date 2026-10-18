@@ -136,33 +136,4 @@ describe('bank 读路径（cases-v1）', () => {
     expect(detail.off?.contains).toEqual(['yes']);
     expect(detail.tags).toEqual(['coding']);
   });
-
-  it('cases-v1 缺失时回退读 item.json（写路径兼容）', () => {
-    root = mkdtempSync(join(tmpdir(), 'proctor-bank-cv1-'));
-    mkdirSync(join(root, 'bank/materials'), { recursive: true });
-    mkdirSync(join(root, 'bank/items/B'), { recursive: true });
-    // 仅 seed item.json（无 cases-v1），验证回退读
-    writeFileSync(
-      join(root, 'bank/items/B', 'eval-b-paired-task-03-off.item.json'),
-      `${JSON.stringify(
-        {
-          id: 'EVAL-B-PAIRED-TASK-03-OFF',
-          rev: 1,
-          axis: 'B',
-          status: 'active',
-          intent: { effect_pair: 'PAIRED-TASK-03' },
-          stimulus: {
-            kind: 'task_prompt',
-            ref: 'bank/materials/PAIRED-TASK-03/prompt.txt',
-            hosted_pass_token: 'ok',
-          },
-          expect: { oracles: [] },
-        },
-        null,
-        2,
-      )}\n`,
-    );
-    const tasks = listTasks(root);
-    expect(tasks.some((t) => t.taskId === 'PAIRED-TASK-03')).toBe(true);
-  });
 });

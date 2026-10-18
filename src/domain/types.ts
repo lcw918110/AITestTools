@@ -968,7 +968,7 @@ export interface RouteSimulation {
 // 11. 环境（§4.7）
 // ─────────────────────────────────────────────────────────────
 
-/** L1 fold 入口（§4.7；原 papers-v1 FoldEntrySpec 迁移）。 */
+/** L1 fold 入口规格（§4.7）。 */
 export interface FoldEntrySpec {
   module: string;
   export: string;
@@ -978,8 +978,8 @@ export interface FoldEntrySpec {
   normalize?: 'json_clone' | 'none';
 }
 
-/** L2/C 轴 adapter（§4.7；原 papers-v1 RoomAdapter 迁移）。 */
-export interface RoomAdapter {
+/** L2/C 轴执行适配器规格（§4.7）。 */
+export interface AdapterSpec {
   framework?: string;
   config?: string;
   repeats?: number;
@@ -1024,8 +1024,8 @@ export interface EnvironmentProfile {
     model_driver?: 'none' | 'scripted' | 'as-recorded' | 'live';
     /** L1 fold 入口表（V1 room.fold_entries 迁移）。 */
     fold_entries?: Record<string, FoldEntrySpec>;
-    /** L2/C 轴 adapter（V1 room.adapter 迁移）。 */
-    adapter?: RoomAdapter;
+    /** L2/C 轴执行适配器规格。 */
+    adapter?: AdapterSpec;
     /** SUT 根（V1 room.sut 迁移）。 */
     sut?: { name?: string; root_env?: string; root_rel?: string | null };
     /** 契约（V1 room.contract 迁移）。 */

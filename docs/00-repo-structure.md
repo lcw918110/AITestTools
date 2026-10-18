@@ -110,8 +110,7 @@ AITestTools/                              # agent-proctor 引擎仓（npm 包名
 │   ├── product-eval/                     # 产品效果：1 题库 + 环境/组卷/协议
 │   │   ├── exam.json                     # paths → bank / cases / case-revisions / dataset-releases / environments
 │   │   ├── bank/
-│   │   │   ├── materials/                # 输入（PAIRED-TASK-01..05）
-│   │   │   └── items/                    # 判定 + 业务属性（OFF/ON）
+│   │   │   └── materials/                # 输入（PAIRED-TASK-01..159）
 │   │   ├── cases/ / case-revisions/      # 逻辑身份 + 不可变修订（OFF/ON 分列）
 │   │   ├── dataset-releases/             # eval-model · paired-off/on · eval-agent
 │   │   ├── environments/                 # plain / plugin / model-alt

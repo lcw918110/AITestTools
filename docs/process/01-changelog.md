@@ -777,3 +777,35 @@
 - `npm test`：57 文件 316 测试通过（`event-store.test.ts` 的 git init 用例需非沙箱权限，非沙箱重跑全绿）
 - `npm run validate:examples`：318/318 通过
 - `format:check`：全仓干净
+
+## §21 全盘审视：清除 console 层 papers-v1 残留（2026-10-19）
+
+§20 清掉 `src/` 与 CLI 的 papers-v1 兼容层后，全盘审视发现 console 层（`apps/console/`）仍有遗漏的读路径死代码与命名残留，本轮一并清理。
+
+**1. 删除 `apps/console/bank.ts` 死代码**
+
+- 删除本地 `ItemDoc` 类型、`readItem`、`effectPairOf`、`sideFrom`、`itemsBDir`（读已删除的 `bank/items/B/*.item.json` 旧路径）。
+- `loadPairedItems` 移除 item.json 回退分支，直接返回 `loadPairedItemsV1`（写路径早已迁到 cases-v1，回退分支读的目录已不存在）。
+- 修正 `caseIdToV1ItemId` 注释（原引用已删除的 `src/run/cases-v1-adapter.ts`）。
+- 删除 `tests/console/bank-cases-v1.test.ts` 中「cases-v1 缺失时回退读 item.json」用例（对应回退逻辑已移除）。
+
+**2. 命名残留清理**
+
+- `src/domain/types.ts`：`RoomAdapter` → `AdapterSpec`（活跃的 L2/C 轴执行适配器规格，与 `FoldEntrySpec` 命名对齐；原「Room」前缀与「papers-v1 迁移」注释已无意义）。
+- `src/exam-engine/types.ts`：头部「迁移映射」注释精简为「papers-v1 已彻底删除」的权威声明。
+
+**3. 文档修正**
+
+- `docs/00-repo-structure.md`：`examples/product-eval/bank/` 下仅剩 `materials/`（`items/` 已删），修正目录树描述。
+
+**有意保留（数据语义，非残留）**：
+
+- `CaseRevision.legacy_item_id` 字段（还原历史 run 产物 id）。
+- `ItemSide.id` 的 V1 格式 `EVAL-B-...`（`run-plan.ts`/`job-queue.ts` 下游依赖）。
+
+**验证（实测，2026-10-19）**：
+
+- `npm run typecheck`：0 错误
+- `npm run lint`：通过
+- `npm test`：57 文件 315 测试通过（删除 1 个回退测试用例）
+- `format:check`：全仓干净

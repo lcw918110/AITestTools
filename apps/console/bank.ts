@@ -117,33 +117,6 @@ export type UpdateTaskBody = {
   not_contains?: string | string[];
 };
 
-type ItemDoc = {
-  id: string;
-  rev: number;
-  title?: string;
-  intent?: {
-    effect_pair?: string;
-    statement?: string;
-    attribution_focus?: string;
-    protocol_probes?: string[];
-  };
-  stimulus?: {
-    kind?: string;
-    ref?: string;
-    notes?: string;
-    hosted_pass_token?: string;
-  };
-  freeze?: Record<string, unknown>;
-  tags?: string[];
-  expect?: unknown;
-  metrics?: unknown;
-  execution?: unknown;
-  change_log?: Record<string, string>;
-  axis?: string;
-  status?: string;
-  owner?: string;
-};
-
 type CreateSnapshot = {
   taskId: string;
   materialsDir: string;
@@ -297,15 +270,6 @@ function materialsDir(project: string, taskId: string): string {
   return join(project, 'bank/materials', taskId);
 }
 
-function itemsBDir(project: string): string {
-  return join(project, 'bank/items/B');
-}
-
-function readItem(file: string): ItemDoc | undefined {
-  if (!existsSync(file)) return undefined;
-  return JSON.parse(readFileSync(file, 'utf8')) as ItemDoc;
-}
-
 /** cases-v1：Case 文档（轻量读字段）。 */
 type CaseV1Doc = {
   case_id: string;
@@ -340,7 +304,7 @@ function caseRevisionsV1Dir(project: string): string {
   return join(project, 'case-revisions');
 }
 
-/** case_id → V1 item_id（与 src/run/cases-v1-adapter.ts 的 caseIdToV1ItemId 一致）。 */
+/** case_id → V1 item_id（还原历史 run 产物的 item_id 格式，与 run-plan/job-queue 下游约定一致）。 */
 function caseIdToV1ItemId(caseId: string, variant: 'off' | 'on'): string {
   return `EVAL-B-${caseId.toUpperCase()}-${variant.toUpperCase()}`;
 }
@@ -425,51 +389,6 @@ function loadPairedItemsV1(project: string): Map<string, { off?: ItemSide; on?: 
   return map;
 }
 
-function effectPairOf(doc: ItemDoc): string | undefined {
-  const pair = doc.intent?.effect_pair;
-  if (pair) return pair;
-  const id = doc.id;
-  const m = id.match(/^EVAL-B-(.+)-(OFF|ON)$/);
-  if (m?.[1]) {
-    const mid = m[1];
-    // 历史：EVAL-B-PAIRED-TASK-OFF → PAIRED-TASK-01
-    if (mid === 'PAIRED-TASK') return 'PAIRED-TASK-01';
-    return mid;
-  }
-  return undefined;
-}
-
-function sideFrom(doc: ItemDoc, file: string): ItemSide {
-  let contains: string[] | undefined;
-  let notContains: string[] | undefined;
-  const expect = doc.expect;
-  if (typeof expect === 'object' && expect !== null && !Array.isArray(expect)) {
-    const oracles = (expect as Record<string, unknown>).oracles;
-    if (Array.isArray(oracles)) {
-      for (const o of oracles) {
-        if (o && typeof o === 'object') {
-          const obj = o as Record<string, unknown>;
-          if (obj.id === 'stdout-must' && obj.contains !== undefined) {
-            contains = asTrimmedList(obj.contains);
-          } else if (obj.id === 'stdout-forbid' && obj.not_contains !== undefined) {
-            notContains = asTrimmedList(obj.not_contains);
-          }
-        }
-      }
-    }
-  }
-  return {
-    id: doc.id,
-    rev: Number(doc.rev) || 0,
-    file,
-    passToken: doc.stimulus?.hosted_pass_token ?? 'ok',
-    notes: doc.stimulus?.notes ?? '',
-    tags: Array.isArray(doc.tags) ? doc.tags.filter((t) => typeof t === 'string') : [],
-    contains,
-    notContains,
-  };
-}
-
 function versionLabel(offRev?: number, onRev?: number): string {
   const off = offRev !== undefined ? `无插件 v${offRev}` : '无插件 —';
   const on = onRev !== undefined ? `有插件 v${onRev}` : '有插件 —';
@@ -481,26 +400,7 @@ function completeLabel(complete: boolean): string {
 }
 
 function loadPairedItems(project: string): Map<string, { off?: ItemSide; on?: ItemSide }> {
-  // 优先读 cases-v1（cases + case-revisions）；写路径迁移前，item.json 仍作为回退来源。
-  const map = loadPairedItemsV1(project);
-  const dir = itemsBDir(project);
-  if (!existsSync(dir)) return map;
-  for (const name of readdirSync(dir)) {
-    if (!name.endsWith('.item.json')) continue;
-    const file = join(dir, name);
-    const doc = readItem(file);
-    if (!doc) continue;
-    const pair = effectPairOf(doc);
-    if (!pair) continue;
-    const slot = map.get(pair) ?? {};
-    if (doc.id.endsWith('-ON')) {
-      if (slot.on === undefined) slot.on = sideFrom(doc, file);
-    } else {
-      if (slot.off === undefined) slot.off = sideFrom(doc, file);
-    }
-    map.set(pair, slot);
-  }
-  return map;
+  return loadPairedItemsV1(project);
 }
 
 function clipPreview(text: string, max = 220): string {
