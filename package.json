@@ -63,6 +63,7 @@
     "console": "node --experimental-strip-types --disable-warning=ExperimentalWarning apps/console/server.ts",
     "console:smoke": "bash scripts/console-l0.sh",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run validate:examples",
+    "verify:release": "npm run verify && npm run smoke:offline",
     "prepublishOnly": "npm run clean && npm run build",
     "proctor": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/main.ts"
   },

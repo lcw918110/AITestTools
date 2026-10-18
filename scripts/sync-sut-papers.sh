@@ -26,4 +26,4 @@ rsync -a --delete \
   "$SRC/" "$DST/"
 rm -rf "$DST/runs"
 echo "已同步：$SRC → $DST"
-echo "运行示例：SUT_ROOT=$SUT npm run proctor -- run --axis A --paperset st-import-L1 --project examples/wanxiangshu-papers"
+echo "运行示例：SUT_ROOT=$SUT npm run proctor -- run --dataset st-import-l1 --environment fold-wanxiangshu-v1 --project examples/wanxiangshu-papers"
