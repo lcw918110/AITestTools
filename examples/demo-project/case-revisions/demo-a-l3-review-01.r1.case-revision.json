@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "demo-a-l3-review-01",
+  "case_revision_id": "demo-a-l3-review-01.r1",
+  "revision_number": 1,
+  "legacy_item_id": "DEMO-A-L3-REVIEW-01",
+  "content_hash": "393b130f49e440b79b4d2d7dc61b3af9ff57bc80aa92c27036393cedc281f2be",
+  "stimulus": {
+    "kind": "cassette",
+    "ref": "cassettes/review-tools-v1/manifest.json"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "replay",
+        "type": "event_subsequence",
+        "names": [
+          "SessionReady",
+          "TurnStarted",
+          "TurnCompleted"
+        ]
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "cassette",
+    "difficulty_level": "L3"
+  },
+  "execution_profile": {
+    "mode": "cassette",
+    "layer": "L3",
+    "contract": "demo-host-v1",
+    "cassette": "cassettes/review-tools-v1/manifest.json"
+  },
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 15000,
+    "requires_network": false,
+    "requires_durable_log": false
+  },
+  "change_log": {}
+}

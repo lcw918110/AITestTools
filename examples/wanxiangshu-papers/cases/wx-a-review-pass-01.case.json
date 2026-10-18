@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "wx-a-review-pass-01",
+  "title": "review.required 时须经 submit_review 以 accepted 关闭",
+  "owner": "wanxiangshu",
+  "tags": [
+    "l2",
+    "review",
+    "opencode-hooks"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "wx-a-review-pass-01.r1"
+}

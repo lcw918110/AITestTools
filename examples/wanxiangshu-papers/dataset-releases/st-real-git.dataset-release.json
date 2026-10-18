@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "st-real-git",
+  "name": "st-real-git",
+  "description": "ST 真 git 最小面（C 轴 tmp repo；非完整 Coordinator/OpenCode）",
+  "case_revisions": [
+    {
+      "case_id": "wx-c-st-06-rebase",
+      "case_revision_id": "wx-c-st-06-rebase.r1",
+      "content_hash": "0aa6ef16db071d80b7764ea7756f84a42bdfe4648c18298d72e171b07a2855b2"
+    },
+    {
+      "case_id": "wx-c-st-09-reconcile",
+      "case_revision_id": "wx-c-st-09-reconcile.r1",
+      "content_hash": "b6ce1090e3ad693e2be1514dd478236078dd14c9299be0a40575e9b2b2cfb81d"
+    },
+    {
+      "case_id": "wx-c-st-12-cleanup-merged",
+      "case_revision_id": "wx-c-st-12-cleanup-merged.r1",
+      "content_hash": "187a9d7d9904d1c4a4501597a94132be45b072770e1d119974f0fe3960bafdeb"
+    },
+    {
+      "case_id": "wx-c-st-12-cleanup-cancel",
+      "case_revision_id": "wx-c-st-12-cleanup-cancel.r1",
+      "content_hash": "e683b00b4ac70e90eacb3203bd04c167df7cb7987043ad1e069fdb660e811836"
+    },
+    {
+      "case_id": "wx-c-st-16-stale",
+      "case_revision_id": "wx-c-st-16-stale.r1",
+      "content_hash": "49377be07e2e39b8640d9063cfd1b29b1262a55e9d9e311e6b7eb1010017df0a"
+    },
+    {
+      "case_id": "wx-c-st-16-already",
+      "case_revision_id": "wx-c-st-16-already.r1",
+      "content_hash": "d2b7a5839aa423e13c9693b35490787fa7fe06c3fdc10657037212d649feb868"
+    }
+  ],
+  "closure_hash": "6be88a624897ef948c151032f91e0d6685a171563a60fea1f730996ba25bf331"
+}

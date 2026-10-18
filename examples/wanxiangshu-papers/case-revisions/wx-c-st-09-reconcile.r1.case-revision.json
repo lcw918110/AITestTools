@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "wx-c-st-09-reconcile",
+  "case_revision_id": "wx-c-st-09-reconcile.r1",
+  "revision_number": 1,
+  "legacy_item_id": "WX-C-ST-09-RECONCILE",
+  "content_hash": "b6ce1090e3ad693e2be1514dd478236078dd14c9299be0a40575e9b2b2cfb81d",
+  "stimulus": {
+    "kind": "tool_args",
+    "ref": "materials/WX-C-ST-09-RECONCILE/stimulus.json"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      },
+      {
+        "id": "result",
+        "type": "tool_result_equals",
+        "equals": {
+          "tipInMain": true,
+          "shouldReconcileSubmittedToMerged": true
+        }
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "direct_tool"
+  },
+  "execution_profile": {
+    "mode": "direct_tool"
+  },
+  "attribution_focus": "TOOL",
+  "protocol_probes": [],
+  "model_id": "n/a",
+  "execution": {
+    "deadline_ms": 30000,
+    "requires_network": false,
+    "requires_durable_log": false
+  },
+  "change_log": {}
+}

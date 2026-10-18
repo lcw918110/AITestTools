@@ -1,0 +1,58 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "wx-c-st-coord-http-01",
+  "case_revision_id": "wx-c-st-coord-http-01.r1",
+  "revision_number": 1,
+  "legacy_item_id": "WX-C-ST-COORD-HTTP-01",
+  "content_hash": "05f7f909f4cf35ec05a3e2740bd511f9947a88ae6c802fa64040b3906e395d87",
+  "stimulus": {
+    "kind": "tool_args",
+    "ref": "materials/WX-C-ST-COORD-HTTP-01/stimulus.json"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      },
+      {
+        "id": "result",
+        "type": "tool_result_equals",
+        "equals": {
+          "unauthorized": {
+            "status": 401,
+            "result": "unauthorized"
+          },
+          "authorized": {
+            "status": 200,
+            "result": "registered"
+          },
+          "ok": true
+        }
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "direct_tool"
+  },
+  "execution_profile": {
+    "mode": "direct_tool"
+  },
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [],
+  "model_id": "n/a",
+  "execution": {
+    "deadline_ms": 60000,
+    "requires_network": true,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev1": "Phase2：真 Coordinator HTTP 最小 e2e"
+  }
+}

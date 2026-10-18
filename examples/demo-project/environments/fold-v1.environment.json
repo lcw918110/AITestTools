@@ -1,0 +1,25 @@
+{
+  "$schema": "../../../schemas/environment.schema.json",
+  "environment_profile_id": "fold-v1",
+  "name": "fold-v1",
+  "lifecycle": "active",
+  "recipe": {
+    "network_policy": "deny",
+    "kind": "fold",
+    "model_driver": "none",
+    "fold_entries": {
+      "todo-projection": {
+        "module": "sut/todo-fold.mjs",
+        "export": "foldTodos",
+        "signature": "pure_fold_v1",
+        "event_schema": "demo-events-v1",
+        "resolve_root": "project",
+        "normalize": "json_clone"
+      }
+    },
+    "sut": {
+      "name": "demo-agent",
+      "root_env": "SUT_ROOT"
+    }
+  }
+}

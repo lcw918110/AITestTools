@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "model-core",
+  "name": "model-core",
+  "description": "B 轴 direct 通道模型矩阵（fixture spike；live 需 PROCTOR_PROMPTFOO_LIVE=1 + API Key）",
+  "case_revisions": [
+    {
+      "case_id": "demo-b-tool-schema-01",
+      "case_revision_id": "demo-b-tool-schema-01.r1",
+      "content_hash": "6c15d6dea195760f76686bcdba9cf345acf8a7b100c24a35f2fd926dad9d5a09"
+    },
+    {
+      "case_id": "demo-b-tool-schema-02",
+      "case_revision_id": "demo-b-tool-schema-02.r1",
+      "content_hash": "f28d189a8b1a9326484dd1368b15ac0c0644e3dcba4d93fb3510c4470e7365f4"
+    },
+    {
+      "case_id": "demo-b-tool-schema-03",
+      "case_revision_id": "demo-b-tool-schema-03.r1",
+      "content_hash": "e1e37e79c2bd6256c4df25af656cbd7c84d71d8e433bc79b10d17c6ca0bc96b2"
+    },
+    {
+      "case_id": "demo-b-tool-schema-04",
+      "case_revision_id": "demo-b-tool-schema-04.r1",
+      "content_hash": "ad269a5e6d9c93b441ef801f46f22c3ecd904a816edfdf22b6a892263f0a78fb"
+    },
+    {
+      "case_id": "demo-b-tool-schema-05",
+      "case_revision_id": "demo-b-tool-schema-05.r1",
+      "content_hash": "50811a6ca149839f9a2a2fcfcad1e846dd7079ec9670c32b12cb79ae87be87f4"
+    }
+  ],
+  "closure_hash": "15490cc0429bbe3994227d8f662722dbe28a55f9892b18e18c5082695cb8fd44"
+}

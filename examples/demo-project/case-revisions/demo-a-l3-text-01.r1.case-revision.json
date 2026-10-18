@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "demo-a-l3-text-01",
+  "case_revision_id": "demo-a-l3-text-01.r1",
+  "revision_number": 1,
+  "legacy_item_id": "DEMO-A-L3-TEXT-01",
+  "content_hash": "f1e9d7814d67e5015c684b2350ac7e4c6de5ecdc45f78b561cea2e891274eed0",
+  "stimulus": {
+    "kind": "cassette",
+    "ref": "cassettes/text-stop-v1/manifest.json"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "replay",
+        "type": "event_subsequence",
+        "names": [
+          "SessionReady",
+          "TurnStarted"
+        ]
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "cassette",
+    "difficulty_level": "L3"
+  },
+  "execution_profile": {
+    "mode": "cassette",
+    "layer": "L3",
+    "contract": "demo-host-v1",
+    "cassette": "cassettes/text-stop-v1/manifest.json"
+  },
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 15000,
+    "requires_network": false,
+    "requires_durable_log": false
+  },
+  "change_log": {}
+}

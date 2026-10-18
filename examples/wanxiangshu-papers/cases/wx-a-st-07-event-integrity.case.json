@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "wx-a-st-07-event-integrity",
+  "title": "ST-07：完整事件链可解释终态",
+  "owner": "wanxiangshu",
+  "tags": [
+    "l1",
+    "st-import",
+    "st-07",
+    "squad"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "wx-a-st-07-event-integrity.r1"
+}

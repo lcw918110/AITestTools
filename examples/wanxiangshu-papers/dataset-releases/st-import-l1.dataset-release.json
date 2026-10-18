@@ -1,0 +1,74 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "st-import-l1",
+  "name": "st-import-L1",
+  "description": "已知失效：旧 Squad/WanEvent 词。现行 L1 最小面见 smoke-A-L1（foldEnvelope）。",
+  "case_revisions": [
+    {
+      "case_id": "wx-a-st-01-main",
+      "case_revision_id": "wx-a-st-01-main.r1",
+      "content_hash": "f0e0186fb6e915c849ffaf7f2c1091553d39d8fd341c9657ed1d5596d871aae3"
+    },
+    {
+      "case_id": "wx-a-st-02-parallel",
+      "case_revision_id": "wx-a-st-02-parallel.r1",
+      "content_hash": "53fabf5d57c62ff7ebbd0ffa40f39f581265c47c63e19aa3a5ae05e9a9b1ffea"
+    },
+    {
+      "case_id": "wx-a-st-03-dep-block",
+      "case_revision_id": "wx-a-st-03-dep-block.r1",
+      "content_hash": "bee19e3cbd2380b3a26280c84f3d23553ccdd764476b80b31fe1b394186eb24b"
+    },
+    {
+      "case_id": "wx-a-st-03-dep-ready",
+      "case_revision_id": "wx-a-st-03-dep-ready.r1",
+      "content_hash": "94b00c47e7606cd126a39ad9cd89a1d7b68fdf51e3e2f65bfdf2365ee232fbdb"
+    },
+    {
+      "case_id": "wx-a-st-04-ff-merge",
+      "case_revision_id": "wx-a-st-04-ff-merge.r1",
+      "content_hash": "646a56dd69e2bac5c6159fbeedc1393aac49d990fc1708762ece7bc9f9a45892"
+    },
+    {
+      "case_id": "wx-a-st-05-concurrent",
+      "case_revision_id": "wx-a-st-05-concurrent.r1",
+      "content_hash": "689aa84ea869f54d46a234aa07f60d1ebc502c1b4e99538f45841bd48f620823"
+    },
+    {
+      "case_id": "wx-a-st-07-event-integrity",
+      "case_revision_id": "wx-a-st-07-event-integrity.r1",
+      "content_hash": "bb51a4b18ab7fa64b993afb0bfaf026c9771c8f32ba2f74e24811645dfc80172"
+    },
+    {
+      "case_id": "wx-a-st-08-replay",
+      "case_revision_id": "wx-a-st-08-replay.r1",
+      "content_hash": "bade1b6f6026c5d154af994373cdcc9b00768cc3feb0ceb3a15212aea9740e0e"
+    },
+    {
+      "case_id": "wx-a-st-10-slave-crash",
+      "case_revision_id": "wx-a-st-10-slave-crash.r1",
+      "content_hash": "1dfc2377eca66c48eecd8b0e52b2a9adb27e68a22fd3868616caaf21cb6fb543"
+    },
+    {
+      "case_id": "wx-a-st-11-cancel",
+      "case_revision_id": "wx-a-st-11-cancel.r1",
+      "content_hash": "a422ced5117e5f1315084509ce30d268775dbcd9397c11f978f55f123fe82097"
+    },
+    {
+      "case_id": "wx-a-st-13-cycle",
+      "case_revision_id": "wx-a-st-13-cycle.r1",
+      "content_hash": "6eb750d72fcd92de22feed0a8b3031f28134a8927062d083dad01aca2a97cf2a"
+    },
+    {
+      "case_id": "wx-a-st-14-strict",
+      "case_revision_id": "wx-a-st-14-strict.r1",
+      "content_hash": "4690ebc6adcfb7784c5f797f95c267efc0726b12f453b27e597760bbab2e9d13"
+    },
+    {
+      "case_id": "wx-a-st-15-nudge",
+      "case_revision_id": "wx-a-st-15-nudge.r1",
+      "content_hash": "bc3c438e1c8877109549ab4447ae98ce1264ed97284906b22017451aff1c393d"
+    }
+  ],
+  "closure_hash": "22c25a511675827b01ceeda27e437f9a2a1456913d9bd0bcbc36535435b4f9fa"
+}

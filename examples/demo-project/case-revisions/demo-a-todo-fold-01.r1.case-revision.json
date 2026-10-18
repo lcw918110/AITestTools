@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "demo-a-todo-fold-01",
+  "case_revision_id": "demo-a-todo-fold-01.r1",
+  "revision_number": 1,
+  "legacy_item_id": "DEMO-A-TODO-FOLD-01",
+  "content_hash": "a34c834b75cc751217c1f0956cb6b2ff3690fde7446a4241d986093fcf0eec8b",
+  "stimulus": {
+    "kind": "event_sequence",
+    "ref": "materials/DEMO-A-TODO-FOLD-01/stimulus.ndjson"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "fold-matches",
+        "type": "event_fold",
+        "spec": "materials/DEMO-A-TODO-FOLD-01/expected-fold.json"
+      },
+      {
+        "id": "no-regression",
+        "type": "no_event",
+        "names": [
+          "TodoReopenedWithoutReason"
+        ]
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "fold",
+    "difficulty_level": "L1"
+  },
+  "execution_profile": {
+    "mode": "fold",
+    "layer": "L1",
+    "fold_entry": "todo-projection",
+    "event_schema": "demo-events-v1"
+  },
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 5000,
+    "requires_network": false,
+    "requires_durable_log": false
+  },
+  "change_log": {}
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "st-coordinator-e2e",
+  "name": "st-coordinator-e2e",
+  "description": "真 Coordinator HTTP 最小 e2e（1 题）；需 SUT_ROOT + PluginWanxiangzhen 构建产物",
+  "case_revisions": [
+    {
+      "case_id": "wx-c-st-coord-http-01",
+      "case_revision_id": "wx-c-st-coord-http-01.r1",
+      "content_hash": "05f7f909f4cf35ec05a3e2740bd511f9947a88ae6c802fa64040b3906e395d87"
+    }
+  ],
+  "closure_hash": "3e841e4b1c3f249d275bd6ce4b0ab62a1505e3fbe3096b07d9ad58a525a51594"
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "smoke-c-echo",
+  "name": "smoke-C-echo",
+  "description": "C 轴本地工具契约：echo",
+  "case_revisions": [
+    {
+      "case_id": "demo-c-echo-01",
+      "case_revision_id": "demo-c-echo-01.r1",
+      "content_hash": "9d35c5e0401c61f69f723e20f390d662bd5b5139f6d0ac7aa01d8f8cf9c251ca"
+    }
+  ],
+  "closure_hash": "2117c80c28b1155338b184690f83e0e10f515b3b3d0500b890b28ba3020d313a"
+}

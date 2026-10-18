@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "wx-b-hosted-plugin-01",
+  "title": "hosted：挂万象术 Plugin 并写入 EventStore RuntimeStarted",
+  "owner": "wanxiangshu",
+  "tags": [
+    "hosted",
+    "plugin",
+    "event-store"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "wx-b-hosted-plugin-01.r2"
+}

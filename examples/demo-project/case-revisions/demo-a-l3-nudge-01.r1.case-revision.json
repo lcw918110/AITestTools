@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "demo-a-l3-nudge-01",
+  "case_revision_id": "demo-a-l3-nudge-01.r1",
+  "revision_number": 1,
+  "legacy_item_id": "DEMO-A-L3-NUDGE-01",
+  "content_hash": "fce6bfc1da85680ffef3d5016a0c7d2e2d60cfc3144f8e6373e52ab283790796",
+  "stimulus": {
+    "kind": "cassette",
+    "ref": "cassettes/nudge-smoke-v1/manifest.json"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "replay",
+        "type": "event_subsequence",
+        "names": [
+          "SessionReady",
+          "TurnStarted",
+          "TurnCompleted"
+        ]
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "cassette",
+    "difficulty_level": "L3"
+  },
+  "execution_profile": {
+    "mode": "cassette",
+    "layer": "L3",
+    "contract": "demo-host-v1",
+    "cassette": "cassettes/nudge-smoke-v1/manifest.json"
+  },
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 15000,
+    "requires_network": false,
+    "requires_durable_log": false
+  },
+  "change_log": {}
+}

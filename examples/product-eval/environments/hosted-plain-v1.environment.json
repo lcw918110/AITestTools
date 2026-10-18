@@ -32,6 +32,8 @@
       "deep-distiller",
       "fast-blogger",
       "deep-blogger"
-    ]
+    ],
+    "kind": "hosted",
+    "model_driver": "live"
   }
 }

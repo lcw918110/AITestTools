@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../schemas/candidate.schema.json",
+  "candidate_id": "hosted-wanxiangshu",
+  "name": "真 OpenCode + 万象术 Plugin。0.8+ 耐久为 refs/wanxiang/store；.wanxiangshu.ndjson 不再当挂载健康信号。",
+  "host": {
+    "name": "opencode",
+    "version": "1.18.5"
+  },
+  "agent": {
+    "name": "fast-coder"
+  },
+  "plugin": null,
+  "model_routing": "hosted-wanxiangshu-v1",
+  "environment_profile": "hosted-wanxiangshu-v1",
+  "channel": "hosted",
+  "tool_profile": "none"
+}

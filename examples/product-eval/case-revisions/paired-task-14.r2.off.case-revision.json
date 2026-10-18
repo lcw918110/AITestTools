@@ -3,6 +3,7 @@
   "case_id": "paired-task-14",
   "case_revision_id": "paired-task-14.r2.off",
   "revision_number": 2,
+  "legacy_item_id": "EVAL-B-PAIRED-TASK-14-OFF",
   "content_hash": "5e3695b5fc13fa471ded58b1fad5fe7261c4b759a5f4d126cb4fce046bfa3b93",
   "stimulus": {
     "kind": "task_prompt",
@@ -24,6 +25,12 @@
     ]
   },
   "evidence_requirements": [],
+  "strata": {
+    "task_type": "hosted"
+  },
+  "execution_profile": {
+    "mode": "hosted"
+  },
   "attribution_focus": "MODEL_TASK",
   "protocol_probes": [],
   "model_id": "wave-ai/gpt-5.4-mini",

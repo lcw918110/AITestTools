@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "wx-a-nudge-timing-01",
+  "case_revision_id": "wx-a-nudge-timing-01.r1",
+  "revision_number": 1,
+  "legacy_item_id": "WX-A-NUDGE-TIMING-01",
+  "content_hash": "d035ccbacb0fa59eab1cf1b9c52a902f03044bf4d62c1acc662c37cdb2a94544",
+  "stimulus": {
+    "kind": "hook_script",
+    "ref": "materials/WX-A-NUDGE-TIMING-01/session.json"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "nudge-between-turns",
+        "type": "event_subsequence",
+        "names": [
+          "TurnCompleted",
+          "nudge_dispatched",
+          "TurnStarted"
+        ]
+      },
+      {
+        "id": "state-after",
+        "type": "state_predicate",
+        "expr": "session.nudge_count == 1"
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "scripted",
+    "difficulty_level": "L2"
+  },
+  "execution_profile": {
+    "mode": "scripted",
+    "layer": "L2",
+    "contract": "opencode-hooks-v1",
+    "script": "scripts/no-progress-twice.json"
+  },
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 15000,
+    "requires_network": false,
+    "requires_durable_log": true
+  },
+  "change_log": {}
+}

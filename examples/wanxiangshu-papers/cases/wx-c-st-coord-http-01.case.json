@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "wx-c-st-coord-http-01",
+  "title": "真 Coordinator HTTP：错误 token 401 / 正确 token register",
+  "owner": "wanxiangshu",
+  "tags": [
+    "c-axis",
+    "coordinator",
+    "http",
+    "st-e2e"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "wx-c-st-coord-http-01.r1"
+}

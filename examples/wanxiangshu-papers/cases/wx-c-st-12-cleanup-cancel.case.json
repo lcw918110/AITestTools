@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "wx-c-st-12-cleanup-cancel",
+  "title": "ST-12：cancelled 保留 worktree/分支",
+  "owner": "wanxiangshu",
+  "tags": [
+    "c-axis",
+    "st-12",
+    "git"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "wx-c-st-12-cleanup-cancel.r1"
+}

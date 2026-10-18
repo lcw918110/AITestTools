@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "wx-c-st-06-rebase",
+  "case_revision_id": "wx-c-st-06-rebase.r1",
+  "revision_number": 1,
+  "legacy_item_id": "WX-C-ST-06-REBASE",
+  "content_hash": "0aa6ef16db071d80b7764ea7756f84a42bdfe4648c18298d72e171b07a2855b2",
+  "stimulus": {
+    "kind": "tool_args",
+    "ref": "materials/WX-C-ST-06-REBASE/stimulus.json"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      },
+      {
+        "id": "result",
+        "type": "tool_result_equals",
+        "equals": {
+          "rebaseNeeded": true,
+          "rebasedAndMerged": true
+        }
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "direct_tool"
+  },
+  "execution_profile": {
+    "mode": "direct_tool"
+  },
+  "attribution_focus": "TOOL",
+  "protocol_probes": [],
+  "model_id": "n/a",
+  "execution": {
+    "deadline_ms": 30000,
+    "requires_network": false,
+    "requires_durable_log": false
+  },
+  "change_log": {}
+}

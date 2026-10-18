@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "demo-c-write-01",
+  "case_revision_id": "demo-c-write-01.r1",
+  "revision_number": 1,
+  "legacy_item_id": "DEMO-C-WRITE-01",
+  "content_hash": "f069470be3759f6055a792172d7f95690798e6565d4389b1d83d7af5cfdcd9fc",
+  "stimulus": {
+    "kind": "tool_args",
+    "ref": "materials/DEMO-C-WRITE-01/stimulus.json"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      },
+      {
+        "id": "side",
+        "type": "tool_side_effect",
+        "file": "out.txt",
+        "contains": "side-effect-ok"
+      },
+      {
+        "id": "ws",
+        "type": "workspace_assert",
+        "path": "out.txt",
+        "contains": "side-effect-ok"
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "direct_tool"
+  },
+  "execution_profile": {
+    "mode": "direct_tool"
+  },
+  "attribution_focus": "TOOL",
+  "protocol_probes": [],
+  "model_id": "n/a",
+  "execution": {
+    "deadline_ms": 10000,
+    "requires_network": false,
+    "requires_durable_log": false
+  },
+  "change_log": {}
+}

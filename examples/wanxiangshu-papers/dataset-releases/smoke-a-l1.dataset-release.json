@@ -1,0 +1,24 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "smoke-a-l1",
+  "name": "smoke-A-L1",
+  "description": "万象术 L1：Journal.foldEnvelope 最小面（RuntimeStarted）。",
+  "case_revisions": [
+    {
+      "case_id": "wx-a-journal-runtime-01",
+      "case_revision_id": "wx-a-journal-runtime-01.r1",
+      "content_hash": "83b5ed996b2bddb04302d123d3ba8475a492db586872b37921c27a92748b5608"
+    },
+    {
+      "case_id": "wx-a-journal-runtime-02",
+      "case_revision_id": "wx-a-journal-runtime-02.r1",
+      "content_hash": "adbb8394af646f0a1a7b14664debd2ff4ab1b347e1b2d1df4f8f96fa0c4b808a"
+    },
+    {
+      "case_id": "wx-a-journal-runtime-03",
+      "case_revision_id": "wx-a-journal-runtime-03.r1",
+      "content_hash": "f9e3888b999ebd7ada7f5aa39d614488f60be20ab18ca9aad25c0978281f8aff"
+    }
+  ],
+  "closure_hash": "5bcc0e82e3d17261fd4654ea11ae8d573aa64b8a61e2cdec7369edb4b3914b57"
+}

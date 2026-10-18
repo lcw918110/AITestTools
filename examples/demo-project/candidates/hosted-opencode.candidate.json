@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../schemas/candidate.schema.json",
+  "candidate_id": "hosted-opencode",
+  "name": "B-hosted smoke：本机 OpenCode 子进程；缺密钥时验证归因树可输出 CONTEXT。",
+  "host": {
+    "name": "opencode",
+    "version": "1.18.5"
+  },
+  "agent": {},
+  "plugin": null,
+  "model_routing": "hosted-opencode-v1",
+  "environment_profile": "hosted-opencode-v1",
+  "channel": "hosted",
+  "tool_profile": "none"
+}

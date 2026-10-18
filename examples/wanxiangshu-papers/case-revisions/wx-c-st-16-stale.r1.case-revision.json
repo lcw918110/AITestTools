@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "wx-c-st-16-stale",
+  "case_revision_id": "wx-c-st-16-stale.r1",
+  "revision_number": 1,
+  "legacy_item_id": "WX-C-ST-16-STALE",
+  "content_hash": "49377be07e2e39b8640d9063cfd1b29b1262a55e9d9e311e6b7eb1010017df0a",
+  "stimulus": {
+    "kind": "tool_args",
+    "ref": "materials/WX-C-ST-16-STALE/stimulus.json"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      },
+      {
+        "id": "result",
+        "type": "tool_result_equals",
+        "equals": {
+          "mode": "stale_sha",
+          "rejectStaleCommit": true
+        }
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "direct_tool"
+  },
+  "execution_profile": {
+    "mode": "direct_tool"
+  },
+  "attribution_focus": "TOOL",
+  "protocol_probes": [],
+  "model_id": "n/a",
+  "execution": {
+    "deadline_ms": 30000,
+    "requires_network": false,
+    "requires_durable_log": false
+  },
+  "change_log": {}
+}

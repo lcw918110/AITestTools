@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "wx-a-journal-runtime-01",
+  "case_revision_id": "wx-a-journal-runtime-01.r1",
+  "revision_number": 1,
+  "legacy_item_id": "WX-A-JOURNAL-RUNTIME-01",
+  "content_hash": "83b5ed996b2bddb04302d123d3ba8475a492db586872b37921c27a92748b5608",
+  "stimulus": {
+    "kind": "event_sequence",
+    "ref": "materials/WX-A-JOURNAL-RUNTIME-01/stimulus.ndjson"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "runtime-started",
+        "type": "event_fold",
+        "spec": "materials/WX-A-JOURNAL-RUNTIME-01/expected-fold.json"
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "fold",
+    "difficulty_level": "L1"
+  },
+  "execution_profile": {
+    "mode": "fold",
+    "layer": "L1",
+    "fold_entry": "journal-fold",
+    "event_schema": "journal-envelope-v1",
+    "session_id": "sess-journal-1"
+  },
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 10000,
+    "requires_network": false,
+    "requires_durable_log": false
+  },
+  "change_log": {}
+}

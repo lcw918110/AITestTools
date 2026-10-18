@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "wx-a-st-05-concurrent",
+  "title": "ST-05：并发提交后仅一任务先 merged",
+  "owner": "wanxiangshu",
+  "tags": [
+    "l1",
+    "st-import",
+    "st-05",
+    "squad"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "wx-a-st-05-concurrent.r1"
+}

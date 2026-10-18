@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "wx-a-journal-runtime-03",
+  "title": "journal 线格式 Envelope 经 deserialize 再 foldEnvelope",
+  "owner": "wanxiangshu",
+  "tags": [
+    "l1",
+    "journal",
+    "fold"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "wx-a-journal-runtime-03.r1"
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "wx-a-st-14-strict",
+  "title": "ST-14：Strict 非法状态转移拒绝",
+  "owner": "wanxiangshu",
+  "tags": [
+    "l1",
+    "st-import",
+    "st-14",
+    "squad"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "wx-a-st-14-strict.r1"
+}

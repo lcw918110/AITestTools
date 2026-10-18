@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../schemas/candidate.schema.json",
+  "candidate_id": "shell-echo",
+  "name": "C 轴：echo CLI 壳",
+  "host": {},
+  "agent": {},
+  "plugin": null,
+  "model_routing": "shell-echo-v1",
+  "environment_profile": "shell-echo-v1",
+  "channel": "direct",
+  "tool_profile": "none"
+}

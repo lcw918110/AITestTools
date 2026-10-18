@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "wx-a-st-13-cycle",
+  "title": "ST-13：环依赖可被 detectCycle 检出",
+  "owner": "wanxiangshu",
+  "tags": [
+    "l1",
+    "st-import",
+    "st-13",
+    "squad"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "wx-a-st-13-cycle.r1"
+}

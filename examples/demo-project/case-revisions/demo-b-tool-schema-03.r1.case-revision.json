@@ -1,0 +1,53 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "demo-b-tool-schema-03",
+  "case_revision_id": "demo-b-tool-schema-03.r1",
+  "revision_number": 1,
+  "legacy_item_id": "DEMO-B-TOOL-SCHEMA-03",
+  "content_hash": "e1e37e79c2bd6256c4df25af656cbd7c84d71d8e433bc79b10d17c6ca0bc96b2",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "materials/DEMO-B-TOOL-SCHEMA-03/task.md"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "must-call",
+        "type": "tool_trace",
+        "must_call": [
+          "todowrite"
+        ]
+      },
+      {
+        "id": "required-fields",
+        "type": "schema_obedience",
+        "tool": "todowrite",
+        "required_fields": [
+          "todos",
+          "merge"
+        ]
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "hosted"
+  },
+  "execution_profile": {
+    "mode": "hosted"
+  },
+  "attribution_focus": "MODEL_SCHEMA",
+  "protocol_probes": [],
+  "model_id": "${MATRIX_SUBJECT}",
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": false,
+    "repeats": 3
+  },
+  "change_log": {}
+}

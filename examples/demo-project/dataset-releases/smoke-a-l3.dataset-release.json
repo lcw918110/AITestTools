@@ -1,0 +1,39 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "smoke-a-l3",
+  "name": "smoke-A-L3",
+  "description": "A 轴 L3 cassette 对拍（scripted + journal）",
+  "case_revisions": [
+    {
+      "case_id": "demo-a-l3-boundary-01",
+      "case_revision_id": "demo-a-l3-boundary-01.r1",
+      "content_hash": "cfeaa75427ef837f523831af7ae323e0975f9e38ce30d98a28dd3848cfcd0300"
+    },
+    {
+      "case_id": "demo-a-l3-nudge-01",
+      "case_revision_id": "demo-a-l3-nudge-01.r1",
+      "content_hash": "fce6bfc1da85680ffef3d5016a0c7d2e2d60cfc3144f8e6373e52ab283790796"
+    },
+    {
+      "case_id": "demo-a-l3-text-01",
+      "case_revision_id": "demo-a-l3-text-01.r1",
+      "content_hash": "f1e9d7814d67e5015c684b2350ac7e4c6de5ecdc45f78b561cea2e891274eed0"
+    },
+    {
+      "case_id": "demo-a-l3-review-01",
+      "case_revision_id": "demo-a-l3-review-01.r1",
+      "content_hash": "393b130f49e440b79b4d2d7dc61b3af9ff57bc80aa92c27036393cedc281f2be"
+    },
+    {
+      "case_id": "demo-a-l3-journal-01",
+      "case_revision_id": "demo-a-l3-journal-01.r1",
+      "content_hash": "3890c3a6ab049a20671a920dfacefb07bcd549a90abcceb4baa3b8eb2eb51a19"
+    },
+    {
+      "case_id": "demo-a-l3-live-01",
+      "case_revision_id": "demo-a-l3-live-01.r1",
+      "content_hash": "7ce6accd4f31099cc73860e13c605e30332db8aa7e5126aa4883443496b8e4cc"
+    }
+  ],
+  "closure_hash": "0af1ab99d95776e2a566588962898467817c8b3419acb0449ed8183dddd5b13d"
+}

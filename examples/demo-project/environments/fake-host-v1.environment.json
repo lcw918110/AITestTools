@@ -1,0 +1,16 @@
+{
+  "$schema": "../../../schemas/environment.schema.json",
+  "environment_profile_id": "fake-host-v1",
+  "name": "fake-host-v1",
+  "lifecycle": "active",
+  "recipe": {
+    "network_policy": "deny",
+    "kind": "fake-host",
+    "model_driver": "scripted",
+    "adapter": {
+      "framework": "demo-plugin",
+      "config": "sut/control-flow-plugin.mjs"
+    },
+    "contract": "demo-host-v1"
+  }
+}

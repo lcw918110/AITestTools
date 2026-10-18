@@ -1,0 +1,49 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "demo-a-todo-fold-03",
+  "case_revision_id": "demo-a-todo-fold-03.r1",
+  "revision_number": 1,
+  "legacy_item_id": "DEMO-A-TODO-FOLD-03",
+  "content_hash": "f82ce69aabca059bfa68a60842bb91fa25fc92978fe06ab5004056e6b34b709e",
+  "stimulus": {
+    "kind": "event_sequence",
+    "ref": "materials/DEMO-A-TODO-FOLD-03/stimulus.ndjson"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "fold",
+        "type": "event_fold",
+        "spec": "materials/DEMO-A-TODO-FOLD-03/expected-fold.json"
+      },
+      {
+        "id": "pred",
+        "type": "state_predicate",
+        "expr": "todos['t-3'].state == 'InProgress'"
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "fold",
+    "difficulty_level": "L1"
+  },
+  "execution_profile": {
+    "mode": "fold",
+    "layer": "L1",
+    "fold_entry": "todo-projection",
+    "event_schema": "demo-events-v1"
+  },
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 5000,
+    "requires_network": false,
+    "requires_durable_log": false
+  },
+  "change_log": {}
+}

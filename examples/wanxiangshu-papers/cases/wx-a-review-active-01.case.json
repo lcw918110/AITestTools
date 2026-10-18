@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "wx-a-review-active-01",
+  "title": "loop_activated 后 review task 保持激活",
+  "owner": "wanxiangshu",
+  "tags": [
+    "l1",
+    "review",
+    "fold"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "wx-a-review-active-01.r1"
+}

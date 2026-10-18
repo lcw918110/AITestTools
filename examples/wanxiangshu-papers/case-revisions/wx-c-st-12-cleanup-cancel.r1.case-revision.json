@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "wx-c-st-12-cleanup-cancel",
+  "case_revision_id": "wx-c-st-12-cleanup-cancel.r1",
+  "revision_number": 1,
+  "legacy_item_id": "WX-C-ST-12-CLEANUP-CANCEL",
+  "content_hash": "e683b00b4ac70e90eacb3203bd04c167df7cb7987043ad1e069fdb660e811836",
+  "stimulus": {
+    "kind": "tool_args",
+    "ref": "materials/WX-C-ST-12-CLEANUP-CANCEL/stimulus.json"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      },
+      {
+        "id": "result",
+        "type": "tool_result_equals",
+        "equals": {
+          "scenario": "cancelled",
+          "worktreeKept": true,
+          "branchKept": true
+        }
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "direct_tool"
+  },
+  "execution_profile": {
+    "mode": "direct_tool"
+  },
+  "attribution_focus": "TOOL",
+  "protocol_probes": [],
+  "model_id": "n/a",
+  "execution": {
+    "deadline_ms": 30000,
+    "requires_network": false,
+    "requires_durable_log": false
+  },
+  "change_log": {}
+}

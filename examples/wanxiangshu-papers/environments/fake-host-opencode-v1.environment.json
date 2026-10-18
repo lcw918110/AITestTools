@@ -1,0 +1,17 @@
+{
+  "$schema": "../../../schemas/environment.schema.json",
+  "environment_profile_id": "fake-host-opencode-v1",
+  "name": "fake-host-opencode-v1",
+  "lifecycle": "active",
+  "recipe": {
+    "network_policy": "deny",
+    "kind": "fake-host",
+    "model_driver": "scripted",
+    "adapter": {
+      "framework": "wanxiangshu-l2-shim",
+      "config": "adapters/l2-control-flow-plugin.mjs",
+      "hook_style": "opencode-v1"
+    },
+    "contract": "opencode-hooks-v1"
+  }
+}

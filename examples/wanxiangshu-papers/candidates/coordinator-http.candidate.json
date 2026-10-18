@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../schemas/candidate.schema.json",
+  "candidate_id": "coordinator-http",
+  "name": "已知失效：C 轴 Coordinator HTTP（PluginWanxiangzhen 已从万象术 0.8+ 移除）",
+  "host": {},
+  "agent": {},
+  "plugin": null,
+  "model_routing": "coordinator-http-v1",
+  "environment_profile": "coordinator-http-v1",
+  "channel": "direct",
+  "tool_profile": "none"
+}

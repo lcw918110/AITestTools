@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "wx-a-review-closed-01",
+  "case_revision_id": "wx-a-review-closed-01.r1",
+  "revision_number": 1,
+  "legacy_item_id": "WX-A-REVIEW-CLOSED-01",
+  "content_hash": "c337245b792a2c58ed54e20d7e12ad80e1fb7278fcc4c973f413d2af042a58d5",
+  "stimulus": {
+    "kind": "event_sequence",
+    "ref": "materials/WX-A-REVIEW-CLOSED-01/stimulus.ndjson"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "cleared",
+        "type": "event_fold",
+        "spec": "materials/WX-A-REVIEW-CLOSED-01/expected-fold.json"
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "fold",
+    "difficulty_level": "L1"
+  },
+  "execution_profile": {
+    "mode": "fold",
+    "layer": "L1",
+    "fold_entry": "review-task",
+    "event_schema": "wanxiangshu-ndjson-v1",
+    "session_id": "sess-review-2"
+  },
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 10000,
+    "requires_network": false,
+    "requires_durable_log": false
+  },
+  "change_log": {}
+}

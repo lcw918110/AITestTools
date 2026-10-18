@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "wx-a-nudge-timing-01",
+  "title": "无进展自然停机须派发 nudge_dispatched",
+  "owner": "wanxiangshu",
+  "tags": [
+    "l2",
+    "nudge",
+    "opencode-hooks"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "wx-a-nudge-timing-01.r1"
+}

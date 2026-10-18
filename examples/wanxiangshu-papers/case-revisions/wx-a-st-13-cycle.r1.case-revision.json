@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "wx-a-st-13-cycle",
+  "case_revision_id": "wx-a-st-13-cycle.r1",
+  "revision_number": 1,
+  "legacy_item_id": "WX-A-ST-13-CYCLE",
+  "content_hash": "6eb750d72fcd92de22feed0a8b3031f28134a8927062d083dad01aca2a97cf2a",
+  "stimulus": {
+    "kind": "event_sequence",
+    "ref": "materials/WX-A-ST-13-CYCLE/stimulus.ndjson"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "fold",
+        "type": "event_fold",
+        "spec": "materials/WX-A-ST-13-CYCLE/expected-fold.json"
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "fold",
+    "difficulty_level": "L1"
+  },
+  "execution_profile": {
+    "mode": "fold",
+    "layer": "L1",
+    "fold_entry": "squad-cycle",
+    "event_schema": "wanxiangshu-ndjson-v1",
+    "session_id": "st-13"
+  },
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 15000,
+    "requires_network": false,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev1": "ST-* 导入：事件直测 Fold（非真 e2e）"
+  }
+}

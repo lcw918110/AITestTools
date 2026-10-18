@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "demo-a-l3-boundary-01",
+  "title": "L3：cassette 契约面对拍（FakeHost 回放）",
+  "owner": "demo",
+  "tags": [
+    "l3",
+    "cassette"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "demo-a-l3-boundary-01.r1"
+}

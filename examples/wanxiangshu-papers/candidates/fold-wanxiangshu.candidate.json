@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../schemas/candidate.schema.json",
+  "candidate_id": "fold-wanxiangshu",
+  "name": "A-L1：adapters/fold-bridge → Journal.foldEnvelope（旧 Review/Nudge/Squad 入口保留但调用即失败）。",
+  "host": {},
+  "agent": {},
+  "plugin": null,
+  "model_routing": "fold-wanxiangshu-v1",
+  "environment_profile": "fold-wanxiangshu-v1",
+  "channel": "direct",
+  "tool_profile": "none"
+}

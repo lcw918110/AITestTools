@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../schemas/candidate.schema.json",
+  "candidate_id": "fake-host",
+  "name": "A-L2 契约假宿主：剧本模型 + 可插拔插件钩子。",
+  "host": {},
+  "agent": {},
+  "plugin": null,
+  "model_routing": "fake-host-v1",
+  "environment_profile": "fake-host-v1",
+  "channel": "direct",
+  "tool_profile": "none"
+}

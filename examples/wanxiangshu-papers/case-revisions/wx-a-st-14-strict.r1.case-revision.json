@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "wx-a-st-14-strict",
+  "case_revision_id": "wx-a-st-14-strict.r1",
+  "revision_number": 1,
+  "legacy_item_id": "WX-A-ST-14-STRICT",
+  "content_hash": "4690ebc6adcfb7784c5f797f95c267efc0726b12f453b27e597760bbab2e9d13",
+  "stimulus": {
+    "kind": "event_sequence",
+    "ref": "materials/WX-A-ST-14-STRICT/stimulus.ndjson"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "fold",
+        "type": "event_fold",
+        "spec": "materials/WX-A-ST-14-STRICT/expected-fold.json"
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "fold",
+    "difficulty_level": "L1"
+  },
+  "execution_profile": {
+    "mode": "fold",
+    "layer": "L1",
+    "fold_entry": "squad-strict",
+    "event_schema": "wanxiangshu-ndjson-v1",
+    "session_id": "st-14"
+  },
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 15000,
+    "requires_network": false,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev1": "ST-14：Kernel Strict 转移（不必真 git）"
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "hosted-smoke",
+  "name": "hosted-smoke",
+  "description": "万象术 hosted：真 OpenCode + Plugin；归因读 EventStore（refs/wanxiang/store）。Plugin 全量 import 未绿前真跑会失败，不当门禁绿。",
+  "case_revisions": [
+    {
+      "case_id": "wx-b-hosted-plugin-01",
+      "case_revision_id": "wx-b-hosted-plugin-01.r2",
+      "content_hash": "1ca853a97bdf97dc61a117f2e403fbffa5203c218cb93c6d650ba7816e601587"
+    }
+  ],
+  "closure_hash": "e506817030c0a230150220ee622779594bbc33705dbc17dd9e7c2d44a5dc2386"
+}

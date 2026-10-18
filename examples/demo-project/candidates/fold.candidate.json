@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../schemas/candidate.schema.json",
+  "candidate_id": "fold",
+  "name": "A-L1 事件直测：指向本考卷库内假 Fold 模块（演示用）。",
+  "host": {},
+  "agent": {},
+  "plugin": null,
+  "model_routing": "fold-v1",
+  "environment_profile": "fold-v1",
+  "channel": "direct",
+  "tool_profile": "none"
+}

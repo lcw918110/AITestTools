@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "hosted-smoke",
+  "name": "hosted-smoke",
+  "description": "B-hosted 冒烟（真 OpenCode；不设 hosted 指标门禁）",
+  "case_revisions": [
+    {
+      "case_id": "demo-b-hosted-smoke-01",
+      "case_revision_id": "demo-b-hosted-smoke-01.r1",
+      "content_hash": "aa9d62e75e5daa3a3a26be2c6788ebaa6b342248cc0908a66a2c0a8b9d2d7492"
+    }
+  ],
+  "closure_hash": "0d3110a8141cb0de40a74fbbf0942394c036c8548c0f4641112d790b68a0f23b"
+}

@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "wx-a-nudge-clear-01",
+  "case_revision_id": "wx-a-nudge-clear-01.r1",
+  "revision_number": 1,
+  "legacy_item_id": "WX-A-NUDGE-CLEAR-01",
+  "content_hash": "21976ebdddac963809ea683e11605e564a4a73b8f501631e29c16c1aed82464d",
+  "stimulus": {
+    "kind": "event_sequence",
+    "ref": "materials/WX-A-NUDGE-CLEAR-01/stimulus.ndjson"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "cleared",
+        "type": "event_fold",
+        "spec": "materials/WX-A-NUDGE-CLEAR-01/expected-fold.json"
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "fold",
+    "difficulty_level": "L1"
+  },
+  "execution_profile": {
+    "mode": "fold",
+    "layer": "L1",
+    "fold_entry": "nudge-dedup",
+    "event_schema": "wanxiangshu-ndjson-v1",
+    "session_id": "sess-nudge-2"
+  },
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 10000,
+    "requires_network": false,
+    "requires_durable_log": false
+  },
+  "change_log": {}
+}

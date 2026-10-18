@@ -1,0 +1,46 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "wx-b-hosted-plugin-01",
+  "case_revision_id": "wx-b-hosted-plugin-01.r2",
+  "revision_number": 2,
+  "legacy_item_id": "WX-B-HOSTED-PLUGIN-01",
+  "content_hash": "1ca853a97bdf97dc61a117f2e403fbffa5203c218cb93c6d650ba7816e601587",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "materials/WX-B-HOSTED-PLUGIN-01/prompt.txt",
+    "notes": "Reply with exactly ok. Prefer not using tools."
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "smoke-ok",
+        "type": "exit_code",
+        "equals": 0
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "hosted"
+  },
+  "execution_profile": {
+    "mode": "hosted"
+  },
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [
+    "RuntimeStarted"
+  ],
+  "model_id": "wave-ai/gpt-5.4-mini",
+  "execution": {
+    "deadline_ms": 180000,
+    "requires_network": true,
+    "requires_durable_log": true
+  },
+  "change_log": {
+    "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini"
+  }
+}

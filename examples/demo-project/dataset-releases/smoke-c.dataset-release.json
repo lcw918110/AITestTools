@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "smoke-c",
+  "name": "smoke-C",
+  "description": "C 轴 CLI 壳冒烟（2 题）",
+  "case_revisions": [
+    {
+      "case_id": "demo-c-echo-01",
+      "case_revision_id": "demo-c-echo-01.r1",
+      "content_hash": "9d35c5e0401c61f69f723e20f390d662bd5b5139f6d0ac7aa01d8f8cf9c251ca"
+    },
+    {
+      "case_id": "demo-c-write-01",
+      "case_revision_id": "demo-c-write-01.r1",
+      "content_hash": "f069470be3759f6055a792172d7f95690798e6565d4389b1d83d7af5cfdcd9fc"
+    }
+  ],
+  "closure_hash": "6ab761f680b757290c1fb6b8971197b76d3b504c8c7bd3b53489e7c8a1c9e6c9"
+}

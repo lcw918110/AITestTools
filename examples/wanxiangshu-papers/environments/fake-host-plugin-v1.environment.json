@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../schemas/environment.schema.json",
+  "environment_profile_id": "fake-host-plugin-v1",
+  "name": "fake-host-plugin-v1",
+  "lifecycle": "active",
+  "recipe": {
+    "network_policy": "deny",
+    "kind": "fake-host",
+    "model_driver": "scripted",
+    "adapter": {
+      "framework": "wanxiangshu-plugin-stub",
+      "config": "adapters/opencode-plugin-entry.mjs",
+      "hook_style": "opencode-v1",
+      "workspace": "temp-git",
+      "skip_hook_dispatch": true
+    },
+    "contract": "opencode-hooks-v1"
+  }
+}

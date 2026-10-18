@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "eval-model",
+  "name": "eval-model",
+  "description": "测模型：最小效果集（schema 服从；fixture 可 CI；live 需 PROCTOR_PROMPTFOO_LIVE=1）",
+  "case_revisions": [
+    {
+      "case_id": "demo-b-tool-schema-01",
+      "case_revision_id": "demo-b-tool-schema-01.r1",
+      "content_hash": "6c15d6dea195760f76686bcdba9cf345acf8a7b100c24a35f2fd926dad9d5a09"
+    },
+    {
+      "case_id": "demo-b-tool-schema-02",
+      "case_revision_id": "demo-b-tool-schema-02.r1",
+      "content_hash": "f28d189a8b1a9326484dd1368b15ac0c0644e3dcba4d93fb3510c4470e7365f4"
+    }
+  ],
+  "closure_hash": "3f8c1e72aa215e465fcf78d2af3ca7a812ae368e5e7b1f8312c59baed8504e0c"
+}

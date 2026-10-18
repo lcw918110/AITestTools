@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../schemas/candidate.schema.json",
+  "candidate_id": "git-coordinator",
+  "name": "C 轴：ST 真 git 最小面（tmp repo / worktree）",
+  "host": {},
+  "agent": {},
+  "plugin": null,
+  "model_routing": "git-coordinator-v1",
+  "environment_profile": "git-coordinator-v1",
+  "channel": "direct",
+  "tool_profile": "none"
+}

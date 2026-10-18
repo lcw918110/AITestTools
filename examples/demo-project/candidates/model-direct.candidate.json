@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../schemas/candidate.schema.json",
+  "candidate_id": "model-direct",
+  "name": "B-direct 通道：经外部评测框架跑模型矩阵，工具返回用录制夹具；密钥只走环境变量。",
+  "host": {},
+  "agent": {},
+  "plugin": null,
+  "model_routing": "model-direct-v1",
+  "environment_profile": "model-direct-v1",
+  "channel": "hosted",
+  "tool_profile": "none"
+}

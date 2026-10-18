@@ -1,0 +1,13 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "demo-b-tool-schema-01",
+  "title": "模型在多步任务下必须调用待办工具并填齐必填字段",
+  "owner": "demo",
+  "tags": [
+    "schema",
+    "matrix"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "demo-b-tool-schema-01.r1"
+}

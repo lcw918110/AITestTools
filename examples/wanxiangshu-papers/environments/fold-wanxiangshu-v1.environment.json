@@ -1,0 +1,66 @@
+{
+  "$schema": "../../../schemas/environment.schema.json",
+  "environment_profile_id": "fold-wanxiangshu-v1",
+  "name": "fold-wanxiangshu-v1",
+  "lifecycle": "active",
+  "recipe": {
+    "network_policy": "deny",
+    "kind": "fold",
+    "model_driver": "none",
+    "fold_entries": {
+      "journal-fold": {
+        "module": "adapters/fold-bridge.mjs",
+        "export": "foldEnvelope",
+        "signature": "session_fold_v1",
+        "event_schema": "journal-envelope-v1",
+        "resolve_root": "project",
+        "normalize": "json_clone"
+      },
+      "review-task": {
+        "module": "adapters/fold-bridge.mjs",
+        "export": "foldReviewTask",
+        "signature": "session_fold_v1",
+        "event_schema": "wanxiangshu-ndjson-v1",
+        "resolve_root": "project",
+        "normalize": "json_clone"
+      },
+      "nudge-dedup": {
+        "module": "adapters/fold-bridge.mjs",
+        "export": "foldNudgeDedup",
+        "signature": "session_fold_v1",
+        "event_schema": "wanxiangshu-ndjson-v1",
+        "resolve_root": "project",
+        "normalize": "json_clone"
+      },
+      "squad-dag": {
+        "module": "adapters/fold-bridge.mjs",
+        "export": "foldSquadDag",
+        "signature": "session_fold_v1",
+        "event_schema": "wanxiangshu-ndjson-v1",
+        "resolve_root": "project",
+        "normalize": "json_clone"
+      },
+      "squad-cycle": {
+        "module": "adapters/fold-bridge.mjs",
+        "export": "foldSquadCycleCheck",
+        "signature": "session_fold_v1",
+        "event_schema": "wanxiangshu-ndjson-v1",
+        "resolve_root": "project",
+        "normalize": "json_clone"
+      },
+      "squad-strict": {
+        "module": "adapters/fold-bridge.mjs",
+        "export": "foldSquadStrictTransition",
+        "signature": "session_fold_v1",
+        "event_schema": "wanxiangshu-ndjson-v1",
+        "resolve_root": "project",
+        "normalize": "json_clone"
+      }
+    },
+    "sut": {
+      "name": "wanxiangshu",
+      "root_env": "SUT_ROOT",
+      "root_rel": null
+    }
+  }
+}

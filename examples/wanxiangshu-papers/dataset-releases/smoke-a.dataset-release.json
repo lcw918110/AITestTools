@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "smoke-a",
+  "name": "smoke-A",
+  "description": "万象术 A 轴 L1+L2 合并冒烟。",
+  "case_revisions": [
+    {
+      "case_id": "wx-a-review-active-01",
+      "case_revision_id": "wx-a-review-active-01.r1",
+      "content_hash": "011e994beadf010035da8add5d13ea0c6ef28f7164904735ee448eaed206f3e9"
+    },
+    {
+      "case_id": "wx-a-review-closed-01",
+      "case_revision_id": "wx-a-review-closed-01.r1",
+      "content_hash": "c337245b792a2c58ed54e20d7e12ad80e1fb7278fcc4c973f413d2af042a58d5"
+    },
+    {
+      "case_id": "wx-a-review-keep-01",
+      "case_revision_id": "wx-a-review-keep-01.r1",
+      "content_hash": "23efeb72a8692987cf7924ab41f20d5d4f8c2210379d0f4f43c9ff7b00880d32"
+    },
+    {
+      "case_id": "wx-a-nudge-dedup-01",
+      "case_revision_id": "wx-a-nudge-dedup-01.r1",
+      "content_hash": "363cee3835ae4d0ef35d84d2f840f76f0a7009dae41c307f849df22df7249100"
+    },
+    {
+      "case_id": "wx-a-nudge-clear-01",
+      "case_revision_id": "wx-a-nudge-clear-01.r1",
+      "content_hash": "21976ebdddac963809ea683e11605e564a4a73b8f501631e29c16c1aed82464d"
+    }
+  ],
+  "closure_hash": "c261121cb1398292d3a6e787727e599e2752a67bec2c17f83f8087e9e01246f5"
+}

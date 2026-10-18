@@ -1,0 +1,47 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "wx-a-st-03-dep-block",
+  "case_revision_id": "wx-a-st-03-dep-block.r1",
+  "revision_number": 1,
+  "legacy_item_id": "WX-A-ST-03-DEP-BLOCK",
+  "content_hash": "bee19e3cbd2380b3a26280c84f3d23553ccdd764476b80b31fe1b394186eb24b",
+  "stimulus": {
+    "kind": "event_sequence",
+    "ref": "materials/WX-A-ST-03-DEP-BLOCK/stimulus.ndjson"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "fold",
+        "type": "event_fold",
+        "spec": "materials/WX-A-ST-03-DEP-BLOCK/expected-fold.json"
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "fold",
+    "difficulty_level": "L1"
+  },
+  "execution_profile": {
+    "mode": "fold",
+    "layer": "L1",
+    "fold_entry": "squad-dag",
+    "event_schema": "wanxiangshu-ndjson-v1",
+    "session_id": "st-03a"
+  },
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 15000,
+    "requires_network": false,
+    "requires_durable_log": false
+  },
+  "change_log": {
+    "rev1": "ST-* 导入：事件直测 Fold（非真 e2e）"
+  }
+}

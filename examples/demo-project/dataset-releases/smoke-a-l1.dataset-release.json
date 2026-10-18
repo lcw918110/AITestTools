@@ -1,0 +1,34 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "smoke-a-l1",
+  "name": "smoke-A-L1",
+  "description": "A 轴 L1 冒烟：事件直测，考场须为 fold。",
+  "case_revisions": [
+    {
+      "case_id": "demo-a-todo-fold-01",
+      "case_revision_id": "demo-a-todo-fold-01.r1",
+      "content_hash": "a34c834b75cc751217c1f0956cb6b2ff3690fde7446a4241d986093fcf0eec8b"
+    },
+    {
+      "case_id": "demo-a-todo-fold-02",
+      "case_revision_id": "demo-a-todo-fold-02.r1",
+      "content_hash": "68980c7585045d939eb8288fa52a54e31448362f201b51d9faf5dd93fe2f8af0"
+    },
+    {
+      "case_id": "demo-a-todo-fold-03",
+      "case_revision_id": "demo-a-todo-fold-03.r1",
+      "content_hash": "f82ce69aabca059bfa68a60842bb91fa25fc92978fe06ab5004056e6b34b709e"
+    },
+    {
+      "case_id": "demo-a-todo-fold-04",
+      "case_revision_id": "demo-a-todo-fold-04.r1",
+      "content_hash": "1fa4bb4173c5a82dc8476c1cc4349260f69f916140ce0575ce40381522ca0076"
+    },
+    {
+      "case_id": "demo-a-todo-fold-05",
+      "case_revision_id": "demo-a-todo-fold-05.r1",
+      "content_hash": "298fec313a8aedec41c8ee677ebf7340adc535ca0c047972fb77641ce4f21030"
+    }
+  ],
+  "closure_hash": "026368a0a4cc3d4508823240dd466f6bd8b2908988809a299f322fa05b80c9cf"
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "../../../schemas/candidate.schema.json",
+  "candidate_id": "fake-host-opencode",
+  "name": "A-L2：假宿主 + opencode-v1 hook_style（官方 hook 名）。",
+  "host": {},
+  "agent": {},
+  "plugin": null,
+  "model_routing": "fake-host-opencode-v1",
+  "environment_profile": "fake-host-opencode-v1",
+  "channel": "direct",
+  "tool_profile": "none"
+}

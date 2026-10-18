@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "wx-a-journal-runtime-01",
+  "title": "RuntimeStarted 经 foldEnvelope 写入 RuntimeId 与计数",
+  "owner": "wanxiangshu",
+  "tags": [
+    "l1",
+    "journal",
+    "fold"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "wx-a-journal-runtime-01.r1"
+}

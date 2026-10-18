@@ -3,6 +3,7 @@
   "case_id": "paired-task-29",
   "case_revision_id": "paired-task-29.r3.on",
   "revision_number": 3,
+  "legacy_item_id": "EVAL-B-PAIRED-TASK-29-ON",
   "content_hash": "a09e74bea77e0941fc55b329c011f10de99f7796eba664b53edca3556cbc65d0",
   "stimulus": {
     "kind": "task_prompt",
@@ -24,6 +25,12 @@
     ]
   },
   "evidence_requirements": [],
+  "strata": {
+    "task_type": "hosted"
+  },
+  "execution_profile": {
+    "mode": "hosted"
+  },
   "attribution_focus": "PROTOCOL",
   "protocol_probes": [
     "RuntimeStarted",

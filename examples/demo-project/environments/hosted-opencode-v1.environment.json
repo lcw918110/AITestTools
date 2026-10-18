@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../schemas/environment.schema.json",
+  "environment_profile_id": "hosted-opencode-v1",
+  "name": "hosted-opencode-v1",
+  "lifecycle": "active",
+  "recipe": {
+    "runtime": "opencode",
+    "host": "opencode@1.18.5",
+    "network_policy": "allow",
+    "host_command": "opencode",
+    "host_model": "meituan/LongCat-2.0",
+    "kind": "hosted",
+    "model_driver": "live"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../schemas/environment.schema.json",
+  "environment_profile_id": "coordinator-http-v1",
+  "name": "coordinator-http-v1",
+  "lifecycle": "active",
+  "recipe": {
+    "network_policy": "allow",
+    "kind": "direct-tool",
+    "model_driver": "none",
+    "adapter": {
+      "framework": "cli-shell",
+      "config": "shells/st-coordinator-http.mjs"
+    }
+  }
+}

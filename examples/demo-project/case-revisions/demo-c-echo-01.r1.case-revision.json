@@ -1,0 +1,48 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "demo-c-echo-01",
+  "case_revision_id": "demo-c-echo-01.r1",
+  "revision_number": 1,
+  "legacy_item_id": "DEMO-C-ECHO-01",
+  "content_hash": "9d35c5e0401c61f69f723e20f390d662bd5b5139f6d0ac7aa01d8f8cf9c251ca",
+  "stimulus": {
+    "kind": "tool_args",
+    "ref": "materials/DEMO-C-ECHO-01/stimulus.json"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      },
+      {
+        "id": "result",
+        "type": "tool_result_equals",
+        "equals": {
+          "echo": "hello-proctor"
+        }
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "direct_tool"
+  },
+  "execution_profile": {
+    "mode": "direct_tool"
+  },
+  "attribution_focus": "TOOL",
+  "protocol_probes": [],
+  "model_id": "n/a",
+  "execution": {
+    "deadline_ms": 10000,
+    "requires_network": false,
+    "requires_durable_log": false
+  },
+  "change_log": {}
+}

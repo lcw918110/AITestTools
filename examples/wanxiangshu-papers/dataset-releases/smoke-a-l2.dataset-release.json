@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "smoke-a-l2",
+  "name": "smoke-A-L2",
+  "description": "万象术 L2：opencode-v1 假宿主控流。",
+  "case_revisions": [
+    {
+      "case_id": "wx-a-nudge-timing-01",
+      "case_revision_id": "wx-a-nudge-timing-01.r1",
+      "content_hash": "d035ccbacb0fa59eab1cf1b9c52a902f03044bf4d62c1acc662c37cdb2a94544"
+    },
+    {
+      "case_id": "wx-a-review-pass-01",
+      "case_revision_id": "wx-a-review-pass-01.r1",
+      "content_hash": "68b2f9abbeda0a4a7a448d4a01095e8678216a5940ab557a884ac1d681463614"
+    }
+  ],
+  "closure_hash": "9b9abf4d9e86c20bfb618927da65f53475240147714e95bda12416ed7e2c621b"
+}

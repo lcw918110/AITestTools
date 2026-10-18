@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../schemas/candidate.schema.json",
+  "candidate_id": "fake-host-plugin",
+  "name": "A-L2：stubbed OpenCode ctx 加载真 Plugin.js（非 MCP 全真；非 hosted 替代）",
+  "host": {},
+  "agent": {},
+  "plugin": {
+    "name": "wanxiangshu"
+  },
+  "model_routing": "fake-host-plugin-v1",
+  "environment_profile": "fake-host-plugin-v1",
+  "channel": "direct",
+  "tool_profile": "none"
+}

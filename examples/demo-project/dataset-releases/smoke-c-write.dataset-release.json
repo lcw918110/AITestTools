@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "smoke-c-write",
+  "name": "smoke-C-write",
+  "description": "C 轴本地工具契约：workspace 副作用",
+  "case_revisions": [
+    {
+      "case_id": "demo-c-write-01",
+      "case_revision_id": "demo-c-write-01.r1",
+      "content_hash": "f069470be3759f6055a792172d7f95690798e6565d4389b1d83d7af5cfdcd9fc"
+    }
+  ],
+  "closure_hash": "9638cd98df1836da43535a090ca3afa6f1ec29458af649a83106de22af5534f6"
+}

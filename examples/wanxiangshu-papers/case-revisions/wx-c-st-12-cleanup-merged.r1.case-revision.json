@@ -1,0 +1,50 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "wx-c-st-12-cleanup-merged",
+  "case_revision_id": "wx-c-st-12-cleanup-merged.r1",
+  "revision_number": 1,
+  "legacy_item_id": "WX-C-ST-12-CLEANUP-MERGED",
+  "content_hash": "187a9d7d9904d1c4a4501597a94132be45b072770e1d119974f0fe3960bafdeb",
+  "stimulus": {
+    "kind": "tool_args",
+    "ref": "materials/WX-C-ST-12-CLEANUP-MERGED/stimulus.json"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      },
+      {
+        "id": "result",
+        "type": "tool_result_equals",
+        "equals": {
+          "scenario": "merged",
+          "worktreeRemoved": true,
+          "branchRemoved": true
+        }
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "direct_tool"
+  },
+  "execution_profile": {
+    "mode": "direct_tool"
+  },
+  "attribution_focus": "TOOL",
+  "protocol_probes": [],
+  "model_id": "n/a",
+  "execution": {
+    "deadline_ms": 30000,
+    "requires_network": false,
+    "requires_durable_log": false
+  },
+  "change_log": {}
+}

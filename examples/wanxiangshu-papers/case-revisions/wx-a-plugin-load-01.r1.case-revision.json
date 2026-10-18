@@ -1,0 +1,51 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "wx-a-plugin-load-01",
+  "case_revision_id": "wx-a-plugin-load-01.r1",
+  "revision_number": 1,
+  "legacy_item_id": "WX-A-PLUGIN-LOAD-01",
+  "content_hash": "7ded55a745bc1269881c11d849ff26c4d297c474c9773b692dcc4681a5e34c4d",
+  "stimulus": {
+    "kind": "hook_script",
+    "ref": "materials/WX-A-PLUGIN-LOAD-01/session.json"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "loaded-then-turn",
+        "type": "event_subsequence",
+        "names": [
+          "plugin_loaded",
+          "SessionReady",
+          "TurnStarted",
+          "TurnCompleted"
+        ]
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "scripted",
+    "difficulty_level": "L2"
+  },
+  "execution_profile": {
+    "mode": "scripted",
+    "layer": "L2",
+    "contract": "opencode-hooks-v1",
+    "script": "scripts/plugin-load-once.json"
+  },
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 60000,
+    "requires_network": false,
+    "requires_durable_log": true
+  },
+  "change_log": {
+    "rev1": "完整 Plugin 假宿主 MVP：stubbed-ctx 加载"
+  }
+}

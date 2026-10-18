@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "smoke-a",
+  "name": "smoke-A",
+  "description": "A 轴 L2 冒烟：契约假宿主 + 剧本（nudge + review）。",
+  "case_revisions": [
+    {
+      "case_id": "demo-a-nudge-timing-01",
+      "case_revision_id": "demo-a-nudge-timing-01.r2",
+      "content_hash": "9f4e6011e138bbd8b743bfe7803ac08f21f4491ffbc1ec33495b4ef490bb929c"
+    },
+    {
+      "case_id": "demo-a-review-pass-01",
+      "case_revision_id": "demo-a-review-pass-01.r1",
+      "content_hash": "8fb041c81dcf2555688ddcd24b7ebbeb411d90d598e42544be3ac6ab356691f0"
+    }
+  ],
+  "closure_hash": "59126f46ee935be8f8f3f1e6084ac9dd482c435950fa30d5e10bb34e1dd02031"
+}

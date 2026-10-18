@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "smoke-a-l2-plugin",
+  "name": "smoke-A-L2-plugin",
+  "description": "stubbed-ctx 加载真 Plugin.js（需 SUT_ROOT）；对照 smoke-A-L2 仍为 shim",
+  "case_revisions": [
+    {
+      "case_id": "wx-a-plugin-load-01",
+      "case_revision_id": "wx-a-plugin-load-01.r1",
+      "content_hash": "7ded55a745bc1269881c11d849ff26c4d297c474c9773b692dcc4681a5e34c4d"
+    }
+  ],
+  "closure_hash": "3fda7391aa1e660231979706f7a9dc3fc6b74f5719563ca59f70399268b18a58"
+}

@@ -21,6 +21,8 @@
       "predictor"
     ],
     "host_plugin": "dist/OpenCode/Plugin/Plugin.js",
-    "durable_log_glob": "**/.git/refs/wanxiang/store"
+    "durable_log_glob": "**/.git/refs/wanxiang/store",
+    "kind": "hosted",
+    "model_driver": "live"
   }
 }

@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "wx-c-st-16-stale",
+  "title": "ST-16：陈旧 SHA submit 应拒绝",
+  "owner": "wanxiangshu",
+  "tags": [
+    "c-axis",
+    "st-16",
+    "git"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "wx-c-st-16-stale.r1"
+}

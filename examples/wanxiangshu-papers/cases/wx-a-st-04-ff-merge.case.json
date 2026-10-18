@@ -1,0 +1,15 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "wx-a-st-04-ff-merge",
+  "title": "ST-04：submit 后 merged（ff 成功事件面）",
+  "owner": "wanxiangshu",
+  "tags": [
+    "l1",
+    "st-import",
+    "st-04",
+    "squad"
+  ],
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "wx-a-st-04-ff-merge.r1"
+}

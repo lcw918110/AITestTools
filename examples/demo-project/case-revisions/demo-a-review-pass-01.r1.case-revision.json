@@ -1,0 +1,61 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "demo-a-review-pass-01",
+  "case_revision_id": "demo-a-review-pass-01.r1",
+  "revision_number": 1,
+  "legacy_item_id": "DEMO-A-REVIEW-PASS-01",
+  "content_hash": "8fb041c81dcf2555688ddcd24b7ebbeb411d90d598e42544be3ac6ab356691f0",
+  "stimulus": {
+    "kind": "hook_script",
+    "ref": "materials/DEMO-A-REVIEW-PASS-01/session.json"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "review-closed",
+        "type": "state_predicate",
+        "expr": "review.required == false && review.verdict == 'Passed'"
+      },
+      {
+        "id": "submit-then-close",
+        "type": "event_subsequence",
+        "names": [
+          "ReviewSubmitted",
+          "ReviewClosed"
+        ]
+      },
+      {
+        "id": "no-silent-settle",
+        "type": "no_event",
+        "names": [
+          "SessionSettledWithoutReview"
+        ]
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "scripted",
+    "difficulty_level": "L2"
+  },
+  "execution_profile": {
+    "mode": "scripted",
+    "layer": "L2",
+    "contract": "demo-host-v1",
+    "script": "scripts/review-pass-v1.json"
+  },
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 15000,
+    "requires_network": false,
+    "requires_durable_log": true
+  },
+  "change_log": {
+    "rev1": "切片 3 第二道 L2：review 闭环（对照设计 13/14）"
+  }
+}
