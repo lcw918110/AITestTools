@@ -635,3 +635,23 @@
 - `npm run lint`：通过
 - `format:check`：全部干净
 - `npm run validate:examples`：318/318 试题通过协议校验
+
+## §17 引擎回归手册 cases-v1 深迁移（docs/test/02-engine-regression.md，2026-10-18）
+
+将 `docs/test/02-engine-regression.md` 从 papers-v1 的「A/B/C 轴」框架深迁移为 cases-v1 的 `task_type`（= `execution_profile.mode`）框架，对齐 `docs/09-轴路由cases-v1表达设计.md`（按草案当前口径）与 `docs/05-领域对象与代码类型映射.md`。
+
+**1. 组织框架**：废弃「轴 A/B/C」术语，改用「测试对象」三分类（行为/事件/控制流、模型、工具 CLI）作为叙述框架；每个分类内标注对应 `task_type`（fold/scripted/cassette/hosted/direct_tool）。
+
+**2. 命令迁移**：
+- `run --axis X --paperset Y` → `run --dataset y --environment z`（映射：`st-import-l1`×`fold-wanxiangshu-v1`、`smoke-a-l1`×`fold-v1`、`smoke-a`×`fake-host-v1`、`smoke-a-l3`×`fake-host-v1`、`model-core`×`model-direct-v1`、`hosted-smoke`×`hosted-wanxiangshu-v1`/`hosted-opencode-v1`、`smoke-c-echo`/`smoke-c-write`×`shell-echo-v1`、`st-real-git`×`git-coordinator-v1`）。
+- `item new --axis X --layer L` → `item new --mode fold|scripted|cassette|hosted|direct_tool --layer L`。
+- 删除已不存在的 `--models` CLI 参数引用（换模型改走 environment 的 `recipe.host_model`）。
+
+**3. 字段名统一**：`paperset`→`dataset`、`axis`→`task_type`、`room`→`environment`、`freeze.*`→`execution_profile.*`、`items[]`→`case_revisions[]`、`papersets/…json`→`dataset-releases/….dataset-release.json`、`model_driver`→`execution_profile.mode`。
+
+**4. 样例题 id 对齐实际资产**：`DEMO-A-NUDGE-TIMING-01`→`demo-a-nudge-timing-01`、`WX-A-ST-01-MAIN`→`wx-a-st-01-main`、`DEMO-B-TOOL-SCHEMA-01`→`demo-b-tool-schema-01`、`WX-B-HOSTED-PLUGIN-01`→`wx-b-hosted-plugin-01`、`DEMO-C-ECHO-01`→`demo-c-echo-01`、`WX-C-ST-06-REBASE`→`wx-c-st-06-rebase` 等（对齐 examples 里已小写连字符化的 case_id）。
+
+**验证（实测，2026-10-18）**：
+- `grep` 全文无 `--axis`/`--paperset`/`papersets`/`items[]`/`freeze.`/`rooms/`/`model_driver`/`轴` 残留。
+- dataset/environment 名称与 examples 下 `dataset-releases/`、`environments/` 实际文件名逐一核对一致。
+- 文档内链接（`01-wanxiangshu-ops.md`、`archive/v1-design/*`、`architecture/adr/0008`、`archive/v1-requirements/01-prd.md`、`process/`）全部可解析。
