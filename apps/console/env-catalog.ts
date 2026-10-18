@@ -30,21 +30,23 @@ type CatalogFile = {
   verified?: { models?: Record<string, string>; agents?: Record<string, string> };
 };
 
-type RoomHost = {
-  model?: string;
-  agent?: string;
+/** cases-v1 环境配方（environments/*.environment.json）的 recipe 字段。 */
+type EnvironmentRecipe = {
+  host_model?: string;
+  host_agent?: string;
   managed_agents?: string[];
-  command?: string;
+  host_plugin?: string;
 };
 
-type RoomFile = {
+type EnvironmentFile = {
+  environment_profile_id?: string;
   name?: string;
-  kind?: string;
-  host?: RoomHost;
+  lifecycle?: string;
+  recipe?: EnvironmentRecipe;
 };
 
 function roomsDir(project: string): string {
-  return join(project, 'rooms');
+  return join(project, 'environments');
 }
 
 function catalogPath(project: string): string {
@@ -65,14 +67,14 @@ function writeCatalogFile(project: string, doc: CatalogFile): void {
   writeJsonAtomic(catalogPath(project), doc);
 }
 
-function listRoomFiles(project: string): Array<{ file: string; doc: RoomFile }> {
+function listEnvironmentFiles(project: string): Array<{ file: string; doc: EnvironmentFile }> {
   const dir = roomsDir(project);
   if (!existsSync(dir)) return [];
-  const out: Array<{ file: string; doc: RoomFile }> = [];
+  const out: Array<{ file: string; doc: EnvironmentFile }> = [];
   for (const f of readdirSync(dir)) {
-    if (!f.endsWith('.json') || f.startsWith('.')) continue;
+    if (!f.endsWith('.environment.json') || f.startsWith('.')) continue;
     try {
-      const doc = JSON.parse(readFileSync(join(dir, f), 'utf8')) as RoomFile;
+      const doc = JSON.parse(readFileSync(join(dir, f), 'utf8')) as EnvironmentFile;
       out.push({ file: f, doc });
     } catch {
       /* skip */
@@ -81,8 +83,8 @@ function listRoomFiles(project: string): Array<{ file: string; doc: RoomFile }> 
   return out;
 }
 
-function hostedRooms(project: string): Array<{ file: string; doc: RoomFile }> {
-  return listRoomFiles(project).filter((r) => r.doc.kind === 'hosted');
+function hostedEnvironments(project: string): Array<{ file: string; doc: EnvironmentFile }> {
+  return listEnvironmentFiles(project).filter((r) => r.doc.recipe?.host_plugin !== undefined);
 }
 
 function unique(ids: string[]): string[] {
@@ -98,16 +100,18 @@ function unique(ids: string[]): string[] {
 }
 
 export function loadEnvCatalog(project: string): EnvCatalog {
-  const rooms = listRoomFiles(project);
+  const rooms = listEnvironmentFiles(project);
   const file = readCatalogFile(project);
   const roomModels: string[] = [];
   const roomAgents: string[] = [];
   for (const r of rooms) {
-    const host = r.doc.host;
-    if (typeof host?.model === 'string' && host.model.trim()) roomModels.push(host.model.trim());
-    if (typeof host?.agent === 'string' && host.agent.trim()) roomAgents.push(host.agent.trim());
-    if (Array.isArray(host?.managed_agents)) {
-      for (const a of host.managed_agents) {
+    const recipe = r.doc.recipe;
+    if (typeof recipe?.host_model === 'string' && recipe.host_model.trim())
+      roomModels.push(recipe.host_model.trim());
+    if (typeof recipe?.host_agent === 'string' && recipe.host_agent.trim())
+      roomAgents.push(recipe.host_agent.trim());
+    if (Array.isArray(recipe?.managed_agents)) {
+      for (const a of recipe.managed_agents) {
         if (typeof a === 'string' && a.trim()) roomAgents.push(a.trim());
       }
     }
@@ -161,12 +165,12 @@ export function addEnvModel(
 }
 
 function appendManagedAgent(project: string, agentId: string): void {
-  for (const r of hostedRooms(project)) {
-    const host = r.doc.host ?? {};
-    const list = Array.isArray(host.managed_agents) ? host.managed_agents.map(String) : [];
+  for (const r of hostedEnvironments(project)) {
+    const recipe = r.doc.recipe ?? {};
+    const list = Array.isArray(recipe.managed_agents) ? recipe.managed_agents.map(String) : [];
     if (list.includes(agentId)) continue;
-    host.managed_agents = [...list, agentId];
-    r.doc.host = host;
+    recipe.managed_agents = [...list, agentId];
+    r.doc.recipe = recipe;
     writeJsonAtomic(join(roomsDir(project), r.file), r.doc);
   }
 }

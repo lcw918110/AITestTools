@@ -80,35 +80,34 @@ export function projectSummary() {
     })
     .filter((x): x is NonNullable<typeof x> => x !== undefined);
 
-  const roomsDir = join(PROJECT, 'rooms');
+  const roomsDir = join(PROJECT, 'environments');
   const rooms = readdirSync(roomsDir)
-    .filter((f) => f.endsWith('.json'))
+    .filter((f) => f.endsWith('.environment.json'))
     .map((f) => {
       try {
         const text = readFileSync(join(roomsDir, f), 'utf8');
-        const parsed = parseJsonObject(text, `rooms/${f}`);
+        const parsed = parseJsonObject(text, `environments/${f}`);
         if (!parsed.ok) {
           errors.push(parsed.error);
           return undefined;
         }
         const doc = parsed.value;
-        const name = str(doc.name);
+        const name = str(doc.name) ?? str(doc.environment_profile_id);
         if (name === undefined) {
-          errors.push(`rooms/${f}：缺少 name`);
+          errors.push(`environments/${f}：缺少 name`);
           return undefined;
         }
-        const desc = str(doc.description) ?? '';
-        const host = doc.host;
+        const recipe = doc.recipe;
         let model = '';
         let hasPlugin = false;
-        if (typeof host === 'object' && host !== null && !Array.isArray(host)) {
-          const h = host as Record<string, unknown>;
-          model = str(h.model) ?? '';
-          hasPlugin = typeof h.plugin === 'string' && h.plugin.length > 0;
+        if (typeof recipe === 'object' && recipe !== null && !Array.isArray(recipe)) {
+          const r = recipe as Record<string, unknown>;
+          model = str(r.host_model) ?? '';
+          hasPlugin = typeof r.host_plugin === 'string' && r.host_plugin.length > 0;
         }
-        return { name, description: desc, model, hasPlugin };
+        return { name, description: '', model, hasPlugin };
       } catch (e) {
-        errors.push(`rooms/${f}：读取失败（${(e as Error).message}）`);
+        errors.push(`environments/${f}：读取失败（${(e as Error).message}）`);
         return undefined;
       }
     })

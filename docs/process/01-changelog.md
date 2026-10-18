@@ -489,3 +489,10 @@
   4. case.json 不加 `created_at`/`updated_at`（与现有资产一致）
 - 测试：新增 `bank-write-cases-v1.test.ts`（3 用例：create 写 case+revision+release / update 升 revision+head+release 闭包 / delete 删资产）；`bank.test.ts`/`update-task-rollback.test.ts` 断言从 item.json/papersets 改为 case-revision/dataset-release；83 个 console 测试全绿，typecheck 通过
 - Bugbot 1 finding（high）：`updateTask` 的 dataset-release 引用更新用「release 是否含该 case_id」判断，移除旧 revision 后判断失效导致 off release 被清空、on release 混入 off+on 两条——已修复为按测试集定位 off/on release 精确替换，并补回归断言
+
+**阶段 5 步骤 3 切片 C1（env 读路径切 cases-v1，2026-10-18，已提交）：**
+
+- `env-catalog.ts`：`rooms/`→`environments/`，读 `*.environment.json`；`host.model`→`recipe.host_model`、`host.agent`→`recipe.host_agent`、`host.managed_agents`→`recipe.managed_agents`；`hostedRooms`（`kind==='hosted'`）→`hostedEnvironments`（`recipe.host_plugin` 存在）；`appendManagedAgent` 写 `recipe.managed_agents`
+- `project-reader.ts` `projectSummary`：`rooms` 字段从 `rooms/*.json`（`host.model`/`host.plugin`）切到 `environments/*.environment.json`（`recipe.host_model`/`recipe.host_plugin`），`name` 用 `name ?? environment_profile_id`
+- **决策（明日复核）**：`controllers/env.ts` 的 `envRoomsList`/`envRoomsUpdate`（房间 CRUD）与 `parse.ts` 的 `sanitizeRoomUpdate` 留切片 C2（与步骤 4 前端 `env.js` 字段联动一起切），因 API 字段 `host`/`workspace`/`network` 与前端强耦合，避免「读 environments 写 rooms」的中间断裂
+- 测试：`env-catalog.test.ts` seed 从 rooms 改为 environments（`recipe.host_model` 等），83 个 console 测试全绿，typecheck 通过

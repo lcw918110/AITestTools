@@ -11,18 +11,18 @@ import {
 
 function seed(): string {
   const root = mkdtempSync(join(tmpdir(), 'proctor-env-'));
-  mkdirSync(join(root, 'rooms'), { recursive: true });
+  mkdirSync(join(root, 'environments'), { recursive: true });
   writeFileSync(
-    join(root, 'rooms/hosted-plain-v1.json'),
+    join(root, 'environments/hosted-plain-v1.environment.json'),
     `${JSON.stringify(
       {
+        environment_profile_id: 'hosted-plain-v1',
         name: 'hosted-plain-v1',
-        kind: 'hosted',
-        model_driver: 'live',
-        network: true,
-        host: {
-          model: 'wave-ai/gpt-5.4-mini',
-          agent: 'fast-coder',
+        lifecycle: 'active',
+        recipe: {
+          runtime: 'opencode',
+          host_model: 'wave-ai/gpt-5.4-mini',
+          host_agent: 'fast-coder',
           managed_agents: ['fast-coder'],
         },
       },
