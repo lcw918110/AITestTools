@@ -294,6 +294,126 @@ function readItem(file: string): ItemDoc | undefined {
   return JSON.parse(readFileSync(file, 'utf8')) as ItemDoc;
 }
 
+/** cases-v1：Case 文档（轻量读字段）。 */
+type CaseV1Doc = {
+  case_id: string;
+  title?: string;
+  owner?: string;
+  tags?: string[];
+  pair_key?: string;
+  head_revision_id?: string;
+};
+
+/** cases-v1：CaseRevision 文档（轻量读字段）。 */
+type CaseRevisionV1Doc = {
+  case_id: string;
+  case_revision_id: string;
+  revision_number?: number;
+  stimulus?: {
+    kind?: string;
+    ref?: string;
+    notes?: string;
+    hosted_pass_token?: string;
+  };
+  expect?: { oracles?: unknown };
+  attribution_focus?: string;
+  protocol_probes?: string[];
+};
+
+function casesV1Dir(project: string): string {
+  return join(project, 'cases');
+}
+
+function caseRevisionsV1Dir(project: string): string {
+  return join(project, 'case-revisions');
+}
+
+/** case_id → V1 item_id（与 src/run/cases-v1-adapter.ts 的 caseIdToV1ItemId 一致）。 */
+function caseIdToV1ItemId(caseId: string, variant: 'off' | 'on'): string {
+  return `EVAL-B-${caseId.toUpperCase()}-${variant.toUpperCase()}`;
+}
+
+/** 从 CaseRevision + Case 映射到 ItemSide（id 还原 V1 id，rev 用 revision_number）。 */
+function sideFromRevision(
+  project: string,
+  rev: CaseRevisionV1Doc,
+  caseDoc: CaseV1Doc,
+  variant: 'off' | 'on',
+): ItemSide {
+  let contains: string[] | undefined;
+  let notContains: string[] | undefined;
+  const expect = rev.expect;
+  if (typeof expect === 'object' && expect !== null && !Array.isArray(expect)) {
+    const oracles = (expect as Record<string, unknown>).oracles;
+    if (Array.isArray(oracles)) {
+      for (const o of oracles) {
+        if (o && typeof o === 'object') {
+          const obj = o as Record<string, unknown>;
+          if (obj.id === 'stdout-must' && obj.contains !== undefined) {
+            contains = asTrimmedList(obj.contains);
+          } else if (obj.id === 'stdout-forbid' && obj.not_contains !== undefined) {
+            notContains = asTrimmedList(obj.not_contains);
+          }
+        }
+      }
+    }
+  }
+  const v1Id = caseIdToV1ItemId(rev.case_id, variant);
+  // file 指向 item.json 路径（写路径 updateTask/deleteTask 的操作目标），而非 case-revision 路径，
+  // 避免写路径按 ItemDoc 语义误改 case-revision.json。步骤 2 写路径切 cases-v1 后此字段语义再调整。
+  const file = join(itemsBDir(project), kebabItemFile(v1Id));
+  return {
+    id: v1Id,
+    rev: Number(rev.revision_number) || 0,
+    file,
+    passToken: rev.stimulus?.hosted_pass_token ?? 'ok',
+    notes: rev.stimulus?.notes ?? '',
+    tags: Array.isArray(caseDoc.tags) ? caseDoc.tags.filter((t) => typeof t === 'string') : [],
+    contains,
+    notContains,
+  };
+}
+
+/** 读 cases-v1 资产（cases + case-revisions），映射为配对 ItemSide。 */
+function loadPairedItemsV1(project: string): Map<string, { off?: ItemSide; on?: ItemSide }> {
+  const map = new Map<string, { off?: ItemSide; on?: ItemSide }>();
+  const casesDir = casesV1Dir(project);
+  const revisionsDir = caseRevisionsV1Dir(project);
+  if (!existsSync(casesDir) || !existsSync(revisionsDir)) return map;
+
+  const caseById = new Map<string, CaseV1Doc>();
+  for (const name of readdirSync(casesDir)) {
+    if (!name.endsWith('.case.json')) continue;
+    try {
+      const doc = JSON.parse(readFileSync(join(casesDir, name), 'utf8')) as CaseV1Doc;
+      if (doc.case_id) caseById.set(doc.case_id, doc);
+    } catch {
+      continue;
+    }
+  }
+
+  for (const name of readdirSync(revisionsDir)) {
+    if (!name.endsWith('.case-revision.json')) continue;
+    const file = join(revisionsDir, name);
+    let rev: CaseRevisionV1Doc;
+    try {
+      rev = JSON.parse(readFileSync(file, 'utf8')) as CaseRevisionV1Doc;
+    } catch {
+      continue;
+    }
+    const caseDoc = caseById.get(rev.case_id);
+    if (!caseDoc) continue;
+    const variant: 'off' | 'on' = rev.case_revision_id.includes('.on') ? 'on' : 'off';
+    const pair = caseDoc.pair_key ?? rev.case_id.toUpperCase();
+    const slot = map.get(pair) ?? {};
+    const side = sideFromRevision(project, rev, caseDoc, variant);
+    if (variant === 'on') slot.on = side;
+    else slot.off = side;
+    map.set(pair, slot);
+  }
+  return map;
+}
+
 function effectPairOf(doc: ItemDoc): string | undefined {
   const pair = doc.intent?.effect_pair;
   if (pair) return pair;
@@ -350,7 +470,8 @@ function completeLabel(complete: boolean): string {
 }
 
 function loadPairedItems(project: string): Map<string, { off?: ItemSide; on?: ItemSide }> {
-  const map = new Map<string, { off?: ItemSide; on?: ItemSide }>();
+  // 优先读 cases-v1（cases + case-revisions）；写路径迁移前，item.json 仍作为回退来源。
+  const map = loadPairedItemsV1(project);
   const dir = itemsBDir(project);
   if (!existsSync(dir)) return map;
   for (const name of readdirSync(dir)) {
@@ -362,9 +483,9 @@ function loadPairedItems(project: string): Map<string, { off?: ItemSide; on?: It
     if (!pair) continue;
     const slot = map.get(pair) ?? {};
     if (doc.id.endsWith('-ON')) {
-      slot.on = sideFrom(doc, file);
+      if (slot.on === undefined) slot.on = sideFrom(doc, file);
     } else {
-      slot.off = sideFrom(doc, file);
+      if (slot.off === undefined) slot.off = sideFrom(doc, file);
     }
     map.set(pair, slot);
   }

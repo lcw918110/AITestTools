@@ -464,3 +464,11 @@
 - **关键发现（明日复核）**：`offId`/`onId`（itemId）**保持 V1 格式不变**——引擎 cases-v1 路径 `runCommandV2` 的 `--only` 过滤用 `caseRevisionToItemDoc` 还原出的 V1 id（`EVAL-B-...`），非 `case_revision_id`；故 `resolveRunPlan` 的 `offId`/`onId` 无需改成 case_revision_id。引擎 `--paperset`→`--dataset` 参数切换属步骤 4（job-queue 引擎调用），不在本切片
 - `projectSummary` 的 `papersets`/`rooms` 字段切换留步骤 3（env）+ 步骤 4（UI）
 - 测试：`run-plan.test.ts` 重写为 release 术语 + case_revisions 数据源（10 用例），77 个 console 测试全绿，typecheck/prettier 通过
+
+**阶段 5 步骤 2 切片 B1（bank 读路径切 cases-v1，2026-10-18，已提交）：**
+
+- `bank.ts` 新增 `loadPairedItemsV1`：读 `cases/*.case.json` + `case-revisions/*.case-revision.json`，映射为配对 `ItemSide`
+- `sideFromRevision`：`case_revision_id`（`paired-task-02.r6.off`）→ variant（`.off`/`.on`），`ItemSide.id` 还原 V1 id（`EVAL-B-PAIRED-TASK-02-OFF`，用 `caseIdToV1ItemId` 与 `src/run/cases-v1-adapter.ts` 一致）、`rev` 用 `revision_number`、`passToken` 用 `stimulus.hosted_pass_token`、`tags` 用 case 的 `tags`、`contains`/`notContains` 从 `expect.oracles` 提取
+- `pair_key` 关联 OFF/ON（`case.pair_key ?? case_id.toUpperCase()`）
+- `loadPairedItems` 绞杀者兼容：优先读 cases-v1，回退读 item.json（写路径迁移前，新录题仍写 item.json）
+- 测试：新增 `bank-cases-v1.test.ts`（3 用例：listTasks/getTask 读回显 + item.json 回退），80 个 console 测试全绿，typecheck/prettier 通过
