@@ -16,6 +16,7 @@ apps/console/.jobs/
 
 # 操作台运行环境清单（点文件，引擎 loadRooms 会跳过）
 examples/product-eval/rooms/.console-catalog.json
+examples/product-eval/legacy/rooms/.console-catalog.json
 
 # 环境与密钥（profile 中的模型密钥只走环境变量）
 .env

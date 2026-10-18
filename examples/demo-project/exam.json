@@ -2,7 +2,7 @@
   "$schema": "../../schemas/exam.schema.json",
   "name": "demo-project",
   "description": "引擎自带的中性示例资产：既是资产协议的可执行样板，也是引擎自身 CI 的校验夹具。真实被测项目的资产不应放在引擎仓库。",
-  "asset_protocol": "papers-v1",
+  "asset_protocol": "cases-v1",
   "engine": {
     "min_version": "0.1.0"
   },
@@ -12,13 +12,7 @@
     "version": "0.0.0"
   },
   "paths": {
-    "items": "items",
-    "papersets": "papersets",
-    "rooms": "rooms",
     "materials": "materials",
     "scripts": "scripts"
-  },
-  "defaults": {
-    "paperset": "smoke-A"
   }
 }
