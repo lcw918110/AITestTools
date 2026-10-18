@@ -251,10 +251,10 @@ export async function executeJob(
       const runDirs: string[] = [];
       for (const step of opts.plan.steps) {
         if (step.itemIds.length === 0) {
-          appendLog(job, `跳过空侧：${step.paperset}`);
+          appendLog(job, `跳过空侧：${step.release}`);
           continue;
         }
-        code = await runCommand(job, npm, proctorRunArgs(step.paperset, step.itemIds), env);
+        code = await runCommand(job, npm, proctorRunArgs(step.release, step.itemIds), env);
         const dir = lastRunDirFromLog(job);
         if (dir) runDirs.push(dir);
         if (code !== 0) break;

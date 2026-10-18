@@ -8,7 +8,7 @@ import { writeJsonAtomic } from './json-io.ts';
 import { parseJsonObject, str } from './parse.ts';
 import {
   defaultExamMode,
-  defaultPaperset,
+  defaultRelease,
   isExamMode,
   isExperimentId,
   type ExamMode,
@@ -101,7 +101,7 @@ function resolveTestSetRef(
     const derived = testSetIdFromRelease(ps) ?? 'full';
     return { paperset: ps, testSetId: derived };
   }
-  return { paperset: defaultPaperset(kind), testSetId: 'full' };
+  return { paperset: defaultRelease(kind), testSetId: 'full' };
 }
 
 function clipName(name: string | undefined): string {
@@ -142,7 +142,7 @@ function readTaskFile(file: string): { ok: true; task: EvalTask } | { ok: false;
       )
     : [];
   const paperset =
-    typeof doc.paperset === 'string' && doc.paperset ? doc.paperset : defaultPaperset(kind);
+    typeof doc.paperset === 'string' && doc.paperset ? doc.paperset : defaultRelease(kind);
   const testSetId =
     typeof doc.testSetId === 'string' && doc.testSetId
       ? doc.testSetId

@@ -5,7 +5,7 @@
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseJsonObject, str, strArray } from './parse.ts';
-import { taskIdsOfItems, type PapersetIndex } from './run-plan.ts';
+import { taskIdsOfCaseRevisions, taskIdsOfItems, type ReleaseIndex } from './run-plan.ts';
 import { listTestSets } from './test-sets.ts';
 import { PROJECT } from './config.ts';
 
@@ -133,19 +133,29 @@ export function projectSummary() {
   };
 }
 
-export function loadPapersetIndex(): PapersetIndex[] {
-  const dir = join(PROJECT, 'papersets');
+export function loadReleaseIndex(): ReleaseIndex[] {
+  const dir = join(PROJECT, 'dataset-releases');
   if (!existsSync(dir)) return [];
-  const out: PapersetIndex[] = [];
+  const out: ReleaseIndex[] = [];
   for (const f of readdirSync(dir)) {
-    if (!f.endsWith('.json')) continue;
+    if (!f.endsWith('.dataset-release.json')) continue;
     try {
-      const parsed = parseJsonObject(readFileSync(join(dir, f), 'utf8'), `papersets/${f}`);
+      const parsed = parseJsonObject(readFileSync(join(dir, f), 'utf8'), `dataset-releases/${f}`);
       if (!parsed.ok) continue;
-      const name = str(parsed.value.name);
+      const name = str(parsed.value.name) ?? str(parsed.value.dataset_release_id);
       if (name === undefined) continue;
-      const items = strArray(parsed.value.items) ?? [];
-      out.push({ name, items, taskIds: taskIdsOfItems(items) });
+      const caseRevisions = parsed.value.case_revisions;
+      const revisionIds = Array.isArray(caseRevisions)
+        ? caseRevisions
+            .filter((r): r is { case_revision_id?: string } => Boolean(r) && typeof r === 'object')
+            .map((r) => r.case_revision_id)
+            .filter((x): x is string => typeof x === 'string')
+        : [];
+      out.push({
+        name,
+        case_revisions: revisionIds,
+        taskIds: taskIdsOfCaseRevisions(revisionIds.map((id) => ({ case_revision_id: id }))),
+      });
     } catch {
       continue;
     }

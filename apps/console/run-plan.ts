@@ -20,7 +20,7 @@ export function defaultExamMode(experiment: ExperimentId): ExamMode {
   return experiment === 'plugin' ? 'both' : 'off';
 }
 
-export function defaultPaperset(_experiment: ExperimentId): string {
+export function defaultRelease(_experiment: ExperimentId): string {
   return 'paired-off';
 }
 
@@ -62,7 +62,7 @@ export function taskIdsOfCaseRevisions(
   return out;
 }
 
-export function counterpartPaperset(name: string, side: 'off' | 'on'): string {
+export function counterpartRelease(name: string, side: 'off' | 'on'): string {
   if (name.includes('-off')) {
     return side === 'off' ? name : name.replace('-off', '-on');
   }
@@ -72,9 +72,9 @@ export function counterpartPaperset(name: string, side: 'off' | 'on'): string {
   return side === 'off' ? name : 'paired-on';
 }
 
-export type PapersetIndex = {
+export type ReleaseIndex = {
   name: string;
-  items: string[];
+  case_revisions: string[];
   taskIds: string[];
 };
 
@@ -85,7 +85,7 @@ export type TaskSides = {
 };
 
 export type RunStep = {
-  paperset: string;
+  release: string;
   itemIds: string[];
   side: 'off' | 'on';
 };
@@ -93,7 +93,7 @@ export type RunStep = {
 export type RunPlan = {
   experiment: ExperimentId;
   examMode: ExamMode;
-  paperset: string;
+  release: string;
   taskIds: string[];
   legacy: 'paired' | 'model' | 'agent' | undefined;
   steps: RunStep[];
@@ -143,9 +143,9 @@ function collectItemIds(
 export function resolveRunPlan(input: {
   experiment: ExperimentId;
   examMode?: string | undefined;
-  paperset?: string | undefined;
+  release?: string | undefined;
   taskIds?: string[] | undefined;
-  papersets: PapersetIndex[];
+  releases: ReleaseIndex[];
   tasks: TaskSides[];
 }): { ok: true; plan: RunPlan } | { ok: false; error: string } {
   const examMode =
@@ -154,10 +154,10 @@ export function resolveRunPlan(input: {
     return { ok: false, error: 'examMode 须为 off / on / both' };
   }
 
-  const papersetName = input.paperset ?? defaultPaperset(input.experiment);
-  const ps = input.papersets.find((p) => p.name === papersetName);
-  if (ps === undefined) {
-    return { ok: false, error: `未知测试集名单：${papersetName}` };
+  const releaseName = input.release ?? defaultRelease(input.experiment);
+  const rel = input.releases.find((p) => p.name === releaseName);
+  if (rel === undefined) {
+    return { ok: false, error: `未知测试集名单：${releaseName}` };
   }
 
   if (input.experiment !== 'plugin') {
@@ -170,8 +170,8 @@ export function resolveRunPlan(input: {
     return { ok: false, error: '请至少选一道题目' };
   }
 
-  const pool = new Set(ps.taskIds);
-  const selected = input.taskIds ?? [...ps.taskIds];
+  const pool = new Set(rel.taskIds);
+  const selected = input.taskIds ?? [...rel.taskIds];
   for (const id of selected) {
     if (!pool.has(id)) {
       return { ok: false, error: `题目不在所选测试集中：${id}` };
@@ -183,31 +183,31 @@ export function resolveRunPlan(input: {
   const steps: RunStep[] = [];
 
   if (examMode === 'off' || examMode === 'both') {
-    const offName = counterpartPaperset(papersetName, 'off');
-    if (!input.papersets.some((p) => p.name === offName)) {
+    const offName = counterpartRelease(releaseName, 'off');
+    if (!input.releases.some((p) => p.name === offName)) {
       return { ok: false, error: `找不到无插件侧测试集文件：${offName}` };
     }
     const itemIds = collectItemIds(selected, taskMap, 'off', skipped);
-    steps.push({ paperset: offName, itemIds, side: 'off' });
+    steps.push({ release: offName, itemIds, side: 'off' });
   }
   if (examMode === 'on' || examMode === 'both') {
-    const onName = counterpartPaperset(papersetName, 'on');
-    if (!input.papersets.some((p) => p.name === onName)) {
+    const onName = counterpartRelease(releaseName, 'on');
+    if (!input.releases.some((p) => p.name === onName)) {
       return { ok: false, error: `找不到有插件侧测试集文件：${onName}` };
     }
     const itemIds = collectItemIds(selected, taskMap, 'on', skipped);
-    steps.push({ paperset: onName, itemIds, side: 'on' });
+    steps.push({ release: onName, itemIds, side: 'on' });
   }
 
   if (steps.every((s) => s.itemIds.length === 0)) {
     return { ok: false, error: '本次运行环境没有可跑的引擎条目' };
   }
 
-  const defPs = defaultPaperset(input.experiment);
+  const defRel = defaultRelease(input.experiment);
   const defMode = defaultExamMode(input.experiment);
-  const defPool = input.papersets.find((p) => p.name === defPs)?.taskIds ?? [];
+  const defPool = input.releases.find((p) => p.name === defRel)?.taskIds ?? [];
   const isDefaultSelection =
-    papersetName === defPs && examMode === defMode && sameIdSet(selected, defPool);
+    releaseName === defRel && examMode === defMode && sameIdSet(selected, defPool);
 
   let legacy: RunPlan['legacy'];
   if (isDefaultSelection) {
@@ -221,7 +221,7 @@ export function resolveRunPlan(input: {
     plan: {
       experiment: input.experiment,
       examMode,
-      paperset: papersetName,
+      release: releaseName,
       taskIds: selected,
       legacy,
       steps,

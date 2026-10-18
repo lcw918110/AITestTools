@@ -11,7 +11,7 @@ import { assertSafeTaskId, listTasks } from '../bank.ts';
 import { getEvalTask } from '../eval-tasks.ts';
 import { writeJsonAtomic } from '../json-io.ts';
 import { executeJob, jobs, type Job } from '../job-queue.ts';
-import { loadPapersetIndex } from '../project-reader.ts';
+import { loadReleaseIndex } from '../project-reader.ts';
 
 export interface RunBody {
   experiment?: string;
@@ -67,7 +67,7 @@ export async function run(body: RunBody): Promise<HttpResponse> {
     ...(body.examMode !== undefined ? { examMode: body.examMode } : {}),
     ...(paperset !== undefined ? { paperset } : {}),
     ...(body.taskIds !== undefined ? { taskIds: body.taskIds } : {}),
-    papersets: loadPapersetIndex(),
+    releases: loadReleaseIndex(),
     tasks: bankTasks.map((t) => ({
       taskId: t.taskId,
       ...(t.offId !== undefined ? { offId: t.offId } : {}),

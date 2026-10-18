@@ -455,3 +455,12 @@
   - `papersetFilesForTestSet` 保留旧语义（papersets 文件名）
 - 测试：`test-sets.test.ts` 重写为 cases-v1 seed；`bank.test.ts`/`update-task-rollback.test.ts` seed 补 dataset-releases
 - 76 个 console 测试全绿，typecheck/prettier 通过；Bugbot 1 finding（新建测试集无法录题）已修复
+
+**阶段 5 步骤 2 切片 A（run-plan 术语切换，2026-10-18，已提交）：**
+
+- `run-plan.ts`：`PapersetIndex`→`ReleaseIndex`（`items`→`case_revisions`）、`counterpartPaperset`→`counterpartRelease`、`defaultPaperset`→`defaultRelease`、`resolveRunPlan` 入参 `papersets`→`releases`/`paperset`→`release`、`RunPlan.paperset`→`RunPlan.release`、`RunStep.paperset`→`RunStep.release`
+- `project-reader.ts`：`loadPapersetIndex`→`loadReleaseIndex`，读 `dataset-releases/`，`case_revisions` 从 `case_revisions` 提取、`taskIds` 用 `taskIdsOfCaseRevisions`
+- `controllers/run.ts` / `job-queue.ts` / `eval-tasks.ts`：字段引用同步
+- **关键发现（明日复核）**：`offId`/`onId`（itemId）**保持 V1 格式不变**——引擎 cases-v1 路径 `runCommandV2` 的 `--only` 过滤用 `caseRevisionToItemDoc` 还原出的 V1 id（`EVAL-B-...`），非 `case_revision_id`；故 `resolveRunPlan` 的 `offId`/`onId` 无需改成 case_revision_id。引擎 `--paperset`→`--dataset` 参数切换属步骤 4（job-queue 引擎调用），不在本切片
+- `projectSummary` 的 `papersets`/`rooms` 字段切换留步骤 3（env）+ 步骤 4（UI）
+- 测试：`run-plan.test.ts` 重写为 release 术语 + case_revisions 数据源（10 用例），77 个 console 测试全绿，typecheck/prettier 通过

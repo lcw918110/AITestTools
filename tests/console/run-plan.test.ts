@@ -1,42 +1,44 @@
 import { describe, expect, it } from 'vitest';
 import {
-  counterpartPaperset,
+  counterpartRelease,
   defaultExamMode,
-  defaultPaperset,
+  defaultRelease,
   resolveRunPlan,
+  taskIdFromCaseRevisionId,
   taskIdFromItemId,
+  taskIdsOfCaseRevisions,
   taskIdsOfItems,
 } from '../../apps/console/run-plan.ts';
 
-const papersets = [
+const releases = [
   {
     name: 'paired-off',
-    items: ['EVAL-B-PAIRED-TASK-02-OFF', 'EVAL-B-PAIRED-TASK-157-OFF'],
+    case_revisions: ['paired-task-02.r6.off', 'paired-task-157.r2.off'],
     taskIds: ['PAIRED-TASK-02', 'PAIRED-TASK-157'],
   },
   {
     name: 'paired-on',
-    items: ['EVAL-B-PAIRED-TASK-02-ON', 'EVAL-B-PAIRED-TASK-157-ON'],
+    case_revisions: ['paired-task-02.r7.on', 'paired-task-157.r3.on'],
     taskIds: ['PAIRED-TASK-02', 'PAIRED-TASK-157'],
   },
   {
     name: 'paired-off-effect-smoke',
-    items: ['EVAL-B-PAIRED-TASK-157-OFF'],
+    case_revisions: ['paired-task-157.r2.off'],
     taskIds: ['PAIRED-TASK-157'],
   },
   {
     name: 'paired-on-effect-smoke',
-    items: ['EVAL-B-PAIRED-TASK-157-ON'],
+    case_revisions: ['paired-task-157.r3.on'],
     taskIds: ['PAIRED-TASK-157'],
   },
   {
     name: 'eval-model',
-    items: ['EVAL-B-PAIRED-TASK-02-OFF'],
+    case_revisions: ['paired-task-02.r6.off'],
     taskIds: ['PAIRED-TASK-02'],
   },
   {
     name: 'eval-agent',
-    items: ['EVAL-B-PAIRED-TASK-02-OFF'],
+    case_revisions: ['paired-task-02.r6.off'],
     taskIds: ['PAIRED-TASK-02'],
   },
 ];
@@ -63,24 +65,35 @@ describe('run-plan helpers', () => {
     ]);
   });
 
+  it('case_revision_id 映射人题号（cases-v1）', () => {
+    expect(taskIdFromCaseRevisionId('paired-task-02.r6.off')).toBe('PAIRED-TASK-02');
+    expect(taskIdFromCaseRevisionId('paired-task-157.r3.on')).toBe('PAIRED-TASK-157');
+    expect(
+      taskIdsOfCaseRevisions([
+        { case_revision_id: 'paired-task-02.r6.off' },
+        { case_revision_id: 'paired-task-02.r7.on' },
+      ]),
+    ).toEqual(['PAIRED-TASK-02']);
+  });
+
   it('组卷对侧', () => {
-    expect(counterpartPaperset('paired-off-effect-smoke', 'on')).toBe('paired-on-effect-smoke');
-    expect(counterpartPaperset('eval-model', 'on')).toBe('paired-on');
-    expect(counterpartPaperset('paired-on-calibrate', 'off')).toBe('paired-off-calibrate');
+    expect(counterpartRelease('paired-off-effect-smoke', 'on')).toBe('paired-on-effect-smoke');
+    expect(counterpartRelease('eval-model', 'on')).toBe('paired-on');
+    expect(counterpartRelease('paired-on-calibrate', 'off')).toBe('paired-off-calibrate');
   });
 
   it('实验默认考场与组卷', () => {
     expect(defaultExamMode('plugin')).toBe('both');
     expect(defaultExamMode('model')).toBe('off');
-    expect(defaultPaperset('plugin')).toBe('paired-off');
-    expect(defaultPaperset('agent')).toBe('paired-off');
-    expect(defaultPaperset('model')).toBe('paired-off');
+    expect(defaultRelease('plugin')).toBe('paired-off');
+    expect(defaultRelease('agent')).toBe('paired-off');
+    expect(defaultRelease('model')).toBe('paired-off');
   });
 });
 
 describe('resolveRunPlan', () => {
   it('有无万象术默认走 legacy paired', () => {
-    const r = resolveRunPlan({ experiment: 'plugin', papersets, tasks });
+    const r = resolveRunPlan({ experiment: 'plugin', releases, tasks });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.plan.legacy).toBe('paired');
@@ -91,9 +104,9 @@ describe('resolveRunPlan', () => {
   it('筛效果烟卷 + 同时跑：不写 legacy，跑 OFF 再 ON', () => {
     const r = resolveRunPlan({
       experiment: 'plugin',
-      paperset: 'paired-off-effect-smoke',
+      release: 'paired-off-effect-smoke',
       examMode: 'both',
-      papersets,
+      releases,
       tasks,
     });
     expect(r.ok).toBe(true);
@@ -101,12 +114,12 @@ describe('resolveRunPlan', () => {
     expect(r.plan.legacy).toBeUndefined();
     expect(r.plan.steps).toEqual([
       {
-        paperset: 'paired-off-effect-smoke',
+        release: 'paired-off-effect-smoke',
         itemIds: ['EVAL-B-PAIRED-TASK-157-OFF'],
         side: 'off',
       },
       {
-        paperset: 'paired-on-effect-smoke',
+        release: 'paired-on-effect-smoke',
         itemIds: ['EVAL-B-PAIRED-TASK-157-ON'],
         side: 'on',
       },
@@ -118,14 +131,14 @@ describe('resolveRunPlan', () => {
       experiment: 'plugin',
       examMode: 'off',
       taskIds: ['PAIRED-TASK-02'],
-      papersets,
+      releases,
       tasks,
     });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.plan.legacy).toBeUndefined();
     expect(r.plan.steps).toEqual([
-      { paperset: 'paired-off', itemIds: ['EVAL-B-PAIRED-TASK-02-OFF'], side: 'off' },
+      { release: 'paired-off', itemIds: ['EVAL-B-PAIRED-TASK-02-OFF'], side: 'off' },
     ]);
     expect(r.plan.needsSut).toBe(false);
   });
@@ -134,7 +147,7 @@ describe('resolveRunPlan', () => {
     const r = resolveRunPlan({
       experiment: 'model',
       examMode: 'both',
-      papersets,
+      releases,
       tasks,
     });
     expect(r.ok).toBe(false);
@@ -143,7 +156,7 @@ describe('resolveRunPlan', () => {
   });
 
   it('测模型默认无插件', () => {
-    const r = resolveRunPlan({ experiment: 'model', papersets, tasks });
+    const r = resolveRunPlan({ experiment: 'model', releases, tasks });
     expect(r.ok).toBe(true);
     if (!r.ok) return;
     expect(r.plan.examMode).toBe('off');
@@ -151,16 +164,16 @@ describe('resolveRunPlan', () => {
   });
 
   it('空清单 / 非法考场 / 题不在卷中', () => {
-    expect(resolveRunPlan({ experiment: 'plugin', taskIds: [], papersets, tasks }).ok).toBe(false);
-    expect(resolveRunPlan({ experiment: 'plugin', examMode: 'maybe', papersets, tasks }).ok).toBe(
+    expect(resolveRunPlan({ experiment: 'plugin', taskIds: [], releases, tasks }).ok).toBe(false);
+    expect(resolveRunPlan({ experiment: 'plugin', examMode: 'maybe', releases, tasks }).ok).toBe(
       false,
     );
     expect(
       resolveRunPlan({
         experiment: 'plugin',
-        paperset: 'paired-off-effect-smoke',
+        release: 'paired-off-effect-smoke',
         taskIds: ['PAIRED-TASK-02'],
-        papersets,
+        releases,
         tasks,
       }).ok,
     ).toBe(false);
