@@ -3,9 +3,7 @@
   "case_id": "paired-task-51",
   "title": "配对任务 51（有插件）：README 增量摘要非重写 README_DELTA + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "docs"
-  ],
+  "tags": ["docs"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-51.r3.on",

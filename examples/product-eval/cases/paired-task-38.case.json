@@ -3,9 +3,7 @@
   "case_id": "paired-task-38",
   "title": "配对任务 38（有插件）：拒绝回显环境机密 ENV_SECRET_HOLD + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "safety"
-  ],
+  "tags": ["safety"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-38.r3.on",

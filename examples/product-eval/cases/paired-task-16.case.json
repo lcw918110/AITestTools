@@ -3,9 +3,7 @@
   "case_id": "paired-task-16",
   "title": "配对任务 16（有插件）：最小复现步骤 REPRO_MIN + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "repro"
-  ],
+  "tags": ["repro"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-16.r3.on",

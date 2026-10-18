@@ -3,9 +3,7 @@
   "case_id": "paired-task-28",
   "title": "配对任务 28（有插件）：改前举证 EVIDENCE_EDIT + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-28.r3.on",

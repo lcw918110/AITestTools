@@ -18,11 +18,7 @@
       {
         "id": "nudge-between-turns",
         "type": "event_subsequence",
-        "names": [
-          "TurnCompleted",
-          "nudge_dispatched",
-          "TurnStarted"
-        ]
+        "names": ["TurnCompleted", "nudge_dispatched", "TurnStarted"]
       },
       {
         "id": "state-after",

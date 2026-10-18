@@ -3,12 +3,7 @@
   "case_id": "wx-a-st-15-nudge",
   "title": "ST-15：nudge_dispatched 写入 LastDispatchedAnchor",
   "owner": "wanxiangshu",
-  "tags": [
-    "l1",
-    "st-import",
-    "st-15",
-    "nudge"
-  ],
+  "tags": ["l1", "st-import", "st-15", "nudge"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "wx-a-st-15-nudge.r1"

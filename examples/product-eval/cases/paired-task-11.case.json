@@ -3,9 +3,7 @@
   "case_id": "paired-task-11",
   "title": "配对任务 11（有插件）：改后最小验证 VERIFY_OK + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "verify"
-  ],
+  "tags": ["verify"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-11.r3.on",

@@ -143,7 +143,10 @@ describe('console bank', () => {
     expect(JSON.stringify(onDoc.expect.oracles)).toBe(JSON.stringify(offDoc.expect.oracles));
 
     const calOff = JSON.parse(
-      readFileSync(join(root, 'dataset-releases/paired-off-calibrate.dataset-release.json'), 'utf8'),
+      readFileSync(
+        join(root, 'dataset-releases/paired-off-calibrate.dataset-release.json'),
+        'utf8',
+      ),
     ) as { case_revisions: Array<{ case_revision_id: string }> };
     const fullOff = JSON.parse(
       readFileSync(join(root, 'dataset-releases/paired-off.dataset-release.json'), 'utf8'),
@@ -155,17 +158,25 @@ describe('console bank', () => {
       readFileSync(join(root, 'dataset-releases/paired-on-calibrate.dataset-release.json'), 'utf8'),
     ) as { case_revisions: Array<{ case_revision_id: string }> };
     const altOff = JSON.parse(
-      readFileSync(join(root, 'dataset-releases/paired-off-alt-calibrate.dataset-release.json'), 'utf8'),
+      readFileSync(
+        join(root, 'dataset-releases/paired-off-alt-calibrate.dataset-release.json'),
+        'utf8',
+      ),
     ) as { case_revisions: Array<{ case_revision_id: string }> };
     const altOn = JSON.parse(
-      readFileSync(join(root, 'dataset-releases/paired-on-alt-calibrate.dataset-release.json'), 'utf8'),
+      readFileSync(
+        join(root, 'dataset-releases/paired-on-alt-calibrate.dataset-release.json'),
+        'utf8',
+      ),
     ) as { case_revisions: Array<{ case_revision_id: string }> };
     expect(calOff.case_revisions.map((r) => r.case_revision_id)).toContain('paired-task-99.r1.off');
     expect(calOn.case_revisions.map((r) => r.case_revision_id)).toContain('paired-task-99.r1.on');
     expect(altOff.case_revisions.map((r) => r.case_revision_id)).not.toContain(
       'paired-task-99.r1.off',
     );
-    expect(altOn.case_revisions.map((r) => r.case_revision_id)).not.toContain('paired-task-99.r1.on');
+    expect(altOn.case_revisions.map((r) => r.case_revision_id)).not.toContain(
+      'paired-task-99.r1.on',
+    );
     expect(fullOff.case_revisions.map((r) => r.case_revision_id)).not.toContain(
       'paired-task-99.r1.off',
     );

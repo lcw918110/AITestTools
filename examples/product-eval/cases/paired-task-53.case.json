@@ -3,9 +3,7 @@
   "case_id": "paired-task-53",
   "title": "配对任务 53（有插件）：信息不足拒伪造 patch NO_PATCH + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-53.r4.on",

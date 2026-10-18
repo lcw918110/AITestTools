@@ -3,9 +3,7 @@
   "case_id": "demo-a-todo-fold-05",
   "title": "双待办独立折叠",
   "owner": "demo",
-  "tags": [
-    "l1"
-  ],
+  "tags": ["l1"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "demo-a-todo-fold-05.r1"

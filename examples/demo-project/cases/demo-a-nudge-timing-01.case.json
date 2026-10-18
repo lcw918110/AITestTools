@@ -3,10 +3,7 @@
   "case_id": "demo-a-nudge-timing-01",
   "title": "任务未收敛时必须在下一轮之前发出提醒",
   "owner": "demo",
-  "tags": [
-    "l2",
-    "control-flow"
-  ],
+  "tags": ["l2", "control-flow"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "demo-a-nudge-timing-01.r2"

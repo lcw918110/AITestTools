@@ -3,9 +3,7 @@
   "case_id": "paired-task-76",
   "title": "配对任务 76（有插件）：灰度发布检查 CANARY_OK + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-76.r4.on",

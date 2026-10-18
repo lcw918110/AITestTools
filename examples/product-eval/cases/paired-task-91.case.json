@@ -3,9 +3,7 @@
   "case_id": "paired-task-91",
   "title": "配对任务 91（有插件）：临时 ACL 过期 TEMP_ACL + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-91.r3.on",

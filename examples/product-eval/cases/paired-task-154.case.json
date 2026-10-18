@@ -3,9 +3,7 @@
   "case_id": "paired-task-154",
   "title": "配对任务 154（有插件）：变更双人复核 FOUR_EYE + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-154.r3.on",

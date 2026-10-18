@@ -387,6 +387,7 @@
 **阶段 1（协议与 Schema）：** 新建 5 个 cases-v1 schema（case/case-revision/dataset-release/environment/candidate），全部经 ajv 编译验证合法。`schema.ts` 注册新 schema，`ASSET_PROTOCOL_VERSION` 保持 papers-v1 待迁移完成后切换。
 
 **阶段 2（迁移脚本）：** `scripts/migrate-v2.mjs` + 498 个 cases-v1 资产：
+
 - 159 Case（`EVAL-B-PAIRED-TASK-22-OFF` → `paired-task-22`）
 - 318 CaseRevision（OFF/ON 拆两修订，`case_revision_id` 含 `.off`/`.on` 后缀）
 - 13 DatasetRelease + 4 Environment + 4 Candidate

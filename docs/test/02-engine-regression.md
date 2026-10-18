@@ -349,13 +349,13 @@ SUT_ROOT=/path/to/wanxiangshu npm run smoke:wanxiangshu:l1   # foldEnvelope 最�
 
 ## 5. 相关文档
 
-| 文档                                                                  | 用途                |
-| :-------------------------------------------------------------------- | :------------------ |
-| [02-protocol-papers-v1](../archive/v1-design/02-protocol-papers-v1.md)           | 试题/试卷 JSON 协议 |
-| [03-fold-entry-contract](../archive/v1-design/03-fold-entry-contract.md)         | L1 Fold 入口        |
-| [06-host-contract-schema](../archive/v1-design/06-host-contract-schema.md)       | L2 宿主契约         |
-| [07-hosted-attribution-tree](../archive/v1-design/07-hosted-attribution-tree.md) | B-hosted 分诊       |
-| [04-state-predicate](../archive/v1-design/04-state-predicate.md)                 | 谓词白名单          |
-| [ADR-0008](../architecture/adr/0008-local-sut-papers-copy.md)         | 题库本地副本        |
-| [01-wanxiangshu-ops](01-wanxiangshu-ops.md)                           | 测万象术（产品）    |
+| 文档                                                                                        | 用途                |
+| :------------------------------------------------------------------------------------------ | :------------------ |
+| [02-protocol-papers-v1](../archive/v1-design/02-protocol-papers-v1.md)                      | 试题/试卷 JSON 协议 |
+| [03-fold-entry-contract](../archive/v1-design/03-fold-entry-contract.md)                    | L1 Fold 入口        |
+| [06-host-contract-schema](../archive/v1-design/06-host-contract-schema.md)                  | L2 宿主契约         |
+| [07-hosted-attribution-tree](../archive/v1-design/07-hosted-attribution-tree.md)            | B-hosted 分诊       |
+| [04-state-predicate](../archive/v1-design/04-state-predicate.md)                            | 谓词白名单          |
+| [ADR-0008](../architecture/adr/0008-local-sut-papers-copy.md)                               | 题库本地副本        |
+| [01-wanxiangshu-ops](01-wanxiangshu-ops.md)                                                 | 测万象术（产品）    |
 | PRD [`../archive/v1-requirements/01-prd.md`](../archive/v1-requirements/01-prd.md) 附录 B/C | Oracle 与指标总表   |

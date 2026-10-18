@@ -3,11 +3,7 @@
   "case_id": "wx-a-review-keep-01",
   "title": "非终态 verdict 不清除激活 task",
   "owner": "wanxiangshu",
-  "tags": [
-    "l1",
-    "review",
-    "fold"
-  ],
+  "tags": ["l1", "review", "fold"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "wx-a-review-keep-01.r1"

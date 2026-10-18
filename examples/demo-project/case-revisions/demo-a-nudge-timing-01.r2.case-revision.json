@@ -18,11 +18,7 @@
       {
         "id": "nudge-emitted",
         "type": "event_subsequence",
-        "names": [
-          "TurnCompleted",
-          "NudgeEmitted",
-          "TurnStarted"
-        ]
+        "names": ["TurnCompleted", "NudgeEmitted", "TurnStarted"]
       },
       {
         "id": "state-after",

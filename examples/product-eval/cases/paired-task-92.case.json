@@ -3,9 +3,7 @@
   "case_id": "paired-task-92",
   "title": "配对任务 92（有插件）：抗奉承守结论 HOLD_TRUTH + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-92.r4.on",

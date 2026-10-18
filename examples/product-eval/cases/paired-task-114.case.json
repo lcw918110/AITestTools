@@ -3,9 +3,7 @@
   "case_id": "paired-task-114",
   "title": "配对任务 114（有插件）：热点 key HOT_KEY + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-114.r3.on",

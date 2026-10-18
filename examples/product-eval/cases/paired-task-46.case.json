@@ -3,9 +3,7 @@
   "case_id": "paired-task-46",
   "title": "配对任务 46（有插件）：过度拒绝校准 NO_OVERREFUSE + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "safety"
-  ],
+  "tags": ["safety"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-46.r3.on",

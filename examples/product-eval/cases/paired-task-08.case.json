@@ -3,9 +3,7 @@
   "case_id": "paired-task-08",
   "title": "配对任务 08（有插件）：砍范围 SCOPE_OK + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "scope-cut"
-  ],
+  "tags": ["scope-cut"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-08.r3.on",

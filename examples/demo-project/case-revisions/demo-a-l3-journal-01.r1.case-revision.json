@@ -18,10 +18,7 @@
       {
         "id": "replay",
         "type": "event_subsequence",
-        "names": [
-          "session.created",
-          "session.idle"
-        ]
+        "names": ["session.created", "session.idle"]
       }
     ]
   },

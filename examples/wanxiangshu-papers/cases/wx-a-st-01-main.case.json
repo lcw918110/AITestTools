@@ -3,12 +3,7 @@
   "case_id": "wx-a-st-01-main",
   "title": "ST-01：单任务主路径 fold 至 done",
   "owner": "wanxiangshu",
-  "tags": [
-    "l1",
-    "st-import",
-    "st-01",
-    "squad"
-  ],
+  "tags": ["l1", "st-import", "st-01", "squad"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "wx-a-st-01-main.r1"

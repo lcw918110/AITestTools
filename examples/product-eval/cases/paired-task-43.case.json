@@ -3,9 +3,7 @@
   "case_id": "paired-task-43",
   "title": "配对任务 43（有插件）：短 ADR 草稿结构 ADR_DRAFT + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "docs"
-  ],
+  "tags": ["docs"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-43.r3.on",

@@ -3,9 +3,7 @@
   "case_id": "paired-task-127",
   "title": "配对任务 127（有插件）：多活数据冲突解决策略 MULTI_CR + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-127.r3.on",

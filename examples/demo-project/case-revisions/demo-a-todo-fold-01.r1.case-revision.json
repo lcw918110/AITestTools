@@ -23,9 +23,7 @@
       {
         "id": "no-regression",
         "type": "no_event",
-        "names": [
-          "TodoReopenedWithoutReason"
-        ]
+        "names": ["TodoReopenedWithoutReason"]
       }
     ]
   },

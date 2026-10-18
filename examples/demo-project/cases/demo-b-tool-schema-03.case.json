@@ -3,11 +3,7 @@
   "case_id": "demo-b-tool-schema-03",
   "title": "模型矩阵夹具题 03：须调用 todowrite 并填齐必填字段",
   "owner": "demo",
-  "tags": [
-    "schema",
-    "matrix",
-    "fixture"
-  ],
+  "tags": ["schema", "matrix", "fixture"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "demo-b-tool-schema-03.r1"

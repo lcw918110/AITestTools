@@ -3,9 +3,7 @@
   "case_id": "paired-task-158",
   "title": "配对任务 158（无插件）：公网端口三处对齐 PORT_SYNC",
   "owner": "product-eval",
-  "tags": [
-    "workspace"
-  ],
+  "tags": ["workspace"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-158.r1.off",

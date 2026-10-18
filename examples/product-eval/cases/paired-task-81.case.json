@@ -3,9 +3,7 @@
   "case_id": "paired-task-81",
   "title": "配对任务 81（有插件）：兼容层废弃时间表 DEPREC_SCHED + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-81.r3.on",

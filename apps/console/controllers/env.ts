@@ -65,8 +65,7 @@ export async function envRoomsList(): Promise<HttpResponse> {
             ? (doc.recipe as Record<string, unknown>)
             : {};
         // workspace/network 从 recipe 还原（isolation_profile→workspace、network_policy→network）。
-        const workspace =
-          recipe.isolation_profile === 'isolated' ? 'isolated' : 'project';
+        const workspace = recipe.isolation_profile === 'isolated' ? 'isolated' : 'project';
         const network = recipe.network_policy === 'allow';
         roomFiles.push({
           name,
@@ -101,7 +100,9 @@ export async function envRoomsUpdate(
       console.warn(`PUT /api/env/rooms/${roomName}: ${w}`);
     }
     const recipe =
-      typeof existing.recipe === 'object' && existing.recipe !== null && !Array.isArray(existing.recipe)
+      typeof existing.recipe === 'object' &&
+      existing.recipe !== null &&
+      !Array.isArray(existing.recipe)
         ? (existing.recipe as Record<string, unknown>)
         : {};
     if (update.recipe !== undefined) {
@@ -124,7 +125,9 @@ export async function envRoomsUpdate(
       return { status: 409, body: { error: '房间配置已被并发修改，请重新读取后重试' } };
     }
     const resultRecipe =
-      typeof existing.recipe === 'object' && existing.recipe !== null && !Array.isArray(existing.recipe)
+      typeof existing.recipe === 'object' &&
+      existing.recipe !== null &&
+      !Array.isArray(existing.recipe)
         ? (existing.recipe as Record<string, unknown>)
         : {};
     const workspace = resultRecipe.isolation_profile === 'isolated' ? 'isolated' : 'project';

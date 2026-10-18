@@ -23,16 +23,12 @@
       {
         "id": "verdict-emitted",
         "type": "event_subsequence",
-        "names": [
-          "review_verdict"
-        ]
+        "names": ["review_verdict"]
       },
       {
         "id": "no-silent-settle",
         "type": "no_event",
-        "names": [
-          "SessionSettledWithoutReview"
-        ]
+        "names": ["SessionSettledWithoutReview"]
       }
     ]
   },

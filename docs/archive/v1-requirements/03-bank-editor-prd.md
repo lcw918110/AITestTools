@@ -6,7 +6,7 @@
 | 日期     | 2026-09-09                                                                                      |
 | 依据     | [01-prd.md](01-prd.md)；术语 [00-glossary.md](00-glossary.md)；产品资产 `examples/product-eval` |
 | 阅读序   | 需求第 **3** 篇（比 02 更专、更严）                                                             |
-| 配套设计 | [../v1-design/09-bank-editor.md](../v1-design/09-bank-editor.md)                                      |
+| 配套设计 | [../v1-design/09-bank-editor.md](../v1-design/09-bank-editor.md)                                |
 
 ---
 

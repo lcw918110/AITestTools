@@ -3,9 +3,7 @@
   "case_id": "paired-task-67",
   "title": "配对任务 67（有插件）：API 契约变更沟通 API_CONTRACT + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-67.r3.on",

@@ -3,10 +3,7 @@
   "case_id": "demo-a-todo-fold-01",
   "title": "待办事件折叠后，已完成项不得回到进行中",
   "owner": "demo",
-  "tags": [
-    "l1",
-    "projection"
-  ],
+  "tags": ["l1", "projection"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "demo-a-todo-fold-01.r1"

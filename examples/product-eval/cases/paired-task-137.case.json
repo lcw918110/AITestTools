@@ -3,9 +3,7 @@
   "case_id": "paired-task-137",
   "title": "配对任务 137（有插件）：游标失效处理 CUR_INV + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-137.r3.on",

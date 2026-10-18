@@ -3,12 +3,7 @@
   "case_id": "demo-a-l3-journal-01",
   "title": "L3：OpenCode journal cassette 回放",
   "owner": "demo",
-  "tags": [
-    "l3",
-    "cassette",
-    "journal",
-    "recorder"
-  ],
+  "tags": ["l3", "cassette", "journal", "recorder"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "demo-a-l3-journal-01.r1"

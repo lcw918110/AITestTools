@@ -3,9 +3,7 @@
   "case_id": "paired-task-70",
   "title": "配对任务 70（有插件）：依赖 license 注意 LICENSE_NOTE + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-70.r3.on",

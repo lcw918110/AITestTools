@@ -1,14 +1,7 @@
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import {
-  loadCaseRevisions,
-  loadCasesV2,
-  loadEnvironments,
-} from '../../src/exam-engine/loader.ts';
-import {
-  caseRevisionToItemDoc,
-  environmentToRoom,
-} from '../../src/run/cases-v1-adapter.ts';
+import { loadCaseRevisions, loadCasesV2, loadEnvironments } from '../../src/exam-engine/loader.ts';
+import { caseRevisionToItemDoc, environmentToRoom } from '../../src/run/cases-v1-adapter.ts';
 
 const projectRoot = join(process.cwd(), 'examples', 'product-eval');
 
@@ -18,9 +11,7 @@ describe('cases-v1 适配层（阶段 4a）', () => {
     const revisions = loadCaseRevisions(join(projectRoot, 'case-revisions'), projectRoot);
 
     const caseDoc = cases.find((c) => c.doc.case_id === 'paired-task-22')!.doc;
-    const rev = revisions.find(
-      (r) => r.doc.case_revision_id === 'paired-task-22.r2.off',
-    )!.doc;
+    const rev = revisions.find((r) => r.doc.case_revision_id === 'paired-task-22.r2.off')!.doc;
 
     const item = caseRevisionToItemDoc(rev, caseDoc);
 
@@ -63,12 +54,8 @@ describe('cases-v1 适配层（阶段 4a）', () => {
     const revisions = loadCaseRevisions(join(projectRoot, 'case-revisions'), projectRoot);
 
     const caseDoc = cases.find((c) => c.doc.case_id === 'paired-task-22')!.doc;
-    const off = revisions.find(
-      (r) => r.doc.case_revision_id === 'paired-task-22.r2.off',
-    )!.doc;
-    const on = revisions.find(
-      (r) => r.doc.case_revision_id === 'paired-task-22.r3.on',
-    )!.doc;
+    const off = revisions.find((r) => r.doc.case_revision_id === 'paired-task-22.r2.off')!.doc;
+    const on = revisions.find((r) => r.doc.case_revision_id === 'paired-task-22.r3.on')!.doc;
 
     const offItem = caseRevisionToItemDoc(off, caseDoc);
     const onItem = caseRevisionToItemDoc(on, caseDoc);

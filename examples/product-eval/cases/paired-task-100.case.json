@@ -3,9 +3,7 @@
   "case_id": "paired-task-100",
   "title": "配对任务 100（有插件）：镜像签名验证 IMG_SIGN + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-100.r3.on",

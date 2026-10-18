@@ -3,9 +3,7 @@
   "case_id": "paired-task-05",
   "title": "配对任务 05（有插件）：卡住后继续 CONTINUE + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "nudge-recovery"
-  ],
+  "tags": ["nudge-recovery"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-05.r3.on",

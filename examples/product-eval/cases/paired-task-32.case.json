@@ -3,9 +3,7 @@
   "case_id": "paired-task-32",
   "title": "配对任务 32（有插件）：重构与修复分 PR REFACTOR_SEP + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-32.r3.on",

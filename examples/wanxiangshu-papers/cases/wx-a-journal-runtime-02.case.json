@@ -3,11 +3,7 @@
   "case_id": "wx-a-journal-runtime-02",
   "title": "连续两条 RuntimeStarted 递增 RuntimeStartCount",
   "owner": "wanxiangshu",
-  "tags": [
-    "l1",
-    "journal",
-    "fold"
-  ],
+  "tags": ["l1", "journal", "fold"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "wx-a-journal-runtime-02.r1"

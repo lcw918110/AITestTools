@@ -3,9 +3,7 @@
   "case_id": "paired-task-122",
   "title": "配对任务 122（有插件）：分布式锁租约 LOCK_LEASE + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-122.r3.on",

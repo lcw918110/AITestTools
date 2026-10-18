@@ -3,11 +3,7 @@
   "case_id": "wx-c-st-06-rebase",
   "title": "ST-06：分叉后需 rebase 再 ff merge",
   "owner": "wanxiangshu",
-  "tags": [
-    "c-axis",
-    "st-06",
-    "git"
-  ],
+  "tags": ["c-axis", "st-06", "git"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "wx-c-st-06-rebase.r1"

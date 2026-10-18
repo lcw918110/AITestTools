@@ -3,12 +3,7 @@
   "case_id": "demo-a-l3-live-01",
   "title": "L3：live OpenCode journal 回放（自测）",
   "owner": "demo",
-  "tags": [
-    "l3",
-    "cassette",
-    "journal",
-    "live"
-  ],
+  "tags": ["l3", "cassette", "journal", "live"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "demo-a-l3-live-01.r1"

@@ -3,12 +3,7 @@
   "case_id": "wx-a-plugin-load-01",
   "title": "stubbed-ctx 加载真 Plugin.js 并跑通一轮剧本",
   "owner": "wanxiangshu",
-  "tags": [
-    "l2",
-    "plugin",
-    "fake-host",
-    "stubbed-ctx"
-  ],
+  "tags": ["l2", "plugin", "fake-host", "stubbed-ctx"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "wx-a-plugin-load-01.r1"

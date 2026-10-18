@@ -3,10 +3,7 @@
   "case_id": "demo-a-l3-text-01",
   "title": "L3：短文本终态 cassette 对拍",
   "owner": "demo",
-  "tags": [
-    "l3",
-    "cassette"
-  ],
+  "tags": ["l3", "cassette"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "demo-a-l3-text-01.r1"

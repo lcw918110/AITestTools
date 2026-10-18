@@ -3,12 +3,7 @@
   "case_id": "wx-a-st-10-slave-crash",
   "title": "ST-10：slave 崩溃后 task_done 收敛",
   "owner": "wanxiangshu",
-  "tags": [
-    "l1",
-    "st-import",
-    "st-10",
-    "squad"
-  ],
+  "tags": ["l1", "st-import", "st-10", "squad"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "wx-a-st-10-slave-crash.r1"

@@ -2,7 +2,15 @@
  * product-eval 题库读写（严格版 · 对齐需求 03 / 设计 09）。
  * 仅操作 bank/ + 相关 papersets。
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { spawn } from 'node:child_process';
 import {
@@ -863,7 +871,9 @@ function buildCaseRevisionDoc(opts: {
     expect,
     evidence_requirements: [],
     attribution_focus: isOn ? 'PROTOCOL' : 'MODEL_TASK',
-    ...(isOn ? { protocol_probes: ['RuntimeStarted', 'JournalEnvelope'] } : { protocol_probes: [] }),
+    ...(isOn
+      ? { protocol_probes: ['RuntimeStarted', 'JournalEnvelope'] }
+      : { protocol_probes: [] }),
     model_id: DEFAULT_MODEL,
     execution,
     change_log: { [`rev${revisionNumber}`]: changeName },
@@ -885,7 +895,9 @@ function buildCaseRevisionDoc(opts: {
     expect,
     evidence_requirements: [],
     attribution_focus: isOn ? 'PROTOCOL' : 'MODEL_TASK',
-    ...(isOn ? { protocol_probes: ['RuntimeStarted', 'JournalEnvelope'] } : { protocol_probes: [] }),
+    ...(isOn
+      ? { protocol_probes: ['RuntimeStarted', 'JournalEnvelope'] }
+      : { protocol_probes: [] }),
     model_id: DEFAULT_MODEL,
     execution,
     change_log: { [`rev${revisionNumber}`]: changeName },
@@ -893,7 +905,10 @@ function buildCaseRevisionDoc(opts: {
 }
 
 /** 读 dataset-release 文档（轻量）。 */
-function readDatasetRelease(project: string, fileName: string): Record<string, unknown> | undefined {
+function readDatasetRelease(
+  project: string,
+  fileName: string,
+): Record<string, unknown> | undefined {
   const path = join(datasetReleasesDir(project), fileName);
   if (!existsSync(path)) return undefined;
   try {
@@ -913,7 +928,10 @@ function appendDatasetReleaseItem(
   if (!doc) return false;
   const caseRevisions = Array.isArray(doc.case_revisions) ? doc.case_revisions : [];
   const exists = caseRevisions.some(
-    (r) => r && typeof r === 'object' && (r as Record<string, unknown>).case_revision_id === ref.case_revision_id,
+    (r) =>
+      r &&
+      typeof r === 'object' &&
+      (r as Record<string, unknown>).case_revision_id === ref.case_revision_id,
   );
   if (!exists) {
     caseRevisions.push(ref);
@@ -924,12 +942,21 @@ function appendDatasetReleaseItem(
 }
 
 /** 从 dataset-release 移除 case_revision 引用。 */
-function removeDatasetReleaseItem(project: string, releaseFile: string, caseRevisionId: string): void {
+function removeDatasetReleaseItem(
+  project: string,
+  releaseFile: string,
+  caseRevisionId: string,
+): void {
   const doc = readDatasetRelease(project, releaseFile);
   if (!doc) return;
   const caseRevisions = Array.isArray(doc.case_revisions) ? doc.case_revisions : [];
   const next = caseRevisions.filter(
-    (r) => !(r && typeof r === 'object' && (r as Record<string, unknown>).case_revision_id === caseRevisionId),
+    (r) =>
+      !(
+        r &&
+        typeof r === 'object' &&
+        (r as Record<string, unknown>).case_revision_id === caseRevisionId
+      ),
   );
   if (next.length === caseRevisions.length) return;
   doc.case_revisions = next;

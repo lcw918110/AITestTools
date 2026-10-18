@@ -3,9 +3,7 @@
   "case_id": "paired-task-97",
   "title": "配对任务 97（有插件）：审计日志完整性 AUDIT_OK + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-97.r3.on",

@@ -3,9 +3,7 @@
   "case_id": "paired-task-14",
   "title": "配对任务 14（有插件）：可验证引用 CITE_OK + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "cite"
-  ],
+  "tags": ["cite"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-14.r3.on",

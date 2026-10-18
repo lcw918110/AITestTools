@@ -25,20 +25,12 @@
       {
         "id": "fmt-lines",
         "type": "stdout_assert",
-        "contains": [
-          "service: checkout",
-          "owner: payments-oncall",
-          "severity: sev3"
-        ]
+        "contains": ["service: checkout", "owner: payments-oncall", "severity: sev3"]
       },
       {
         "id": "no-comma-values",
         "type": "stdout_assert",
-        "not_contains": [
-          "checkout,",
-          "payments-oncall,",
-          "sev3,"
-        ]
+        "not_contains": ["checkout,", "payments-oncall,", "sev3,"]
       }
     ]
   },

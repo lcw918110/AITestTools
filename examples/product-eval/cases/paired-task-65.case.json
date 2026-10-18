@@ -3,9 +3,7 @@
   "case_id": "paired-task-65",
   "title": "配对任务 65（有插件）：共享接口调用点同步 CALLSITE_OK + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-65.r3.on",

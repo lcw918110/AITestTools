@@ -3,9 +3,7 @@
   "case_id": "paired-task-10",
   "title": "配对任务 10（有插件）：澄清缺失前置 CLARIFY_OK + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "clarify"
-  ],
+  "tags": ["clarify"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-10.r3.on",

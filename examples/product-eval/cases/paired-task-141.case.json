@@ -3,9 +3,7 @@
   "case_id": "paired-task-141",
   "title": "配对任务 141（有插件）：Webhook 签名校验 WH_SIGN + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-141.r3.on",

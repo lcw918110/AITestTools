@@ -3,9 +3,7 @@
   "case_id": "paired-task-96",
   "title": "配对任务 96（有插件）：多租户隔离 TENANT_ISO + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-96.r3.on",

@@ -3,11 +3,7 @@
   "case_id": "demo-a-review-pass-01",
   "title": "Review.Required 为真时须经 submit_review 关闭，不得静默结束",
   "owner": "demo",
-  "tags": [
-    "l2",
-    "control-flow",
-    "review"
-  ],
+  "tags": ["l2", "control-flow", "review"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "demo-a-review-pass-01.r1"

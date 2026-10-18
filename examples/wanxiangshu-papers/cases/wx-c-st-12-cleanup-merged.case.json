@@ -3,11 +3,7 @@
   "case_id": "wx-c-st-12-cleanup-merged",
   "title": "ST-12：merged 后清理 worktree/分支",
   "owner": "wanxiangshu",
-  "tags": [
-    "c-axis",
-    "st-12",
-    "git"
-  ],
+  "tags": ["c-axis", "st-12", "git"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "wx-c-st-12-cleanup-merged.r1"

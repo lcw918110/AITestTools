@@ -3,9 +3,7 @@
   "case_id": "paired-task-150",
   "title": "配对任务 150（有插件）：限流响应可重试语义 RL_RETRY + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-150.r3.on",

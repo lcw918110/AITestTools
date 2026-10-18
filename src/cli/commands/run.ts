@@ -14,10 +14,7 @@ import { runL1Item } from '../../run/l1-runner.ts';
 import { runL2Item, type AxisItemResult } from '../../run/l2-runner.ts';
 import { runL3Item } from '../../run/l3-runner.ts';
 import { writeRunArtifacts } from '../../run/write-artifacts.ts';
-import {
-  caseRevisionToItemDoc,
-  environmentToRoom,
-} from '../../run/cases-v1-adapter.ts';
+import { caseRevisionToItemDoc, environmentToRoom } from '../../run/cases-v1-adapter.ts';
 
 export interface RunOptions {
   project?: string | undefined;
@@ -246,7 +243,9 @@ export async function runCommand(options: RunOptions): Promise<number> {
     console.log(`${passed}/${results.length} 试题通过`);
     for (const r of results) {
       const mark = r.pass ? 'PASS' : 'FAIL';
-      console.log(`  ${mark}  ${r.item_id}@rev${r.item_rev}${r.attribution ? ` [${r.attribution}]` : ''}`);
+      console.log(
+        `  ${mark}  ${r.item_id}@rev${r.item_rev}${r.attribution ? ` [${r.attribution}]` : ''}`,
+      );
       for (const f of r.oracle_failures) console.log(`        - ${f.oracle_id}: ${f.message}`);
     }
   }

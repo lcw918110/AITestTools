@@ -3,9 +3,7 @@
   "case_id": "paired-task-25",
   "title": "配对任务 25（有插件）：Conventional Commit 单行 COMMIT_OK + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-25.r3.on",

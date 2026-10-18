@@ -3,9 +3,7 @@
   "case_id": "paired-task-52",
   "title": "配对任务 52（有插件）：架构进 ADR 而非用户 README DOC_SCOPE + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "docs"
-  ],
+  "tags": ["docs"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-52.r3.on",

@@ -3,9 +3,7 @@
   "case_id": "paired-task-55",
   "title": "配对任务 55（有插件）：按动作类型分流批准 SELECTIVE_GATE + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "tool"
-  ],
+  "tags": ["tool"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-55.r3.on",

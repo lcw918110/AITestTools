@@ -3,9 +3,7 @@
   "case_id": "paired-task-105",
   "title": "配对任务 105（有插件）：PII 脱敏检查 PII_MASK + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-105.r4.on",

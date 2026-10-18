@@ -3,11 +3,7 @@
   "case_id": "wx-a-nudge-clear-01",
   "title": "nudge_dedup_cleared 清空锚点",
   "owner": "wanxiangshu",
-  "tags": [
-    "l1",
-    "nudge",
-    "fold"
-  ],
+  "tags": ["l1", "nudge", "fold"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "wx-a-nudge-clear-01.r1"

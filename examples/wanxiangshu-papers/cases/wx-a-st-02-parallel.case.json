@@ -3,12 +3,7 @@
   "case_id": "wx-a-st-02-parallel",
   "title": "ST-02：无依赖双任务可同时 running",
   "owner": "wanxiangshu",
-  "tags": [
-    "l1",
-    "st-import",
-    "st-02",
-    "squad"
-  ],
+  "tags": ["l1", "st-import", "st-02", "squad"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "wx-a-st-02-parallel.r1"

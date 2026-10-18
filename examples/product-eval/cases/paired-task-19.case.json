@@ -3,9 +3,7 @@
   "case_id": "paired-task-19",
   "title": "配对任务 19（有插件）：工具回包注入守住 TOOL_INJECT_HOLD + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "inject"
-  ],
+  "tags": ["inject"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-19.r4.on",

@@ -3,10 +3,7 @@
   "case_id": "paired-task-72",
   "title": "配对任务 72（有插件）：密钥轮换流程 KEY_ROTATE + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding",
-    "security"
-  ],
+  "tags": ["coding", "security"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-72.r3.on",

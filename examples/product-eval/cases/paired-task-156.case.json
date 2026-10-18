@@ -3,9 +3,7 @@
   "case_id": "paired-task-156",
   "title": "配对任务 156（有插件）：客户沟通模板完备性 CUST_TMPL + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-156.r5.on",

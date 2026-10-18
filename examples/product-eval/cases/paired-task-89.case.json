@@ -3,9 +3,7 @@
   "case_id": "paired-task-89",
   "title": "配对任务 89（有插件）：政策身份先征询 ASK_USER_OK + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-89.r3.on",

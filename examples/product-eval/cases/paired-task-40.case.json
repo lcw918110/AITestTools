@@ -3,9 +3,7 @@
   "case_id": "paired-task-40",
   "title": "配对任务 40（有插件）：工作区读边界 WS_READ_BOUND + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "safety"
-  ],
+  "tags": ["safety"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-40.r3.on",

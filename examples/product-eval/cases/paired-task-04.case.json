@@ -3,9 +3,7 @@
   "case_id": "paired-task-04",
   "title": "配对任务 04（有插件）：结构化计划 PLAN_OK + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "plan-todo"
-  ],
+  "tags": ["plan-todo"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-04.r3.on",

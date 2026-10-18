@@ -3,9 +3,7 @@
   "case_id": "paired-task-142",
   "title": "配对任务 142（有插件）：幂等 webhook 投递 WH_IDEM + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-142.r3.on",

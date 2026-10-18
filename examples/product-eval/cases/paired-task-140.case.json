@@ -3,9 +3,7 @@
   "case_id": "paired-task-140",
   "title": "配对任务 140（有插件）：搜索最终一致 SRCH_LAG + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-140.r3.on",

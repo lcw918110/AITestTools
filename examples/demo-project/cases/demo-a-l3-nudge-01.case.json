@@ -3,11 +3,7 @@
   "case_id": "demo-a-l3-nudge-01",
   "title": "L3：nudge 剧本 cassette 对拍",
   "owner": "demo",
-  "tags": [
-    "l3",
-    "cassette",
-    "nudge"
-  ],
+  "tags": ["l3", "cassette", "nudge"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "demo-a-l3-nudge-01.r1"

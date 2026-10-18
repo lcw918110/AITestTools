@@ -3,9 +3,7 @@
   "case_id": "paired-task-68",
   "title": "配对任务 68（有插件）：feature flag 清理 FLAG_CLEANUP + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-68.r3.on",

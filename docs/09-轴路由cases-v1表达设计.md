@@ -42,17 +42,17 @@
 }
 ```
 
-| 原字段（item.freeze） | 新字段（execution_profile） | 说明 |
-| :--- | :--- | :--- |
-| `axis`（A/B/C） | `strata.task_type` | 轴废除，用任务类型表达 |
-| `layer`（L1/L2/L3） | `execution_profile.layer` | 保留层语义（执行模式路由） |
-| `fold_entry` | `execution_profile.fold_entry` | L1 fold 入口 |
-| `event_schema` | `execution_profile.event_schema` | 事件 schema |
-| `session_id` | `execution_profile.session_id` | 会话 id |
-| `contract` | `execution_profile.contract` | L2 契约 |
-| `script` | `execution_profile.script` | L2 脚本 |
-| `cassette` | `execution_profile.cassette` | L3 cassette |
-| `model_driver` | `execution_profile.mode` | 执行模式（fold/scripted/cassette/hosted/direct_tool） |
+| 原字段（item.freeze） | 新字段（execution_profile）      | 说明                                                  |
+| :-------------------- | :------------------------------- | :---------------------------------------------------- |
+| `axis`（A/B/C）       | `strata.task_type`               | 轴废除，用任务类型表达                                |
+| `layer`（L1/L2/L3）   | `execution_profile.layer`        | 保留层语义（执行模式路由）                            |
+| `fold_entry`          | `execution_profile.fold_entry`   | L1 fold 入口                                          |
+| `event_schema`        | `execution_profile.event_schema` | 事件 schema                                           |
+| `session_id`          | `execution_profile.session_id`   | 会话 id                                               |
+| `contract`            | `execution_profile.contract`     | L2 契约                                               |
+| `script`              | `execution_profile.script`       | L2 脚本                                               |
+| `cassette`            | `execution_profile.cassette`     | L3 cassette                                           |
+| `model_driver`        | `execution_profile.mode`         | 执行模式（fold/scripted/cassette/hosted/direct_tool） |
 
 ### 3.2 EnvironmentProfile.recipe 扩展
 
@@ -98,15 +98,15 @@
 "event_schema": { "type": "string" }
 ```
 
-| 原字段（room） | 新字段（recipe） | 说明 |
-| :--- | :--- | :--- |
-| `kind` | `recipe.kind` | 环境类型 |
-| `model_driver` | `recipe.model_driver` | 模型驱动 |
-| `fold_entries` | `recipe.fold_entries` | L1 fold 入口表 |
-| `adapter` | `recipe.adapter` | L2/C 轴 adapter |
-| `sut` | `recipe.sut` | SUT 根 |
-| `contract` | `recipe.contract` | 契约 |
-| `event_schema` | `recipe.event_schema` | 事件 schema |
+| 原字段（room） | 新字段（recipe）      | 说明            |
+| :------------- | :-------------------- | :-------------- |
+| `kind`         | `recipe.kind`         | 环境类型        |
+| `model_driver` | `recipe.model_driver` | 模型驱动        |
+| `fold_entries` | `recipe.fold_entries` | L1 fold 入口表  |
+| `adapter`      | `recipe.adapter`      | L2/C 轴 adapter |
+| `sut`          | `recipe.sut`          | SUT 根          |
+| `contract`     | `recipe.contract`     | 契约            |
+| `event_schema` | `recipe.event_schema` | 事件 schema     |
 
 ## 4. 适配层改造
 

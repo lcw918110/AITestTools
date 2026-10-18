@@ -3,9 +3,7 @@
   "case_id": "paired-task-15",
   "title": "配对任务 15（有插件）：日志注入守住 INJECT_HOLD + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "inject"
-  ],
+  "tags": ["inject"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-15.r4.on",

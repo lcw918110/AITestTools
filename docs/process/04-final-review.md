@@ -10,14 +10,14 @@
 
 ## A. 文档清单
 
-| 文档                                                                     | 主题                 | 状态           |
-| ------------------------------------------------------------------------ | -------------------- | -------------- |
+| 文档                                                                                | 主题                 | 状态           |
+| ----------------------------------------------------------------------------------- | -------------------- | -------------- |
 | [03-fold-entry-contract.md](../archive/v1-design/03-fold-entry-contract.md)         | L1 Fold 多入口       | **已确认**     |
 | [04-state-predicate.md](../archive/v1-design/04-state-predicate.md)                 | 状态谓词表达式       | **已确认**     |
 | [05-scripted-model.md](../archive/v1-design/05-scripted-model.md)                   | L2 剧本语法          | **已确认**     |
 | [06-host-contract-schema.md](../archive/v1-design/06-host-contract-schema.md)       | OpenCode 契约 schema | **已确认**     |
 | [07-hosted-attribution-tree.md](../archive/v1-design/07-hosted-attribution-tree.md) | hosted 归因树 v1     | **已确认**     |
-| [02 RFP（已归档）](../archive/design/02-b-direct-framework-rfp.md)       | B-direct 框架评审    | **→ ADR-0007** |
+| [02 RFP（已归档）](../archive/design/02-b-direct-framework-rfp.md)                  | B-direct 框架评审    | **→ ADR-0007** |
 | [02-protocol-papers-v1.md](../archive/v1-design/02-protocol-papers-v1.md)           | 协议全考卷化字段     | **已确认**     |
 | [01-phase-outline.md](../archive/v1-design/01-phase-outline.md)                     | Phase 1+2 合并提纲   | 历史入口       |
 

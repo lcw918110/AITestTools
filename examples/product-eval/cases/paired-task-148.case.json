@@ -3,9 +3,7 @@
   "case_id": "paired-task-148",
   "title": "配对任务 148（有插件）：读写隔离声明 RW_DECL + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-148.r3.on",

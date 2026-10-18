@@ -42,10 +42,7 @@
     "mode": "hosted"
   },
   "attribution_focus": "PROTOCOL",
-  "protocol_probes": [
-    "RuntimeStarted",
-    "JournalEnvelope"
-  ],
+  "protocol_probes": ["RuntimeStarted", "JournalEnvelope"],
   "model_id": "wave-ai/gpt-5.4-mini",
   "execution": {
     "deadline_ms": 180000,

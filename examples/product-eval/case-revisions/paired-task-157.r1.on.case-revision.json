@@ -58,10 +58,7 @@
     "mode": "hosted"
   },
   "attribution_focus": "PROTOCOL",
-  "protocol_probes": [
-    "RuntimeStarted",
-    "JournalEnvelope"
-  ],
+  "protocol_probes": ["RuntimeStarted", "JournalEnvelope"],
   "model_id": "wave-anthropic/claude-sonnet-5",
   "execution": {
     "deadline_ms": 240000,

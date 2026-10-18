@@ -3,9 +3,7 @@
   "case_id": "demo-b-hosted-smoke-01",
   "title": "hosted smoke：真宿主可拉起，失败可归因",
   "owner": "demo",
-  "tags": [
-    "hosted-smoke"
-  ],
+  "tags": ["hosted-smoke"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "demo-b-hosted-smoke-01.r1"

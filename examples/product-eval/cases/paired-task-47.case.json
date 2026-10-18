@@ -3,9 +3,7 @@
   "case_id": "paired-task-47",
   "title": "配对任务 47（有插件）：合成回包正确消费 TOOL_RESULT_OK + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "tool"
-  ],
+  "tags": ["tool"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-47.r3.on",

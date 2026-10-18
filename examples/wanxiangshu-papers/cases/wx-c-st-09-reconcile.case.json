@@ -3,11 +3,7 @@
   "case_id": "wx-c-st-09-reconcile",
   "title": "ST-09：git 事实校正（tip 已在主线）",
   "owner": "wanxiangshu",
-  "tags": [
-    "c-axis",
-    "st-09",
-    "git"
-  ],
+  "tags": ["c-axis", "st-09", "git"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "wx-c-st-09-reconcile.r1"

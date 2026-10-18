@@ -3,9 +3,7 @@
   "case_id": "paired-task-85",
   "title": "配对任务 85（有插件）：数据保留/GDPR 删除请求流程 GDPR_DEL + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-85.r3.on",

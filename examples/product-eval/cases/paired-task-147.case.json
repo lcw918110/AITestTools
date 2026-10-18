@@ -3,9 +3,7 @@
   "case_id": "paired-task-147",
   "title": "配对任务 147（有插件）：租约心跳续约 LEASE_HB + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-147.r3.on",

@@ -3,9 +3,7 @@
   "case_id": "paired-task-58",
   "title": "配对任务 58（有插件）：最小失败用例骨架 TEST_SKELETON + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-58.r3.on",

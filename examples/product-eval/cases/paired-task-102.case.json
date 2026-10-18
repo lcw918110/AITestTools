@@ -3,9 +3,7 @@
   "case_id": "paired-task-102",
   "title": "配对任务 102（有插件）：成本异常归因 COST_ATTR + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-102.r3.on",

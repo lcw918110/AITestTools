@@ -97,9 +97,7 @@ describe('bank 写路径（cases-v1）', () => {
     const relDoc = JSON.parse(readFileSync(relPath, 'utf8')) as {
       case_revisions: Array<{ case_revision_id: string }>;
     };
-    expect(relDoc.case_revisions.map((r) => r.case_revision_id)).toContain(
-      'paired-task-99.r1.off',
-    );
+    expect(relDoc.case_revisions.map((r) => r.case_revision_id)).toContain('paired-task-99.r1.off');
   });
 
   it('update 升 revision（新 case-revision + content_hash 变化 + head 更新）', async () => {
@@ -138,17 +136,25 @@ describe('bank 写路径（cases-v1）', () => {
     expect(offDoc.change_log.rev2).toBe('收紧终态词');
 
     // head_revision_id 已更新
-    const caseDoc = JSON.parse(readFileSync(join(root, 'cases', 'paired-task-99.case.json'), 'utf8')) as {
+    const caseDoc = JSON.parse(
+      readFileSync(join(root, 'cases', 'paired-task-99.case.json'), 'utf8'),
+    ) as {
       head_revision_id: string;
     };
     expect(caseDoc.head_revision_id).toContain('.r2.');
 
     // dataset-release 引用闭包：off release 只含 off r2、on release 只含 on r2（旧 r1 已移除）。
     const offRel = JSON.parse(
-      readFileSync(join(root, 'dataset-releases', 'paired-off-calibrate.dataset-release.json'), 'utf8'),
+      readFileSync(
+        join(root, 'dataset-releases', 'paired-off-calibrate.dataset-release.json'),
+        'utf8',
+      ),
     ) as { case_revisions: Array<{ case_revision_id: string }> };
     const onRel = JSON.parse(
-      readFileSync(join(root, 'dataset-releases', 'paired-on-calibrate.dataset-release.json'), 'utf8'),
+      readFileSync(
+        join(root, 'dataset-releases', 'paired-on-calibrate.dataset-release.json'),
+        'utf8',
+      ),
     ) as { case_revisions: Array<{ case_revision_id: string }> };
     const offIds = offRel.case_revisions.map((r) => r.case_revision_id);
     const onIds = onRel.case_revisions.map((r) => r.case_revision_id);
@@ -176,12 +182,12 @@ describe('bank 写路径（cases-v1）', () => {
     expect(deleted).toEqual({ ok: true, taskId: 'PAIRED-TASK-99' });
 
     expect(existsSync(join(root, 'cases', 'paired-task-99.case.json'))).toBe(false);
-    expect(existsSync(join(root, 'case-revisions', 'paired-task-99.r1.off.case-revision.json'))).toBe(
-      false,
-    );
-    expect(existsSync(join(root, 'case-revisions', 'paired-task-99.r1.on.case-revision.json'))).toBe(
-      false,
-    );
+    expect(
+      existsSync(join(root, 'case-revisions', 'paired-task-99.r1.off.case-revision.json')),
+    ).toBe(false);
+    expect(
+      existsSync(join(root, 'case-revisions', 'paired-task-99.r1.on.case-revision.json')),
+    ).toBe(false);
     expect(listTasks(root).some((t) => t.taskId === 'PAIRED-TASK-99')).toBe(false);
     expect(getTask(root, 'PAIRED-TASK-99')).toMatchObject({ code: 404 });
   });

@@ -18,18 +18,13 @@
       {
         "id": "must-call",
         "type": "tool_trace",
-        "must_call": [
-          "todowrite"
-        ]
+        "must_call": ["todowrite"]
       },
       {
         "id": "required-fields",
         "type": "schema_obedience",
         "tool": "todowrite",
-        "required_fields": [
-          "todos",
-          "merge"
-        ]
+        "required_fields": ["todos", "merge"]
       }
     ]
   },

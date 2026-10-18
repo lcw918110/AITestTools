@@ -3,10 +3,7 @@
   "case_id": "demo-c-write-01",
   "title": "CLI 壳写 workspace 副作用",
   "owner": "demo",
-  "tags": [
-    "c-axis",
-    "side-effect"
-  ],
+  "tags": ["c-axis", "side-effect"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "demo-c-write-01.r1"

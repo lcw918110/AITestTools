@@ -484,7 +484,11 @@ export function validateProject(
   }
 
   const projectIssues = [...protocolIssues, ...assetIssues];
-  const all = [...items.flatMap((c) => c.issues), ...caseReports.flatMap((c) => c.issues), ...projectIssues];
+  const all = [
+    ...items.flatMap((c) => c.issues),
+    ...caseReports.flatMap((c) => c.issues),
+    ...projectIssues,
+  ];
   const report: ValidationReport = {
     items,
     cases: items,

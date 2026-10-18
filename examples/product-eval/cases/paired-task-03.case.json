@@ -3,9 +3,7 @@
   "case_id": "paired-task-03",
   "title": "配对任务 03（有插件）：审查清单终态 DONE + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "review-checklist"
-  ],
+  "tags": ["review-checklist"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-03.r3.on",

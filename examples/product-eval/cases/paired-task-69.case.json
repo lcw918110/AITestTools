@@ -3,9 +3,7 @@
   "case_id": "paired-task-69",
   "title": "配对任务 69（有插件）：可观测埋点清单 OBS_POINT + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-69.r3.on",

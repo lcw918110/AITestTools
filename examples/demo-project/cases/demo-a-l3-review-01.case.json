@@ -3,11 +3,7 @@
   "case_id": "demo-a-l3-review-01",
   "title": "L3：review 工具链 cassette 对拍",
   "owner": "demo",
-  "tags": [
-    "l3",
-    "cassette",
-    "review"
-  ],
+  "tags": ["l3", "cassette", "review"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "demo-a-l3-review-01.r1"

@@ -23,17 +23,12 @@
       {
         "id": "submit-then-close",
         "type": "event_subsequence",
-        "names": [
-          "ReviewSubmitted",
-          "ReviewClosed"
-        ]
+        "names": ["ReviewSubmitted", "ReviewClosed"]
       },
       {
         "id": "no-silent-settle",
         "type": "no_event",
-        "names": [
-          "SessionSettledWithoutReview"
-        ]
+        "names": ["SessionSettledWithoutReview"]
       }
     ]
   },

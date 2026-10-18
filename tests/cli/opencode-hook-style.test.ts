@@ -138,9 +138,7 @@ function writeMiniProject(): string {
     `${JSON.stringify({
       dataset_release_id: 'p',
       name: 'p',
-      case_revisions: [
-        { case_id: 't1', case_revision_id: 't1.r1', content_hash: 'placeholder' },
-      ],
+      case_revisions: [{ case_id: 't1', case_revision_id: 't1.r1', content_hash: 'placeholder' }],
       closure_hash: 'placeholder',
     })}\n`,
   );
@@ -150,9 +148,9 @@ function writeMiniProject(): string {
 describe('L2 hook_style=opencode-v1', () => {
   it('假宿主派发 session.idle 后插件可写 nudge_dispatched', async () => {
     const project = writeMiniProject();
-    expect(
-      await main(['run', '--dataset', 'p', '--environment', 'fh', '--project', project]),
-    ).toBe(0);
+    expect(await main(['run', '--dataset', 'p', '--environment', 'fh', '--project', project])).toBe(
+      0,
+    );
     expect(out.join('\n')).toMatch(/1\/1/);
   });
 });

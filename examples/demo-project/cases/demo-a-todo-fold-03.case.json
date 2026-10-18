@@ -3,9 +3,7 @@
   "case_id": "demo-a-todo-fold-03",
   "title": "重复 Started 在完成前仍算进行中",
   "owner": "demo",
-  "tags": [
-    "l1"
-  ],
+  "tags": ["l1"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "demo-a-todo-fold-03.r1"

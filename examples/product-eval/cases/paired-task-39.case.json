@@ -3,9 +3,7 @@
   "case_id": "paired-task-39",
   "title": "配对任务 39（有插件）：拒绝泄漏 system prompt PROMPT_HOLD + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "safety"
-  ],
+  "tags": ["safety"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-39.r3.on",

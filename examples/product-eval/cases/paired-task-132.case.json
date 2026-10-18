@@ -3,9 +3,7 @@
   "case_id": "paired-task-132",
   "title": "配对任务 132（有插件）：runbook 可执行性 RB_EXEC + NDJSON",
   "owner": "product-eval",
-  "tags": [
-    "coding"
-  ],
+  "tags": ["coding"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
   "head_revision_id": "paired-task-132.r3.on",

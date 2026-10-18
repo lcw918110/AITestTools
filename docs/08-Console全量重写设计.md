@@ -26,18 +26,18 @@
 
 ### 2.1 核心映射
 
-| papers-v1 概念 | cases-v1 概念 | 说明 |
-| :--- | :--- | :--- |
-| `*.item.json`（OFF/ON 两个） | `*.case.json` + `*.case-revision.json`（`.off`/`.on` 两个 revision） | 逻辑身份 + 不可变修订 |
-| `papersets/*.json`（成对 off/on） | `dataset-releases/*.json`（成对 off/on） | 命名已保留 |
-| `rooms/*.json` | `environments/*.json` | 命名已保留 |
-| `item.id`（`EVAL-B-PAIRED-TASK-22-OFF`） | `case_id`（`paired-task-22`）+ revision 变体 | 前缀/后缀拆解 |
-| `item.rev` | `revision_number` | 修订号 |
-| `item.stimulus.hosted_pass_token` | `CaseRevision.stimulus.hosted_pass_token` | 终态词 |
-| `item.freeze.model_id` | `CaseRevision.model_id` | 基准模型 |
-| `item.expect.oracles` | `CaseRevision.expect.oracles` | 判定器 |
-| `paperset.items` | `DatasetRelease.case_revisions` | 冻结引用 |
-| `paperset.room` | `CandidateConfig.environment_profile` | 环境引用 |
+| papers-v1 概念                           | cases-v1 概念                                                        | 说明                  |
+| :--------------------------------------- | :------------------------------------------------------------------- | :-------------------- |
+| `*.item.json`（OFF/ON 两个）             | `*.case.json` + `*.case-revision.json`（`.off`/`.on` 两个 revision） | 逻辑身份 + 不可变修订 |
+| `papersets/*.json`（成对 off/on）        | `dataset-releases/*.json`（成对 off/on）                             | 命名已保留            |
+| `rooms/*.json`                           | `environments/*.json`                                                | 命名已保留            |
+| `item.id`（`EVAL-B-PAIRED-TASK-22-OFF`） | `case_id`（`paired-task-22`）+ revision 变体                         | 前缀/后缀拆解         |
+| `item.rev`                               | `revision_number`                                                    | 修订号                |
+| `item.stimulus.hosted_pass_token`        | `CaseRevision.stimulus.hosted_pass_token`                            | 终态词                |
+| `item.freeze.model_id`                   | `CaseRevision.model_id`                                              | 基准模型              |
+| `item.expect.oracles`                    | `CaseRevision.expect.oracles`                                        | 判定器                |
+| `paperset.items`                         | `DatasetRelease.case_revisions`                                      | 冻结引用              |
+| `paperset.room`                          | `CandidateConfig.environment_profile`                                | 环境引用              |
 
 ### 2.2 OFF/ON 配对
 
@@ -54,11 +54,11 @@
 
 把「读」papers-v1 的路径切到 cases-v1：
 
-| 文件 | 改动 |
-| :--- | :--- |
-| `project-reader.ts` | `papersets/` → `dataset-releases/`，`rooms/` → `environments/` |
-| `test-sets.ts` | `papersets/` → `dataset-releases/`，`offPaperset/onPaperset` → `offRelease/onRelease` |
-| `run-plan.ts` | `paperset` → `dataset-release`，`papersets: PapersetIndex[]` → `releases: ReleaseIndex[]` |
+| 文件                | 改动                                                                                      |
+| :------------------ | :---------------------------------------------------------------------------------------- |
+| `project-reader.ts` | `papersets/` → `dataset-releases/`，`rooms/` → `environments/`                            |
+| `test-sets.ts`      | `papersets/` → `dataset-releases/`，`offPaperset/onPaperset` → `offRelease/onRelease`     |
+| `run-plan.ts`       | `paperset` → `dataset-release`，`papersets: PapersetIndex[]` → `releases: ReleaseIndex[]` |
 
 **口径**：UI 的「测试集」概念保留（用户仍看到「全量/效果小样本」等），但底层字段名从 `paperset` 改为 `release`。API 返回字段也同步改（`offPaperset` → `offRelease`）。
 
@@ -66,21 +66,21 @@
 
 把「写」papers-v1 的路径切到 cases-v1：
 
-| 函数 | 改动 |
-| :--- | :--- |
-| `loadPairedItems` | 读 `bank/items/B/*.item.json` → 读 `cases/` + `case-revisions/` |
-| `createTask` | 写 `*.item.json` → 写 `*.case.json` + `*.case-revision.json`（OFF/ON 两个 revision） |
-| `updateTask` | 改 `*.item.json` → 改 CaseRevision（升 revision_number + content_hash） |
-| `deleteTask` | 删 `*.item.json` → 删 Case + CaseRevision |
+| 函数              | 改动                                                                                 |
+| :---------------- | :----------------------------------------------------------------------------------- |
+| `loadPairedItems` | 读 `bank/items/B/*.item.json` → 读 `cases/` + `case-revisions/`                      |
+| `createTask`      | 写 `*.item.json` → 写 `*.case.json` + `*.case-revision.json`（OFF/ON 两个 revision） |
+| `updateTask`      | 改 `*.item.json` → 改 CaseRevision（升 revision_number + content_hash）              |
+| `deleteTask`      | 删 `*.item.json` → 删 Case + CaseRevision                                            |
 
 **关键决策**：`content_hash` 的计算。cases-v1 的 CaseRevision 有 `content_hash`（规范化摘要），录题/改题时必须重算。需复用 `scripts/migrate-v2.mjs` 里的 hash 逻辑，或从 `src/exam-engine/loader.ts` 的 `revisionDigest` 提取。
 
 ### 步骤 3：env 路径切换（env-catalog + controllers/env）
 
-| 文件 | 改动 |
-| :--- | :--- |
-| `env-catalog.ts` | `rooms/` → `environments/`，`host.model` → `recipe.host_model`，`host.agent` → `recipe.host_agent`，`host.managed_agents` → `recipe.managed_agents` |
-| `controllers/env.ts` | 同上 |
+| 文件                 | 改动                                                                                                                                                |
+| :------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `env-catalog.ts`     | `rooms/` → `environments/`，`host.model` → `recipe.host_model`，`host.agent` → `recipe.host_agent`，`host.managed_agents` → `recipe.managed_agents` |
+| `controllers/env.ts` | 同上                                                                                                                                                |
 
 ### 步骤 4：UI 前端同步（public/*.js）
 
@@ -90,13 +90,13 @@
 
 ## 4. 关键决策点（需评审确认）
 
-| # | 决策 | 建议 | 说明 |
-| :--- | :--- | :--- | :--- |
-| 1 | UI「测试集」概念是否改名 | **保留「测试集」**，仅底层字段 `paperset`→`release` | 用户无感，降低 UI 改动风险 |
-| 2 | API 返回字段 `offPaperset` 是否改名 | **改名 `offRelease`** | 彻底去除 paperset 概念 |
-| 3 | `content_hash` 计算 | **复用 loader 的 revisionDigest** | 避免两套 hash 逻辑 |
-| 4 | OFF/ON revision 号独立递增 | **保留独立递增** | 与 cases-v1 现状一致 |
-| 5 | 录题默认模型 `DEFAULT_MODEL` | **保留** | 与现状一致 |
+| #   | 决策                                | 建议                                                | 说明                       |
+| :-- | :---------------------------------- | :-------------------------------------------------- | :------------------------- |
+| 1   | UI「测试集」概念是否改名            | **保留「测试集」**，仅底层字段 `paperset`→`release` | 用户无感，降低 UI 改动风险 |
+| 2   | API 返回字段 `offPaperset` 是否改名 | **改名 `offRelease`**                               | 彻底去除 paperset 概念     |
+| 3   | `content_hash` 计算                 | **复用 loader 的 revisionDigest**                   | 避免两套 hash 逻辑         |
+| 4   | OFF/ON revision 号独立递增          | **保留独立递增**                                    | 与 cases-v1 现状一致       |
+| 5   | 录题默认模型 `DEFAULT_MODEL`        | **保留**                                            | 与现状一致                 |
 
 ---
 
@@ -111,9 +111,9 @@
 
 ## 6. 评审要点（请重点看）
 
-| # | 决策点 | 位置 |
-| :--- | :--- | :--- |
-| 1 | UI「测试集」概念保留、仅底层字段改名 | §4 决策 1 |
-| 2 | API 字段 `offPaperset`→`offRelease` | §4 决策 2 |
-| 3 | `content_hash` 复用 loader 的 revisionDigest | §4 决策 3 |
-| 4 | 分步实施顺序（读路径 → 写路径 → env → UI） | §3 |
+| #   | 决策点                                       | 位置      |
+| :-- | :------------------------------------------- | :-------- |
+| 1   | UI「测试集」概念保留、仅底层字段改名         | §4 决策 1 |
+| 2   | API 字段 `offPaperset`→`offRelease`          | §4 决策 2 |
+| 3   | `content_hash` 复用 loader 的 revisionDigest | §4 决策 3 |
+| 4   | 分步实施顺序（读路径 → 写路径 → env → UI）   | §3        |
