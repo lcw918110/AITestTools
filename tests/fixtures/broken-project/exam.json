@@ -1,10 +1,7 @@
 {
+  "$schema": "../../../schemas/exam.schema.json",
   "name": "broken-project",
-  "description": "故意违规的资产项目，用于验证交叉引用规则确实会拦住问题。",
-  "asset_protocol": "papers-v1",
-  "paths": {
-    "items": "items",
-    "papersets": "papersets",
-    "rooms": "rooms"
-  }
+  "description": "故意违规的 cases-v1 资产项目，用于验证交叉引用规则确实会拦住问题。",
+  "asset_protocol": "cases-v1",
+  "engine": { "min_version": "0.1.0" }
 }

@@ -1,0 +1,8 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "broken-01",
+  "title": "违规修订样例",
+  "lifecycle": "released",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "broken-01.r1"
+}

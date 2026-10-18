@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "smoke-a",
+  "name": "smoke-A",
+  "description": "最小冒烟集：全部 A-L1 用例必须全绿。",
+  "case_revisions": [
+    {
+      "case_id": "example-l1-01",
+      "case_revision_id": "example-l1-01.r1",
+      "content_hash": "0b7cc99de4e8b73464239131d7eed1b158645183bdba048876f9a9508412ab46"
+    }
+  ],
+  "closure_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+}

@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "dangling",
+  "name": "dangling",
+  "description": "引用不存在的修订，应被 DATASET_REVISION_MISSING 拦下。",
+  "case_revisions": [
+    {
+      "case_id": "broken-01",
+      "case_revision_id": "ghost-revision",
+      "content_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+    }
+  ],
+  "closure_hash": "0000000000000000000000000000000000000000000000000000000000000000"
+}

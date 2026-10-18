@@ -1,159 +1,101 @@
 import { describe, expect, it } from 'vitest';
-import { validateCase } from '../../src/exam-engine/validate.ts';
-import { asAsset, baseCase, codesOf } from '../helpers/case-factory.ts';
+import { validateCaseRevision } from '../../src/exam-engine/validate.ts';
+import { revisionDigest } from '../../src/exam-engine/digest.ts';
+import { asRevision, baseRevision, codesOf } from '../helpers/case-factory.ts';
 
-describe('试题协议校验', () => {
-  it('最小合法试题无任何问题', () => {
-    expect(validateCase(asAsset(baseCase()))).toEqual([]);
+/** 构造 content_hash 正确的修订（保证 schema 通过后 hash 校验也通过）。 */
+function validDoc(overrides: Record<string, unknown> = {}): Record<string, unknown> {
+  const doc = baseRevision(overrides);
+  doc.content_hash = revisionDigest(doc as never);
+  return doc;
+}
+
+describe('case-revision 协议校验（cases-v1）', () => {
+  it('最小合法修订无任何问题', () => {
+    expect(validateCaseRevision(asRevision(validDoc()))).toEqual([]);
   });
 
   it('缺必填字段报结构错误', () => {
-    const doc = baseCase();
-    delete doc.intent;
-    const issues = validateCase(asAsset(doc));
-    expect(codesOf(issues)).toContain('SCHEMA_ITEM');
-    expect(issues[0]?.message).toContain('intent');
+    const doc = validDoc();
+    delete doc.expect;
+    const issues = validateCaseRevision(asRevision(doc));
+    expect(codesOf(issues)).toContain('SCHEMA_CASE-REVISION');
+    expect(issues[0]?.message).toContain('expect');
   });
 
-  it('拒绝协议未定义的字段，避免试题悄悄依赖引擎不认识的语义', () => {
-    const issues = validateCase(asAsset(baseCase({ unknown_field: 1 })));
+  it('拒绝协议未定义的字段，避免修订悄悄依赖引擎不认识的语义', () => {
+    const issues = validateCaseRevision(asRevision(validDoc({ unknown_field: 1 })));
     expect(issues[0]?.message).toContain('unknown_field');
   });
 
   it('归因标签必须是六选一', () => {
-    const doc = baseCase({ intent: { statement: 'x', attribution_focus: 'UNKNOWN' } });
-    expect(codesOf(validateCase(asAsset(doc)))).toContain('SCHEMA_ITEM');
+    const doc = validDoc({ attribution_focus: 'UNKNOWN' });
+    expect(codesOf(validateCaseRevision(asRevision(doc)))).toContain('SCHEMA_CASE-REVISION');
+  });
+
+  it('content_hash 与重算不一致时报 REVISION_HASH_MISMATCH', () => {
+    const doc = validDoc();
+    doc.content_hash = 'deadbeef'.repeat(8);
+    expect(codesOf(validateCaseRevision(asRevision(doc)))).toContain('REVISION_HASH_MISMATCH');
   });
 });
 
-describe('A 轴分层规则（PRD §4.4）', () => {
-  it('L1 禁填 contract/script', () => {
-    const doc = baseCase({
-      freeze: {
-        layer: 'L1',
-        model_driver: 'none',
-        fold_entry: 'build/projection.js',
-        contract: 'host-v1',
-      },
-    });
-    expect(codesOf(validateCase(asAsset(doc)))).toContain('SCHEMA_ITEM');
+describe('execution_profile 分层规则（cases-v1）', () => {
+  it('mode 必须是五选一', () => {
+    const doc = validDoc({ execution_profile: { mode: 'unknown' } });
+    expect(codesOf(validateCaseRevision(asRevision(doc)))).toContain('SCHEMA_CASE-REVISION');
   });
 
-  it('L1 缺 fold_entry 报错', () => {
-    const doc = baseCase({ freeze: { layer: 'L1', model_driver: 'none' } });
-    const issues = validateCase(asAsset(doc));
-    expect(issues.some((i) => i.message.includes('fold_entry'))).toBe(true);
+  it('layer 必须是 L1/L2/L3', () => {
+    const doc = validDoc({ execution_profile: { mode: 'fold', layer: 'L9' } });
+    expect(codesOf(validateCaseRevision(asRevision(doc)))).toContain('SCHEMA_CASE-REVISION');
   });
 
-  it('L1 的 model_driver 只能是 none', () => {
-    const doc = baseCase({
-      freeze: { layer: 'L1', model_driver: 'scripted', fold_entry: 'build/projection.js' },
-    });
-    expect(validateCase(asAsset(doc)).length).toBeGreaterThan(0);
-  });
-
-  it('L2 必须同时给出 contract 与 script', () => {
-    const doc = baseCase({
-      freeze: { layer: 'L2', model_driver: 'scripted', contract: 'host-v1' },
-    });
-    const issues = validateCase(asAsset(doc));
-    expect(issues.some((i) => i.message.includes('script'))).toBe(true);
-  });
-
-  it('L2 齐备时通过', () => {
-    const doc = baseCase({
-      freeze: {
+  it('execution_profile 齐备时通过', () => {
+    const doc = validDoc({
+      execution_profile: {
+        mode: 'scripted',
         layer: 'L2',
-        model_driver: 'scripted',
         contract: 'host-v1',
         script: 'scripts/s.json',
       },
       stimulus: { kind: 'hook_script', ref: 'fixtures/x/session.json' },
     });
-    expect(validateCase(asAsset(doc))).toEqual([]);
-  });
-
-  it('L3 必须给出 cassette 且 model_driver=as-recorded', () => {
-    const doc = baseCase({
-      freeze: { layer: 'L3', model_driver: 'scripted', contract: 'host-v1' },
-    });
-    const issues = validateCase(asAsset(doc));
-    expect(issues.some((i) => i.message.includes('cassette'))).toBe(true);
+    expect(validateCaseRevision(asRevision(doc))).toEqual([]);
   });
 });
 
-describe('B/C 轴 freeze 形状', () => {
-  const bFreeze = {
-    model_driver: 'live',
-    model_id: '${MATRIX_SUBJECT}',
-    host_profile: 'p',
-    tool_profile: 't',
-    prompt_template: 'tpl',
-  };
-
-  it('齐备时通过', () => {
-    const doc = baseCase({
-      axis: 'B',
-      freeze: bFreeze,
+describe('oracle 形状（cases-v1）', () => {
+  it('schema_obedience 齐备时通过', () => {
+    const doc = validDoc({
       stimulus: { kind: 'task_prompt', ref: 'fixtures/x/task.md' },
       expect: {
         oracles: [
           {
+            id: 'obey',
             type: 'schema_obedience',
             tool: 'todowrite',
             required_fields: ['todos', 'select_methodology'],
           },
         ],
       },
-      metrics: { primary: ['b_schema_obedience_rate'] },
+      execution_profile: { mode: 'hosted' },
       execution: { deadline_ms: 60000, requires_network: true },
     });
-    expect(validateCase(asAsset(doc))).toEqual([]);
+    expect(validateCaseRevision(asRevision(doc))).toEqual([]);
   });
 
-  it('缺 prompt_template 报错', () => {
-    const { prompt_template: _drop, ...rest } = bFreeze;
-    const doc = baseCase({ axis: 'B', freeze: rest });
-    const issues = validateCase(asAsset(doc));
-    expect(issues.some((i) => i.message.includes('prompt_template'))).toBe(true);
-  });
-});
-
-describe('时间无关原则（PRD 附录 D）', () => {
-  it('裸 sleep_ms 被拒绝', () => {
-    const doc = baseCase({
-      expect: { oracles: [{ type: 'state_predicate', expr: 'x == 1', sleep_ms: 100 }] },
+  it('workspace_assert 缺 path 报错', () => {
+    const doc = validDoc({
+      expect: { oracles: [{ id: 'ws', type: 'workspace_assert', contains: 'x' }] },
     });
-    expect(codesOf(validateCase(asAsset(doc)))).toContain('SCHEMA_ITEM');
+    expect(validateCaseRevision(asRevision(doc)).length).toBeGreaterThan(0);
   });
 
-  it('标注 harness_internal 的 debounce 放行', () => {
-    const doc = baseCase({
-      expect: {
-        oracles: [
-          { type: 'state_predicate', expr: 'x == 1', sleep_ms: 100, harness_internal: true },
-        ],
-      },
+  it('stdout_assert 无任何断言字段报错', () => {
+    const doc = validDoc({
+      expect: { oracles: [{ id: 'out', type: 'stdout_assert' }] },
     });
-    expect(codesOf(validateCase(asAsset(doc)))).not.toContain('SLEEP_FORBIDDEN');
-  });
-});
-
-describe('试题演进约束（PRD 附录 A）', () => {
-  it('废弃试题必须写明原因', () => {
-    const issues = validateCase(asAsset(baseCase({ status: 'deprecated' })));
-    expect(issues.some((i) => i.message.includes('deprecation'))).toBe(true);
-  });
-
-  it('升过 rev 但没写 change_log 只给警告', () => {
-    const issues = validateCase(asAsset(baseCase({ rev: 3 })));
-    expect(codesOf(issues)).toEqual(['REV_WITHOUT_CHANGELOG']);
-    expect(issues[0]?.level).toBe('warning');
-  });
-
-  it('目录外的指标名给警告而非错误', () => {
-    const issues = validateCase(asAsset(baseCase({ metrics: { primary: ['a_made_up_metric'] } })));
-    expect(codesOf(issues)).toEqual(['METRIC_UNKNOWN']);
-    expect(issues[0]?.level).toBe('warning');
+    expect(validateCaseRevision(asRevision(doc)).length).toBeGreaterThan(0);
   });
 });

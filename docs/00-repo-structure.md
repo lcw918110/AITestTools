@@ -28,11 +28,13 @@ AITestTools/                              # agent-proctor 引擎仓（npm 包名
 ├── tsconfig.json / tsconfig.build.json
 ├── vitest.config.ts
 │
-├── schemas/                              # JSON Schema（V1 papers-v1 协议，迁移中 → V2.17 领域对象）
-│   ├── exam.schema.json                  # 考卷根 exam.json（V1 资产协议）
-│   ├── item.schema.json                  # 单题 item（V1，迁移 → Case/CaseRevision）
-│   ├── paperset.schema.json              # 题组 paperset（V1，迁移 → DatasetRelease）
-│   └── room.schema.json                  # 考场 room（V1，迁移 → EnvironmentProfile）
+├── schemas/                              # JSON Schema（cases-v1 协议，V2.17 权威）
+│   ├── exam.schema.json                  # 考卷根 exam.json（cases-v1 资产协议）
+│   ├── case.schema.json                  # 稳定逻辑用例身份 Case
+│   ├── case-revision.schema.json         # 不可变修订正文 CaseRevision
+│   ├── dataset-release.schema.json       # 冻结闭包 DatasetRelease
+│   ├── environment.schema.json           # 环境配方 EnvironmentProfile
+│   └── candidate.schema.json             # 候选配置 CandidateConfig
 │
 ├── src/                                  # 引擎源码（tsc → dist/）
 │   ├── index.ts                          # 包导出入口
@@ -43,7 +45,8 @@ AITestTools/                              # agent-proctor 引擎仓（npm 包名
 │   │   └── commands/                     # 子命令实现
 │   │       ├── init.ts                   # proctor init
 │   │       ├── run.ts                    # proctor run
-│   │       ├── item-*.ts                 # validate / new / bump-rev / retire / migrate / resolve
+│   │       ├── item-new.ts               # proctor item new（cases-v1 录题）
+│   │       ├── item-validate.ts          # proctor item validate（cases-v1 校验）
 │   │       ├── compare.ts                # 两次 run 对比 + effect_compare.md
 │   │       ├── score-write.ts            # 参考分写入 scores.json
 │   │       ├── baseline-pin.ts           # 钉选基线
@@ -88,39 +91,42 @@ AITestTools/                              # agent-proctor 引擎仓（npm 包名
 │
 ├── examples/                             # 可运行考卷样例与题库副本
 │   │
-│   ├── demo-project/                     # 引擎自测 / CI：smoke、假宿主、磁带等（V1 轴样例，迁移中）
+│   ├── demo-project/                     # 引擎自测 / CI：smoke、假宿主、磁带等（cases-v1 样例）
 │   │   ├── exam.json
-│   │   ├── rooms/                        # fold-v1、fake-host、hosted-opencode、model-direct、shell-echo…
-│   │   ├── items/                        # 样例题（V1 A/B/C 轴，迁移 → Case/CaseRevision）
-│   │   ├── papersets/                     # smoke 与 eval-model、eval-agent 等题组（迁移 → DatasetRelease）
+│   │   ├── cases/                        # 稳定逻辑用例身份（*.case.json）
+│   │   ├── case-revisions/               # 不可变修订（*.case-revision.json）
+│   │   ├── dataset-releases/             # 冻结闭包（smoke / eval-model / eval-agent 等）
+│   │   ├── environments/                 # fold-v1、fake-host、hosted-opencode、model-direct、shell-echo…
+│   │   ├── candidates/                   # 候选配置（fold / fake-host / hosted-opencode 等）
 │   │   ├── materials/                    # 每题 stimulus / expected 等物料目录
 │   │   ├── contracts/                    # demo-host-v1.json
 │   │   ├── cassettes/                    # 预录磁带
-│   │   ├── shells/                       # shell 驱动样例（V1 C 轴）
+│   │   ├── shells/                       # shell 驱动样例（C 轴）
 │   │   ├── scripts/                      # 脚本化模型 JSON
 │   │   ├── sut/                          # 演示用 fold / plugin 桩（非被测仓本体）
 │   │   ├── baselines/ / runs/            # 本地基线与跑卷残留
 │   │   └── README.md
 │   │
-│   ├── product-eval/                     # 产品效果：1 题库 + 考场/组卷/协议
-│   │   ├── exam.json                     # paths → bank / rooms / papersets / protocol
+│   ├── product-eval/                     # 产品效果：1 题库 + 环境/组卷/协议
+│   │   ├── exam.json                     # paths → bank / cases / case-revisions / dataset-releases / environments
 │   │   ├── bank/
 │   │   │   ├── materials/                # 输入（PAIRED-TASK-01..05）
 │   │   │   └── items/                    # 判定 + 业务属性（OFF/ON）
-│   │   ├── rooms/                        # plain / plugin / model-alt
-│   │   ├── papersets/                    # eval-model · paired-off/on · eval-agent
+│   │   ├── cases/ / case-revisions/      # 逻辑身份 + 不可变修订（OFF/ON 分列）
+│   │   ├── dataset-releases/             # eval-model · paired-off/on · eval-agent
+│   │   ├── environments/                 # plain / plugin / model-alt
 │   │   ├── eval-tasks/                   # 操作台测试任务（*.json gitignore）
 │   │   ├── protocol/rubrics/             # 参考分量表
 │   │   └── README.md
 │   │
 │   └── wanxiangshu-papers/               # 万象术题库本地副本（权威源在被测仓 papers/）
-│       ├── exam.json、rooms/、items/、papersets/、materials/、contracts/、scripts/
+│       ├── exam.json、cases/、case-revisions/、dataset-releases/、environments/、materials/、contracts/、scripts/
 │       ├── adapters/                     # 如 fold-bridge.mjs
 │       └── …                             # npm run sync:papers 从 SUT_ROOT/papers 刷新
 │
 ├── templates/
 │   └── project/                          # proctor init 生成的空考卷骨架
-│       ├── exam.json、rooms/、items/、papersets/、materials/
+│       ├── exam.json、cases/、case-revisions/、dataset-releases/、environments/、materials/
 │       └── README.md
 │
 ├── scripts/
@@ -135,10 +141,8 @@ AITestTools/                              # agent-proctor 引擎仓（npm 包名
 │   ├── run/                              # gates
 │   ├── attribution/                      # hosted 判定树
 │   ├── contract/
-│   ├── compat/
-│   │   └── legacy-assets.test.ts         # 与 Phase 0 样例协议对齐
 │   ├── fixtures/
-│   │   ├── broken-project/               # 故意损坏的校验用例
+│   │   ├── broken-project/               # 故意损坏的 cases-v1 校验用例
 │   │   └── legacy-phase0/                # 原 40-评测工具 harness 样例（兼容测试）
 │   └── helpers/
 │

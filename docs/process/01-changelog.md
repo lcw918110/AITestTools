@@ -731,3 +731,49 @@
 - `npm run lint`：通过
 - `npm test`：59 文件 335 测试通过（`event-store.test.ts` 的 4 个 git init 用例为沙箱权限问题，非沙箱重跑 5/5 全绿，非本次改动引入）
 - `format:check`：本轮修复 3 个前几轮遗留的格式问题（`apps/console/public/env.js`、`docs/process/01-changelog.md`、`docs/test/02-engine-regression.md`），现全仓干净
+
+## §20 papers-v1 兼容层彻底清除（2026-10-19）
+
+一轮清掉 papers-v1 兼容层：runner 直接消费 `CaseRevision` / `EnvironmentProfile`，删除 `cases-v1-adapter.ts`、papers-v1 类型、加载器、校验器、schema、生命周期命令与 `legacy/` 资产。
+
+**1. runner 输入类型与 dispatch（`src/run/runner-types.ts` 新增，`src/cli/commands/run.ts`）**
+
+- 新增 `RunCaseInput { revision: CaseRevision; pairKey?: string }` 与 `RunEnvironmentInput = EnvironmentProfile`。
+- `resolveDatasetItems` 返回 `{ cases: RunCaseInput[]; environment: EnvironmentProfile }`（不再还原 `ItemDoc[] + RoomDoc`）。
+- `runOneItem` 直接按 `revision.execution_profile.mode` 分派：`fold`→L1、`scripted`→L2、`cassette`→L3、`hosted`→hosted runner 或 B-direct、`direct_tool`→C runner。
+- run 产物 `items` 字段 `id` 改用 `case_revision_id`（`rev` 用 `revision_number`）。
+
+**2. 删除 papers-v1 兼容层**
+
+- 删除 `src/run/cases-v1-adapter.ts`。
+- 删除 schema：`schemas/item.schema.json`、`schemas/paperset.schema.json`、`schemas/room.schema.json`。
+- 删除生命周期命令：`item-resolve.ts`、`item-migrate.ts`、`item-retire.ts`、`item-bump-rev.ts`（`main.ts` 帮助文本同步清理）。
+- 删除 `@deprecated` V1 类型（`ItemDoc`/`PapersetDoc`/`RoomDoc`/`FreezeA`/`FreezeBC`/`ALayer`/`ItemStatus`/`RoomHost`/`RoomAdapter`/`CaseDoc`/`SuiteDoc`/`ProfileDoc`/`ProjectManifest`/`CaseStatus`）；保留活跃基础设施类型（`AXES`/`Axis`/`GateBound`/`ExamManifest`/`AssetKind`/`LoadedAsset`/`IssueLevel`/`Issue`）。
+- `digest.ts` 删除 `semanticDigest`，保留 `revisionDigest`/`canonicalize`/`fileDigest`。
+- `loader.ts` 删除 `loadItemFile`/`loadItems`/`loadPapersets`/`loadRooms`/`loadCaseFile` 等旧加载器，保留 `loadCaseFileV2`/`loadCaseRevisionFileV2` 及 cases-v1 加载器。
+- `validate.ts` 删除 `validateItem`/`validateCase`/`validatePapersV1Assets` 等旧校验器，`validateProject` 只跑 `validateCasesV1Assets`。
+- `item validate <文件>` 迁移到 cases-v1：按后缀分派 `validateCaseV2` / `validateCaseRevision`。
+
+**3. 删除 legacy 资产与测试**
+
+- 删除 `examples/*/legacy/`（demo-project、product-eval、wanxiangshu-papers 的 items/papersets/rooms）。
+- 删除 `tests/compat/legacy-assets.test.ts`、`tests/run/cases-v1-adapter*.test.ts`。
+- `broken-project` fixtures 从 papers-v1 迁移为 cases-v1（case/case-revision/dataset-release/candidate），`validate-project.test.ts` 断言改为 `REVISION_HASH_MISMATCH`/`DATASET_REVISION_MISSING`/`CANDIDATE_ENV_MISSING`。
+
+**4. runner 字段访问迁移**
+
+- `l1/l2/l3/b/c/hosted-runner.ts`、`runner-shared.ts`、`hosted-oracles.ts`、`hosted-prompt.ts`、`hosted-pass-token.ts`、`plugin-path.ts`、`execution-adapter.ts`、`run-orchestrator.ts`、`drivers/fold/*` 全部改为消费 `revision: CaseRevision` + `environment: EnvironmentProfile`。
+- `promptfoo.ts` `runFixture` 从 `prompt_ref` 父目录定位 fixture（不再用 `item.id`，因 fixture 目录沿用 legacy_item_id 命名）。
+
+**5. 测试迁移**
+
+- `case-factory.ts` 改为产出 `CaseRevision`；`digest/validate-case/validate-project/run-v2/fold/c-idempotency/hosted-*/plugin-path/effect-workspace-oracles/stdout-assert/item-tags` 等测试全部迁移到 cases-v1 语义。
+- `main.test.ts`：`--only` 改传 `case_revision_id`；`report show` 断言改 `case_revision_id`；删除 `bump-rev`/`retire`/`migrate` 用例。
+
+**验证（实测，2026-10-19）**：
+
+- `npm run typecheck`：0 错误
+- `npm run lint`：通过
+- `npm test`：57 文件 316 测试通过（`event-store.test.ts` 的 git init 用例需非沙箱权限，非沙箱重跑全绿）
+- `npm run validate:examples`：318/318 通过
+- `format:check`：全仓干净

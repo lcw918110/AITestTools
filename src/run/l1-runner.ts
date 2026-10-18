@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
-import type { Attribution, FreezeA, ItemDoc, RoomDoc } from '../exam-engine/types.ts';
+import type { Attribution } from '../exam-engine/types.ts';
+import type { CaseRevision, EnvironmentProfile } from '../domain/types.ts';
 import {
   FoldResolveError,
   loadEventSequence,
@@ -52,46 +53,49 @@ export interface L1ItemResult {
 }
 
 export async function runL1Item(opts: {
-  item: ItemDoc;
-  room: RoomDoc;
+  revision: CaseRevision;
+  environment: EnvironmentProfile;
   projectRoot: string;
   sutRoot?: string;
   artifactDir?: string;
 }): Promise<L1ItemResult> {
-  const freeze = opts.item.freeze as FreezeA;
-  const focus = opts.item.intent.attribution_focus;
+  const execution_profile = opts.revision.execution_profile;
+  if (execution_profile === undefined) {
+    return fail(opts.revision, 'HARNESS', '缺少 execution_profile');
+  }
+  const focus = opts.revision.attribution_focus;
   const failures: OracleOutcome[] = [];
 
   let events;
   try {
-    events = loadEventSequence(opts.projectRoot, opts.item.stimulus.ref);
+    events = loadEventSequence(opts.projectRoot, opts.revision.stimulus.ref);
   } catch (e) {
-    return fail(opts.item, 'HARNESS', `无法加载事件序列：${(e as Error).message}`);
+    return fail(opts.revision, 'HARNESS', `无法加载事件序列：${(e as Error).message}`);
   }
 
   let foldState: unknown;
   try {
     const resolveOpts: {
-      room: RoomDoc;
-      freeze: FreezeA;
+      environment: EnvironmentProfile;
+      execution_profile: NonNullable<CaseRevision['execution_profile']>;
       projectRoot: string;
       sutRoot?: string;
     } = {
-      room: opts.room,
-      freeze,
+      environment: opts.environment,
+      execution_profile,
       projectRoot: opts.projectRoot,
     };
     if (opts.sutRoot !== undefined) resolveOpts.sutRoot = opts.sutRoot;
     const resolved = resolveFoldEntry(resolveOpts);
-    foldState = await runFold({ resolved, events, freeze });
+    foldState = await runFold({ resolved, events, execution_profile });
   } catch (e) {
     const attribution =
       e instanceof FoldResolveError
         ? 'HARNESS'
         : ((e as { attribution?: Attribution }).attribution ?? 'PROTOCOL');
     return {
-      item_id: opts.item.id,
-      item_rev: opts.item.rev,
+      item_id: opts.revision.case_revision_id,
+      item_rev: opts.revision.revision_number,
       pass: false,
       attribution,
       oracle_failures: [{ oracle_id: 'fold', message: (e as Error).message }],
@@ -112,7 +116,7 @@ export async function runL1Item(opts: {
     evidenceRel = 'fold-state.json';
   }
 
-  for (const [i, oracle] of opts.item.expect.oracles.entries()) {
+  for (const [i, oracle] of opts.revision.expect.oracles.entries()) {
     const oid = typeof oracle.id === 'string' ? oracle.id : `${oracle.type}#${i}`;
     if (oracle.type === 'event_fold') {
       const spec = String(oracle.spec ?? '');
@@ -158,10 +162,12 @@ export async function runL1Item(opts: {
   }
 
   const draftMetrics = computeAxisDraftMetrics(failures);
-  applyMetricThresholdPass(opts.item.expect.oracles, draftMetrics, focus, (o) => failures.push(o));
+  applyMetricThresholdPass(opts.revision.expect.oracles, draftMetrics, focus, (o) =>
+    failures.push(o),
+  );
 
   return finalizeAxisResult({
-    item: opts.item,
+    revision: opts.revision,
     failures,
     ...(opts.artifactDir !== undefined ? { artifactDir: opts.artifactDir } : {}),
     foldState,

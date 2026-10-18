@@ -1,0 +1,42 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "example-l1-01",
+  "case_revision_id": "example-l1-01.r1",
+  "revision_number": 1,
+  "content_hash": "0b7cc99de4e8b73464239131d7eed1b158645183bdba048876f9a9508412ab46",
+  "stimulus": {
+    "kind": "event_sequence",
+    "ref": "materials/EXAMPLE-L1-01/stimulus.ndjson"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "fold-matches",
+        "type": "event_fold",
+        "spec": "materials/EXAMPLE-L1-01/expected-fold.json"
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "fold",
+    "difficulty_level": "L1"
+  },
+  "execution_profile": {
+    "mode": "fold",
+    "layer": "L1",
+    "fold_entry": "example-fold",
+    "event_schema": "example-events-v1"
+  },
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": [],
+  "execution": {
+    "deadline_ms": 10000,
+    "requires_network": false
+  },
+  "change_log": {}
+}

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
-import type { ItemDoc, RoomDoc } from '../exam-engine/types.ts';
+import type { CaseRevision, EnvironmentProfile } from '../domain/types.ts';
 import { runToolSideEffectOracle, runWorkspaceAssertOracle } from '../oracles/index.ts';
 import { fail, applyMetricThresholdPass } from './runner-shared.ts';
 import { deepEqual } from '../oracles/deep-equal.ts';
@@ -25,18 +25,22 @@ interface ShellStimulus {
  * `node <shell.mjs>` stdin=JSON → stdout=JSON；exit≠0 → HARNESS。
  */
 export async function runCItem(opts: {
-  item: ItemDoc;
-  room: RoomDoc;
+  revision: CaseRevision;
+  environment: EnvironmentProfile;
   projectRoot: string;
   artifactDir?: string;
 }): Promise<AxisItemResult> {
-  const focus = opts.item.intent.attribution_focus;
+  const focus = opts.revision.attribution_focus;
   const shellRel =
-    (typeof opts.room.adapter?.config === 'string' ? opts.room.adapter.config : undefined) ??
-    (typeof opts.room.host?.command === 'string' ? opts.room.host.command : undefined);
+    (typeof opts.environment.recipe.adapter?.config === 'string'
+      ? opts.environment.recipe.adapter.config
+      : undefined) ??
+    (typeof opts.environment.recipe.host_command === 'string'
+      ? opts.environment.recipe.host_command
+      : undefined);
 
   if (shellRel === undefined) {
-    return fail(opts.item, 'HARNESS', 'C 轴考场需 adapter.config 指向 shells/<tool>.mjs', {
+    return fail(opts.revision, 'HARNESS', 'C 轴环境需 adapter.config 指向 shells/<tool>.mjs', {
       extraMetrics: { c_contract_pass_rate: 0 },
     });
   }
@@ -44,10 +48,10 @@ export async function runCItem(opts: {
   let stimulus: ShellStimulus;
   try {
     stimulus = JSON.parse(
-      readFileSync(resolve(opts.projectRoot, opts.item.stimulus.ref), 'utf8'),
+      readFileSync(resolve(opts.projectRoot, opts.revision.stimulus.ref), 'utf8'),
     ) as ShellStimulus;
   } catch (e) {
-    return fail(opts.item, 'HARNESS', `无法加载 stimulus：${(e as Error).message}`, {
+    return fail(opts.revision, 'HARNESS', `无法加载 stimulus：${(e as Error).message}`, {
       extraMetrics: { c_contract_pass_rate: 0 },
     });
   }
@@ -58,7 +62,7 @@ export async function runCItem(opts: {
     args: stimulus.args ?? {},
     context: {
       workspace,
-      deadline_ms: opts.item.execution.deadline_ms,
+      deadline_ms: opts.revision.execution.deadline_ms,
       ...(stimulus.context ?? {}),
     },
   };
@@ -66,7 +70,7 @@ export async function runCItem(opts: {
   const r = spawnSync(process.execPath, [shellPath], {
     encoding: 'utf8',
     input: `${JSON.stringify(input)}\n`,
-    timeout: opts.item.execution.deadline_ms || 30_000,
+    timeout: opts.revision.execution.deadline_ms || 30_000,
     cwd: workspace,
   });
 
@@ -92,7 +96,7 @@ export async function runCItem(opts: {
 
   // exit_code oracle：独立于 stdout 解析与非 0 bail，先按实际退出码判定。
   let exitCodeHonored = false;
-  for (const [i, oracle] of opts.item.expect.oracles.entries()) {
+  for (const [i, oracle] of opts.revision.expect.oracles.entries()) {
     if (oracle.type !== 'exit_code') continue;
     const oid = typeof oracle.id === 'string' ? oracle.id : `${oracle.type}#${i}`;
     const want = Number(oracle.equals ?? 0);
@@ -106,7 +110,7 @@ export async function runCItem(opts: {
 
   if (r.status !== 0 && r.status !== null && !exitCodeHonored) {
     return fail(
-      opts.item,
+      opts.revision,
       'HARNESS',
       `CLI 壳非 0 退出（status=${String(r.status)}）：${(r.stderr || r.stdout || '').slice(0, 200)}`,
       { extraMetrics: { c_contract_pass_rate: 0 } },
@@ -117,7 +121,7 @@ export async function runCItem(opts: {
   try {
     parsed = JSON.parse((r.stdout || '').trim()) as typeof parsed;
   } catch (e) {
-    return fail(opts.item, 'HARNESS', `壳 stdout 非 JSON：${(e as Error).message}`, {
+    return fail(opts.revision, 'HARNESS', `壳 stdout 非 JSON：${(e as Error).message}`, {
       extraMetrics: { c_contract_pass_rate: 0 },
     });
   }
@@ -166,7 +170,7 @@ export async function runCItem(opts: {
   }
 
   // 试题 oracles（exit_code 已前置判定）：workspace_assert / tool_result_equals / tool_side_effect / metric_threshold
-  for (const [i, oracle] of opts.item.expect.oracles.entries()) {
+  for (const [i, oracle] of opts.revision.expect.oracles.entries()) {
     const oid = typeof oracle.id === 'string' ? oracle.id : `${oracle.type}#${i}`;
     if (oracle.type === 'workspace_assert') {
       const outcome = runWorkspaceAssertOracle({
@@ -213,7 +217,7 @@ export async function runCItem(opts: {
     a_invariant_violations: draftPass ? 0 : 1,
     c_contract_pass_rate: draftPass ? 1 : 0,
   };
-  applyMetricThresholdPass(opts.item.expect.oracles, draftMetrics, focus ?? 'TOOL', (o) => {
+  applyMetricThresholdPass(opts.revision.expect.oracles, draftMetrics, focus ?? 'TOOL', (o) => {
     if (!o.pass) {
       failures.push({ oracle_id: o.oracle_id, message: o.message });
     }
@@ -221,8 +225,8 @@ export async function runCItem(opts: {
 
   const pass = failures.length === 0;
   const result: AxisItemResult = {
-    item_id: opts.item.id,
-    item_rev: opts.item.rev,
+    item_id: opts.revision.case_revision_id,
+    item_rev: opts.revision.revision_number,
     pass,
     oracle_failures: failures,
     metrics: {

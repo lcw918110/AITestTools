@@ -6,7 +6,7 @@ import {
   loadEnvironments,
 } from '../../exam-engine/loader.ts';
 import { loadProject } from '../../exam-engine/project.ts';
-import type { FreezeA, ItemDoc, RoomDoc } from '../../exam-engine/types.ts';
+import type { CaseRevision, EnvironmentProfile } from '../../domain/types.ts';
 import { runBDirectItem } from '../../run/b-runner.ts';
 import { runCItem } from '../../run/c-runner.ts';
 import { runHostedSmokeItem } from '../../run/hosted-runner.ts';
@@ -14,7 +14,7 @@ import { runL1Item } from '../../run/l1-runner.ts';
 import { runL2Item, type AxisItemResult } from '../../run/l2-runner.ts';
 import { runL3Item } from '../../run/l3-runner.ts';
 import { writeRunArtifacts } from '../../run/write-artifacts.ts';
-import { caseRevisionToItemDoc, environmentToRoom } from '../../run/cases-v1-adapter.ts';
+import type { RunCaseInput } from '../../run/runner-types.ts';
 
 export interface RunOptions {
   project?: string | undefined;
@@ -66,70 +66,74 @@ async function mapPool<T, R>(
 }
 
 async function runOneItem(opts: {
-  item: ItemDoc;
-  room: RoomDoc;
+  revision: CaseRevision;
+  environment: EnvironmentProfile;
+  pairKey?: string;
   projectRoot: string;
   artifactDir: string;
   models: string[];
   sutRoot?: string | undefined;
 }): Promise<AxisItemResult[]> {
-  const { item, room, projectRoot, artifactDir, models } = opts;
+  const { revision, environment, projectRoot, artifactDir, models } = opts;
 
-  if (item.axis === 'A') {
-    const freeze = item.freeze as FreezeA;
-    if (freeze.layer === 'L1') {
+  const mode = revision.execution_profile?.mode ?? 'hosted';
+
+  switch (mode) {
+    case 'fold': {
       const l1opts: Parameters<typeof runL1Item>[0] = {
-        item,
-        room,
+        revision,
+        environment,
         projectRoot,
         artifactDir,
       };
       if (opts.sutRoot !== undefined) l1opts.sutRoot = opts.sutRoot;
       return [await runL1Item(l1opts)];
     }
-    if (freeze.layer === 'L2') {
+    case 'scripted': {
       const l2opts: Parameters<typeof runL2Item>[0] = {
-        item,
-        room,
+        revision,
+        environment,
         projectRoot,
         artifactDir,
       };
       if (opts.sutRoot !== undefined) l2opts.sutRoot = opts.sutRoot;
       return [await runL2Item(l2opts)];
     }
-    if (freeze.layer === 'L3') {
-      return [await runL3Item({ item, room, projectRoot, artifactDir })];
-    }
-    throw new Error(`试题 ${item.id} 的 layer=${String(freeze.layer)} 尚未支持`);
+    case 'cassette':
+      return [await runL3Item({ revision, environment, projectRoot, artifactDir })];
+    case 'hosted':
+      if (environment.recipe.kind === 'hosted') {
+        return [
+          await runHostedSmokeItem({
+            revision,
+            environment,
+            projectRoot,
+            artifactDir,
+            ...(opts.pairKey !== undefined ? { pairKey: opts.pairKey } : {}),
+          }),
+        ];
+      }
+      return runBDirectItem({ revision, environment, projectRoot, models, artifactDir });
+    case 'direct_tool':
+      return [await runCItem({ revision, environment, projectRoot, artifactDir })];
+    default:
+      throw new Error(`试题 ${revision.case_revision_id} 的 mode=${String(mode)} 尚未支持`);
   }
-
-  if (item.axis === 'B') {
-    if (room.kind === 'hosted') {
-      return [await runHostedSmokeItem({ item, room, projectRoot, artifactDir })];
-    }
-    return runBDirectItem({ item, room, projectRoot, models, artifactDir });
-  }
-
-  if (item.axis === 'C') {
-    return [await runCItem({ item, room, projectRoot, artifactDir })];
-  }
-
-  throw new Error(`试题 ${item.id} 轴 ${item.axis} 尚未支持`);
 }
 
 /**
  * cases-v1 执行路径：dataset-release × environment 显式组合。
  *
- * 数据源：dataset-release（冻结闭包）→ case-revision，environment → room；
- * 执行：适配层还原 ItemDoc/RoomDoc 后复用 runOneItem（绞杀者模式）。
+ * 数据源：dataset-release（冻结闭包）→ case-revision，environment → EnvironmentProfile；
+ * 执行：runner 直接消费领域对象（CaseRevision / EnvironmentProfile），不再经适配层。
  */
 
-/** 解析 dataset-release × environment，还原为 runner 认识的 ItemDoc[] + RoomDoc。 */
+/** 解析 dataset-release × environment，返回 runner 认识的 CaseRevision[] + EnvironmentProfile。 */
 export function resolveDatasetItems(
   project: ReturnType<typeof loadProject>,
   datasetName: string,
   environmentName: string,
-): { items: ItemDoc[]; room: RoomDoc } {
+): { cases: RunCaseInput[]; environment: EnvironmentProfile } {
   const releases = loadDatasetReleases(project.dirs.dataset_releases, project.root);
   const release = releases.find((r) => r.doc.dataset_release_id === datasetName);
   if (release === undefined) {
@@ -147,20 +151,21 @@ export function resolveDatasetItems(
   const caseById = new Map(cases.map((c) => [c.doc.case_id, c.doc]));
   const revById = new Map(revisions.map((r) => [r.doc.case_revision_id, r.doc]));
 
-  // 还原 ItemDoc（按 dataset-release 的 case_revisions 顺序）
-  const items: ItemDoc[] = [];
+  // 按 dataset-release 的 case_revisions 顺序组装 RunCaseInput
+  const runCases: RunCaseInput[] = [];
   for (const ref of release.doc.case_revisions) {
-    const rev = revById.get(ref.case_revision_id);
+    const revision = revById.get(ref.case_revision_id);
     const caseDoc = caseById.get(ref.case_id);
-    if (rev === undefined || caseDoc === undefined) {
+    if (revision === undefined || caseDoc === undefined) {
       throw new Error(
         `dataset-release 引用了不存在的修订：${ref.case_revision_id}（case=${ref.case_id}）`,
       );
     }
-    items.push(caseRevisionToItemDoc(rev, caseDoc));
+    const pairKey = caseDoc.pair_key ?? caseDoc.case_id.toUpperCase();
+    runCases.push({ revision, ...(pairKey !== undefined ? { pairKey } : {}) });
   }
 
-  return { items, room: environmentToRoom(env.doc) };
+  return { cases: runCases, environment: env.doc };
 }
 
 export async function runCommand(options: RunOptions): Promise<number> {
@@ -168,12 +173,12 @@ export async function runCommand(options: RunOptions): Promise<number> {
   const datasetName = options.dataset;
   const environmentName = options.environment;
 
-  let selected: ItemDoc[];
-  let room: RoomDoc;
+  let selected: RunCaseInput[];
+  let environment: EnvironmentProfile;
   try {
     const resolved = resolveDatasetItems(project, datasetName, environmentName);
-    selected = resolved.items;
-    room = resolved.room;
+    selected = resolved.cases;
+    environment = resolved.environment;
   } catch (e) {
     console.error((e as Error).message);
     return 1;
@@ -183,7 +188,7 @@ export async function runCommand(options: RunOptions): Promise<number> {
   let filtered = selected;
   if (only !== undefined && only.length > 0) {
     const allow = new Set(only);
-    filtered = selected.filter((s) => allow.has(s.id));
+    filtered = selected.filter((s) => allow.has(s.revision.case_revision_id));
     if (filtered.length === 0) {
       console.error('--only 过滤后没有试题');
       return 1;
@@ -200,11 +205,12 @@ export async function runCommand(options: RunOptions): Promise<number> {
 
   let batchResults: AxisItemResult[][];
   try {
-    batchResults = await mapPool(filtered, concurrency, async (item) => {
-      const artifactDir = join(runsRoot, rid, 'artifacts', item.id);
+    batchResults = await mapPool(filtered, concurrency, async (runCase) => {
+      const artifactDir = join(runsRoot, rid, 'artifacts', runCase.revision.case_revision_id);
       return runOneItem({
-        item,
-        room,
+        revision: runCase.revision,
+        environment,
+        ...(runCase.pairKey !== undefined ? { pairKey: runCase.pairKey } : {}),
         projectRoot: project.root,
         artifactDir,
         models,
@@ -226,7 +232,10 @@ export async function runCommand(options: RunOptions): Promise<number> {
       environment: environmentName,
       started_at: new Date().toISOString(),
       project_root: project.root,
-      items: filtered.map((i) => ({ id: i.id, rev: i.rev })),
+      items: filtered.map((i) => ({
+        id: i.revision.case_revision_id,
+        rev: i.revision.revision_number,
+      })),
     },
     results,
     gates: undefined,

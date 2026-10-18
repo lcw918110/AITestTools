@@ -1,12 +1,8 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { runPromptfooAdapter, type EvalJob } from '../drivers/model-adapter/index.ts';
-import type {
-  ItemDoc,
-  OracleSchemaObedience,
-  OracleToolTrace,
-  RoomDoc,
-} from '../exam-engine/types.ts';
+import type { OracleSchemaObedience, OracleToolTrace } from '../exam-engine/types.ts';
+import type { CaseRevision, EnvironmentProfile } from '../domain/types.ts';
 import {
   runSchemaObedienceOracle,
   runToolTraceOracle,
@@ -33,32 +29,32 @@ function parseCalls(trace: unknown): ToolCallTrace[] {
     .filter((x): x is ToolCallTrace => x !== null);
 }
 
-function roomRepeats(room: RoomDoc): number | undefined {
-  const r = room.adapter?.repeats;
+function roomRepeats(environment: EnvironmentProfile): number | undefined {
+  const r = environment.recipe.adapter?.repeats;
   return typeof r === 'number' ? r : undefined;
 }
 
 export async function runBDirectItem(opts: {
-  item: ItemDoc;
-  room: RoomDoc;
+  revision: CaseRevision;
+  environment: EnvironmentProfile;
   projectRoot: string;
   models: string[];
   artifactDir?: string;
 }): Promise<AxisItemResult[]> {
-  const focus = opts.item.intent.attribution_focus;
-  const repeats = opts.item.execution.repeats ?? roomRepeats(opts.room) ?? 1;
+  const focus = opts.revision.attribution_focus;
+  const repeats = opts.revision.execution.repeats ?? roomRepeats(opts.environment) ?? 1;
 
-  const mustCallOracle = opts.item.expect.oracles.find(
+  const mustCallOracle = opts.revision.expect.oracles.find(
     (o): o is OracleToolTrace => o.type === 'tool_trace',
   );
-  const schemaOracle = opts.item.expect.oracles.find(
+  const schemaOracle = opts.revision.expect.oracles.find(
     (o): o is OracleSchemaObedience => o.type === 'schema_obedience',
   );
 
   const jobItem: EvalJob['items'][number] = {
-    id: opts.item.id,
-    rev: opts.item.rev,
-    prompt_ref: opts.item.stimulus.ref,
+    id: opts.revision.case_revision_id,
+    rev: opts.revision.revision_number,
+    prompt_ref: opts.revision.stimulus.ref,
   };
   if (Array.isArray(mustCallOracle?.must_call)) {
     jobItem.must_call = mustCallOracle.must_call.map(String);
@@ -86,7 +82,7 @@ export async function runBDirectItem(opts: {
     raw = await runPromptfooAdapter(job, adapterOpts);
   } catch (e) {
     return [
-      fail(opts.item, 'HARNESS', `B-direct adapter 失败：${(e as Error).message}`, {
+      fail(opts.revision, 'HARNESS', `B-direct adapter 失败：${(e as Error).message}`, {
         invariantViolationsExplicit: 0,
         extraMetrics: { b_schema_obedience_rate: 0 },
         ...(opts.models[0] !== undefined ? { modelSuffix: opts.models[0] } : {}),
@@ -106,7 +102,7 @@ export async function runBDirectItem(opts: {
   for (const row of raw.rows) {
     const calls = parseCalls(row.tool_trace);
     const failures: OracleOutcome[] = [];
-    for (const [i, oracle] of opts.item.expect.oracles.entries()) {
+    for (const [i, oracle] of opts.revision.expect.oracles.entries()) {
       const oid = typeof oracle.id === 'string' ? oracle.id : `${oracle.type}#${i}`;
       if (oracle.type === 'tool_trace') {
         const must = Array.isArray(oracle.must_call) ? oracle.must_call.map(String) : [];
@@ -150,15 +146,15 @@ export async function runBDirectItem(opts: {
       a_case_pass_rate: draftPass ? 1 : 0,
       a_invariant_violations: 0,
     };
-    applyMetricThresholdPass(opts.item.expect.oracles, draftMetrics, focus, (o) =>
+    applyMetricThresholdPass(opts.revision.expect.oracles, draftMetrics, focus, (o) =>
       failures.push(o),
     );
     const failed = failures.filter((o): o is Extract<OracleOutcome, { pass: false }> => !o.pass);
     const pass = failed.length === 0 && row.pass;
     const attribution = pass ? undefined : (failed[0]?.attribution ?? 'MODEL_SCHEMA');
     const result: AxisItemResult = {
-      item_id: `${opts.item.id}::${row.model}::r${row.repeat}`,
-      item_rev: opts.item.rev,
+      item_id: `${opts.revision.case_revision_id}::${row.model}::r${row.repeat}`,
+      item_rev: opts.revision.revision_number,
       pass,
       oracle_failures: failed.map((f) => ({
         oracle_id: f.oracle_id,

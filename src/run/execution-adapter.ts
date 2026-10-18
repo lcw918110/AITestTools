@@ -1,4 +1,4 @@
-import type { ItemDoc, RoomDoc } from '../exam-engine/types.ts';
+import type { CaseRevision, EnvironmentProfile } from '../domain/types.ts';
 import type { Attempt, Attribution, CaseExecution, Run } from '../domain/types.ts';
 
 /**
@@ -26,8 +26,8 @@ export interface ObservedFactsRecorder {
 
 /** Adapter 上下文：由 RunOrchestrator 注入状态机实体与三值记录器。 */
 export interface AdapterContext {
-  item: ItemDoc;
-  room: RoomDoc;
+  revision: CaseRevision;
+  environment: EnvironmentProfile;
   projectRoot: string;
   artifactDir?: string;
   models: string[];

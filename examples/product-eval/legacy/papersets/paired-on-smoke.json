@@ -1,7 +1,0 @@
-{
-  "name": "paired-on-smoke",
-  "description": "配对 treatment 的 3 题冒烟：与 paired-off-smoke 同题，验证插件挂载与协议探针后再跑全量 156",
-  "axis": "B",
-  "room": "hosted-plugin-v1",
-  "items": ["EVAL-B-PAIRED-TASK-ON", "EVAL-B-PAIRED-TASK-02-ON", "EVAL-B-PAIRED-TASK-03-ON"]
-}

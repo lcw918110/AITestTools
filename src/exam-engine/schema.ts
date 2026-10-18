@@ -8,12 +8,8 @@ import type { Issue } from './types.ts';
 export const ASSET_PROTOCOL_VERSION = 'cases-v1';
 
 const SCHEMA_FILES = {
-  // 旧 papers-v1 schema（现行协议）
-  item: 'item.schema.json',
-  paperset: 'paperset.schema.json',
-  room: 'room.schema.json',
   exam: 'exam.schema.json',
-  // 新 cases-v1 schema（阶段 1 已就位，阶段 2 迁移后启用）
+  // cases-v1 schema
   case: 'case.schema.json',
   'case-revision': 'case-revision.schema.json',
   'dataset-release': 'dataset-release.schema.json',

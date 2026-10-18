@@ -10,7 +10,8 @@ import {
 } from '../drivers/cassette/index.ts';
 import { FakeHost, FakeHostError } from '../drivers/fakehost/index.ts';
 import { loadScript, ScriptError, type ScriptDoc } from '../drivers/scripted/index.ts';
-import type { Attribution, FreezeA, ItemDoc, RoomDoc } from '../exam-engine/types.ts';
+import type { Attribution } from '../exam-engine/types.ts';
+import type { CaseRevision, EnvironmentProfile } from '../domain/types.ts';
 import { runEventSubsequenceOracle } from '../oracles/index.ts';
 import type { AxisItemResult } from './l2-runner.ts';
 
@@ -36,23 +37,26 @@ const NOOP_SCRIPT: ScriptDoc = {
  * - journal：回放 OpenCode 录制器 journal.ndjson（无需剧本）
  */
 export async function runL3Item(opts: {
-  item: ItemDoc;
-  room: RoomDoc;
+  revision: CaseRevision;
+  environment: EnvironmentProfile;
   projectRoot: string;
   artifactDir?: string;
 }): Promise<AxisItemResult> {
-  const freeze = opts.item.freeze as FreezeA;
-  const focus = opts.item.intent.attribution_focus;
+  const execution_profile = opts.revision.execution_profile;
+  if (execution_profile === undefined) {
+    return fail(opts.revision, 'HARNESS', '缺少 execution_profile');
+  }
+  const focus = opts.revision.attribution_focus;
 
-  if (freeze.cassette === undefined) {
-    return fail(opts.item, 'HARNESS', 'L3 缺少 freeze.cassette');
+  if (execution_profile.cassette === undefined) {
+    return fail(opts.revision, 'HARNESS', 'L3 缺少 execution_profile.cassette');
   }
 
   let cassette;
   try {
-    cassette = loadCassette(opts.projectRoot, freeze.cassette);
+    cassette = loadCassette(opts.projectRoot, execution_profile.cassette);
   } catch (e) {
-    return fail(opts.item, 'HARNESS', (e as Error).message);
+    return fail(opts.revision, 'HARNESS', (e as Error).message);
   }
 
   const mode =
@@ -64,11 +68,11 @@ export async function runL3Item(opts: {
   if (mode === 'journal') {
     return runJournalReplay({ ...opts, cassette, focus });
   }
-  return runScriptedReplay({ ...opts, cassette, focus, freeze });
+  return runScriptedReplay({ ...opts, cassette, focus, execution_profile });
 }
 
 async function runJournalReplay(opts: {
-  item: ItemDoc;
+  revision: CaseRevision;
   projectRoot: string;
   artifactDir?: string;
   cassette: ReturnType<typeof loadCassette>;
@@ -79,7 +83,7 @@ async function runJournalReplay(opts: {
       ? opts.cassette.journal_ref
       : opts.cassette.timeline_ref;
   if (journalRef === undefined) {
-    return fail(opts.item, 'HARNESS', 'journal 模式需要 cassette.journal_ref');
+    return fail(opts.revision, 'HARNESS', 'journal 模式需要 cassette.journal_ref');
   }
 
   const contractId =
@@ -92,7 +96,7 @@ async function runJournalReplay(opts: {
     contract = loadContract(opts.projectRoot, contractId);
     entries = loadJournal(opts.projectRoot, journalRef);
   } catch (e) {
-    return fail(opts.item, 'HARNESS', (e as Error).message);
+    return fail(opts.revision, 'HARNESS', (e as Error).message);
   }
 
   const host = new FakeHost(contract, NOOP_SCRIPT);
@@ -118,7 +122,7 @@ async function runJournalReplay(opts: {
     }
   } catch (e) {
     const attr = e instanceof FakeHostError || e instanceof CassetteError ? 'HARNESS' : 'PROTOCOL';
-    return fail(opts.item, attr, (e as Error).message);
+    return fail(opts.revision, attr, (e as Error).message);
   }
 
   if (opts.artifactDir !== undefined) {
@@ -140,7 +144,7 @@ async function runJournalReplay(opts: {
   }
 
   return scoreReplay({
-    item: opts.item,
+    revision: opts.revision,
     cassette: opts.cassette,
     ...(opts.focus !== undefined ? { focus: opts.focus } : {}),
     hooks: host.trace.hooks,
@@ -150,24 +154,24 @@ async function runJournalReplay(opts: {
 }
 
 async function runScriptedReplay(opts: {
-  item: ItemDoc;
+  revision: CaseRevision;
   projectRoot: string;
   artifactDir?: string;
   cassette: ReturnType<typeof loadCassette>;
   focus?: Attribution;
-  freeze: FreezeA;
+  execution_profile: NonNullable<CaseRevision['execution_profile']>;
 }): Promise<AxisItemResult> {
   const contractId =
     (typeof opts.cassette.contract === 'string' ? opts.cassette.contract : undefined) ??
-    opts.freeze.contract;
+    opts.execution_profile.contract;
   const scriptRef =
     (typeof opts.cassette.script === 'string' ? opts.cassette.script : undefined) ??
-    opts.freeze.script;
+    opts.execution_profile.script;
   if (contractId === undefined || scriptRef === undefined) {
     return fail(
-      opts.item,
+      opts.revision,
       'HARNESS',
-      'L3 scripted cassette 需声明 contract+script（或试题 freeze 提供）',
+      'L3 scripted cassette 需声明 contract+script（或试题 execution_profile 提供）',
     );
   }
 
@@ -177,7 +181,7 @@ async function runScriptedReplay(opts: {
     script = loadScript(opts.projectRoot, scriptRef);
     contract = loadContract(opts.projectRoot, contractId);
   } catch (e) {
-    return fail(opts.item, 'HARNESS', (e as Error).message);
+    return fail(opts.revision, 'HARNESS', (e as Error).message);
   }
 
   const host = new FakeHost(contract, script);
@@ -231,7 +235,7 @@ async function runScriptedReplay(opts: {
       e instanceof FakeHostError || e instanceof ScriptError || e instanceof CassetteError
         ? 'HARNESS'
         : 'PROTOCOL';
-    return fail(opts.item, attr, (e as Error).message);
+    return fail(opts.revision, attr, (e as Error).message);
   }
 
   if (opts.artifactDir !== undefined) {
@@ -243,7 +247,7 @@ async function runScriptedReplay(opts: {
   }
 
   return scoreReplay({
-    item: opts.item,
+    revision: opts.revision,
     cassette: opts.cassette,
     ...(opts.focus !== undefined ? { focus: opts.focus } : {}),
     hooks: host.trace.hooks,
@@ -253,7 +257,7 @@ async function runScriptedReplay(opts: {
 }
 
 function scoreReplay(opts: {
-  item: ItemDoc;
+  revision: CaseRevision;
   cassette: ReturnType<typeof loadCassette>;
   focus?: Attribution | undefined;
   hooks: string[];
@@ -283,13 +287,17 @@ function scoreReplay(opts: {
   }
 
   if (expectedHooks.length === 0 && expectedEvents.length === 0) {
-    return fail(opts.item, 'HARNESS', 'cassette 未声明 expected_hooks / expected_events，无法对拍');
+    return fail(
+      opts.revision,
+      'HARNESS',
+      'cassette 未声明 expected_hooks / expected_events，无法对拍',
+    );
   }
 
   const pass = failures.length === 0;
   const result: AxisItemResult = {
-    item_id: opts.item.id,
-    item_rev: opts.item.rev,
+    item_id: opts.revision.case_revision_id,
+    item_rev: opts.revision.revision_number,
     pass,
     oracle_failures: failures,
     metrics: {

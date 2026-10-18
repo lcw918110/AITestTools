@@ -6,7 +6,7 @@ import { validateProject } from '../../src/exam-engine/validate.ts';
 const demoProject = fileURLToPath(new URL('../../examples/demo-project', import.meta.url));
 const brokenProject = fileURLToPath(new URL('../fixtures/broken-project', import.meta.url));
 
-describe('示例考卷库', () => {
+describe('示例考卷库（cases-v1）', () => {
   it('全部通过，且考材齐全', () => {
     const report = validateProject(loadProject(demoProject), { checkFixtures: true });
     expect(report.errorCount).toBe(0);
@@ -14,40 +14,27 @@ describe('示例考卷库', () => {
     expect(report.caseReports.length).toBeGreaterThanOrEqual(3);
   });
 
-  it('每条通过的试题都产出语义 digest', () => {
+  it('每条通过的修订都产出 content_hash（digest）', () => {
     const report = validateProject(loadProject(demoProject));
     expect(report.caseReports.every((c) => typeof c.digest === 'string')).toBe(true);
   });
 });
 
-describe('交叉引用与门禁规则', () => {
+describe('交叉引用与门禁规则（cases-v1）', () => {
   const report = validateProject(loadProject(brokenProject));
-  const codes = [...report.items.flatMap((c) => c.issues), ...report.projectIssues].map(
+  const codes = [...report.caseReports.flatMap((c) => c.issues), ...report.projectIssues].map(
     (i) => i.code,
   );
 
-  it('重复试题号被拦下', () => {
-    expect(codes).toContain('ITEM_ID_DUPLICATE');
+  it('content_hash 与重算不一致被拦下', () => {
+    expect(codes).toContain('REVISION_HASH_MISMATCH');
   });
 
-  it('paperset 引用不存在的试题与考场被拦下', () => {
-    expect(codes).toContain('PAPERSET_ITEM_MISSING');
-    expect(codes).toContain('PAPERSET_ROOM_MISSING');
+  it('dataset-release 引用不存在的修订被拦下', () => {
+    expect(codes).toContain('DATASET_REVISION_MISSING');
   });
 
-  it('hosted 指标不允许配置为门禁（PRD §5.2 硬约束）', () => {
-    expect(codes).toContain('GATE_NOT_ALLOWED');
-  });
-
-  it('目录外的门禁指标给警告', () => {
-    expect(codes).toContain('GATE_UNKNOWN_METRIC');
-  });
-
-  it('需要网络的试题挂到无网考场下被拦下', () => {
-    expect(codes).toContain('PAPERSET_NETWORK_CONFLICT');
-  });
-
-  it('密钥必须只走环境变量', () => {
-    expect(codes).toContain('ROOM_SECRET_INLINE');
+  it('candidate 引用不存在的 environment 被拦下', () => {
+    expect(codes).toContain('CANDIDATE_ENV_MISSING');
   });
 });

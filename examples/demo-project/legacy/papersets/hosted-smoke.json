@@ -1,7 +1,0 @@
-{
-  "name": "hosted-smoke",
-  "description": "B-hosted 冒烟（真 OpenCode；不设 hosted 指标门禁）",
-  "axis": "B",
-  "room": "hosted-opencode-v1",
-  "items": ["DEMO-B-HOSTED-SMOKE-01"]
-}

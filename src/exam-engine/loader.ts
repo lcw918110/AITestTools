@@ -2,7 +2,8 @@
  * 考卷/项目资产加载器。
  *
  * 职责边界：递归扫描目录，收集、读取、解析 exam-engine 资产文件
- * （item/paperset/room），返回 LoadedAsset（含 path/relPath/raw/doc 四元组）。
+ * （case/case-revision/dataset-release/environment/candidate），返回 LoadedAsset
+ * （含 path/relPath/raw/doc 四元组）。
  *
  * 与 contract/load.ts 的区别：
  * - contract/load.ts 加载宿主契约（bundled HostContract），直接 cast 返回结构体；
@@ -19,13 +20,8 @@ import type {
   CaseRevision,
   DatasetRelease,
   EnvironmentProfile,
-  ItemDoc,
   LoadedAsset,
-  PapersetDoc,
-  RoomDoc,
 } from './types.ts';
-
-export const ITEM_SUFFIX = '.item.json';
 
 // ── cases-v1 资产后缀（V2.17 深迁移） ──
 export const CASE_SUFFIX_V2 = '.case.json';
@@ -65,34 +61,17 @@ function read<T>(file: string, root: string): LoadedAsset<T> {
   }
 }
 
-export function loadItemFile(file: string, root: string): LoadedAsset<ItemDoc> {
-  return read<ItemDoc>(resolve(file), root);
-}
-
-export function loadItems(dir: string, root: string): LoadedAsset<ItemDoc>[] {
-  return collectFiles(dir, ITEM_SUFFIX).map((f) => read<ItemDoc>(f, root));
-}
-
-export function loadPapersets(dir: string, root: string): LoadedAsset<PapersetDoc>[] {
-  return collectFiles(dir, '.json').map((f) => read<PapersetDoc>(f, root));
-}
-
-export function loadRooms(dir: string, root: string): LoadedAsset<RoomDoc>[] {
-  return collectFiles(dir, '.json').map((f) => read<RoomDoc>(f, root));
-}
-
-/** @deprecated */
-export const CASE_SUFFIX = ITEM_SUFFIX;
-/** @deprecated */
-export const loadCaseFile = loadItemFile;
-/** @deprecated */
-export const loadCases = loadItems;
-/** @deprecated */
-export const loadSuites = loadPapersets;
-/** @deprecated */
-export const loadProfiles = loadRooms;
-
 // ── cases-v1 加载器（V2.17 深迁移） ──
+
+/** 加载单个 Case 逻辑身份文件（*.case.json）。 */
+export function loadCaseFileV2(file: string, root: string): LoadedAsset<Case> {
+  return read<Case>(resolve(file), root);
+}
+
+/** 加载单个 CaseRevision 不可变修订文件（*.case-revision.json）。 */
+export function loadCaseRevisionFileV2(file: string, root: string): LoadedAsset<CaseRevision> {
+  return read<CaseRevision>(resolve(file), root);
+}
 
 /** 加载 Case 逻辑身份（*.case.json）。 */
 export function loadCasesV2(dir: string, root: string): LoadedAsset<Case>[] {

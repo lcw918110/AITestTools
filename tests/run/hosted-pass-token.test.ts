@@ -5,40 +5,31 @@ import {
   hostedPassToken,
   observeHostedPassToken,
 } from '../../src/run/hosted-pass-token.ts';
-import type { ItemDoc } from '../../src/exam-engine/types.ts';
+import type { CaseRevision } from '../../src/exam-engine/types.ts';
 
-function minimalItem(stimulus: ItemDoc['stimulus']): ItemDoc {
+function minimalRevision(stimulus: CaseRevision['stimulus']): CaseRevision {
   return {
-    id: 'TEST',
-    rev: 1,
-    axis: 'B',
-    status: 'active',
-    title: 't',
-    intent: { statement: 's', attribution_focus: 'MODEL_TASK' },
-    freeze: {
-      model_driver: 'live',
-      model_id: 'm',
-      host_profile: 'h',
-      tool_profile: 'none',
-      prompt_template: 'p',
-      channel: 'hosted',
-    },
+    case_id: 'test',
+    case_revision_id: 'test.r1',
+    revision_number: 1,
+    content_hash: '0'.repeat(64),
     stimulus,
     expect: { oracles: [] },
-    metrics: { primary: [], secondary: [] },
+    execution_profile: { mode: 'hosted' },
+    attribution_focus: 'MODEL_TASK',
     execution: { deadline_ms: 1000, requires_network: true },
   };
 }
 
 describe('hosted pass token', () => {
   it('defaults to ok', () => {
-    expect(hostedPassToken(minimalItem({ kind: 'task_prompt', ref: 'm/x' }))).toBe('ok');
+    expect(hostedPassToken(minimalRevision({ kind: 'task_prompt', ref: 'm/x' }))).toBe('ok');
   });
 
-  it('reads hosted_pass_token from item', () => {
+  it('reads hosted_pass_token from revision', () => {
     expect(
       hostedPassToken(
-        minimalItem({
+        minimalRevision({
           kind: 'task_prompt',
           ref: 'm/x',
           hosted_pass_token: 'yes',
@@ -55,12 +46,12 @@ describe('hosted pass token', () => {
   });
 
   it('observe: empty stdout → present false; does not veto', () => {
-    const item = minimalItem({
+    const revision = minimalRevision({
       kind: 'task_prompt',
       ref: 'm/x',
       hosted_pass_token: 'DUAL_FIX',
     });
-    const obs = observeHostedPassToken(item, '', '');
+    const obs = observeHostedPassToken(revision, '', '');
     expect(obs.pass_token).toBe('DUAL_FIX');
     expect(obs.pass_token_present).toBe(false);
     expect(obs.pass_token_role).toBe('auxiliary');
@@ -68,24 +59,24 @@ describe('hosted pass token', () => {
   });
 
   it('observe: token only in stderr does not count', () => {
-    const item = minimalItem({
+    const revision = minimalRevision({
       kind: 'task_prompt',
       ref: 'm/x',
       hosted_pass_token: 'QUERY_WIRE',
     });
     expect(
-      observeHostedPassToken(item, 'checking modules', 'Grep "parseQuery|QUERY_WIRE|CLI_WIRE"')
+      observeHostedPassToken(revision, 'checking modules', 'Grep "parseQuery|QUERY_WIRE|CLI_WIRE"')
         .pass_token_present,
     ).toBe(false);
   });
 
   it('observe: token in stdout → present true', () => {
-    const item = minimalItem({
+    const revision = minimalRevision({
       kind: 'task_prompt',
       ref: 'm/x',
       hosted_pass_token: 'PORT_SYNC',
     });
-    expect(observeHostedPassToken(item, 'done PORT_SYNC\n', '').pass_token_present).toBe(true);
+    expect(observeHostedPassToken(revision, 'done PORT_SYNC\n', '').pass_token_present).toBe(true);
     expect(formatPassTokenCell({ pass_token: 'PORT_SYNC', pass_token_present: true })).toBe(
       '有 PORT_SYNC',
     );

@@ -12,7 +12,7 @@ import {
 } from './runner-shared.ts';
 import { FakeHost, FakeHostError } from '../drivers/fakehost/index.ts';
 import { loadScript, ScriptError } from '../drivers/scripted/index.ts';
-import type { FreezeA, ItemDoc, RoomDoc } from '../exam-engine/types.ts';
+import type { CaseRevision, EnvironmentProfile } from '../domain/types.ts';
 import {
   runEventSubsequenceOracle,
   runNoEventOracle,
@@ -74,8 +74,8 @@ interface ProctorPluginCtx {
   setToolOk: (ok: boolean) => void;
 }
 
-function resolveHookStyle(room: RoomDoc): HookStyle {
-  const raw = room.adapter?.hook_style;
+function resolveHookStyle(environment: EnvironmentProfile): HookStyle {
+  const raw = environment.recipe.adapter?.hook_style;
   if (raw === 'opencode-v1') return 'opencode-v1';
   return 'demo-v1';
 }
@@ -103,36 +103,43 @@ async function callHook(hooks: OpenCodeHooks, name: string, ...args: unknown[]):
 }
 
 export async function runL2Item(opts: {
-  item: ItemDoc;
-  room: RoomDoc;
+  revision: CaseRevision;
+  environment: EnvironmentProfile;
   projectRoot: string;
   artifactDir?: string;
   sutRoot?: string;
 }): Promise<AxisItemResult> {
-  const freeze = opts.item.freeze as FreezeA;
-  const focus = opts.item.intent.attribution_focus;
-  const hookStyle = resolveHookStyle(opts.room);
+  const execution_profile = opts.revision.execution_profile;
+  if (execution_profile === undefined) {
+    return fail(opts.revision, 'HARNESS', '缺少 execution_profile');
+  }
+  const focus = opts.revision.attribution_focus;
+  const hookStyle = resolveHookStyle(opts.environment);
 
-  if (freeze.contract === undefined || freeze.script === undefined) {
-    return fail(opts.item, 'HARNESS', 'L2 缺少 freeze.contract 或 freeze.script');
+  if (execution_profile.contract === undefined || execution_profile.script === undefined) {
+    return fail(
+      opts.revision,
+      'HARNESS',
+      'L2 缺少 execution_profile.contract 或 execution_profile.script',
+    );
   }
 
   let stimulus: SessionStimulus;
   try {
     stimulus = JSON.parse(
-      readFileSync(resolve(opts.projectRoot, opts.item.stimulus.ref), 'utf8'),
+      readFileSync(resolve(opts.projectRoot, opts.revision.stimulus.ref), 'utf8'),
     ) as SessionStimulus;
   } catch (e) {
-    return fail(opts.item, 'HARNESS', `无法加载 stimulus：${(e as Error).message}`);
+    return fail(opts.revision, 'HARNESS', `无法加载 stimulus：${(e as Error).message}`);
   }
 
   let script;
   let contract;
   try {
-    script = loadScript(opts.projectRoot, freeze.script);
-    contract = loadContract(opts.projectRoot, freeze.contract);
+    script = loadScript(opts.projectRoot, execution_profile.script);
+    contract = loadContract(opts.projectRoot, execution_profile.contract);
   } catch (e) {
-    return fail(opts.item, 'HARNESS', (e as Error).message);
+    return fail(opts.revision, 'HARNESS', (e as Error).message);
   }
 
   const host = new FakeHost(contract, script);
@@ -146,8 +153,10 @@ export async function runL2Item(opts: {
   let disposeHooks: (() => unknown | Promise<unknown>) | undefined;
 
   const workspaceMode =
-    typeof opts.room.adapter?.workspace === 'string' ? opts.room.adapter.workspace : undefined;
-  const skipHookDispatch = opts.room.adapter?.skip_hook_dispatch === true;
+    typeof opts.environment.recipe.adapter?.workspace === 'string'
+      ? opts.environment.recipe.adapter.workspace
+      : undefined;
+  const skipHookDispatch = opts.environment.recipe.adapter?.skip_hook_dispatch === true;
   let pluginDirectory = opts.projectRoot;
   if (workspaceMode === 'temp-git') {
     const base =
@@ -170,11 +179,11 @@ export async function runL2Item(opts: {
       git(['commit', '-m', 'init']);
       pluginDirectory = base;
     } catch (e) {
-      return fail(opts.item, 'HARNESS', `无法准备 temp-git：${(e as Error).message}`);
+      return fail(opts.revision, 'HARNESS', `无法准备 temp-git：${(e as Error).message}`);
     }
   }
 
-  const pluginPath = opts.room.adapter?.config;
+  const pluginPath = opts.environment.recipe.adapter?.config;
   if (typeof pluginPath === 'string') {
     try {
       const effectiveSutRoot = process.env.SUT_ROOT ?? opts.sutRoot;
@@ -186,7 +195,7 @@ export async function runL2Item(opts: {
         const resolved = resolveOpenCodePluginExport(mod);
         if (resolved === null) {
           return fail(
-            opts.item,
+            opts.revision,
             'HARNESS',
             `hook_style=opencode-v1 需要导出 plugin(ctx)、default 函数或 { id, server }：${pluginPath}`,
           );
@@ -236,7 +245,11 @@ export async function runL2Item(opts: {
         demoPlugin = mod as DemoPluginModule;
       }
     } catch (e) {
-      return fail(opts.item, 'HARNESS', `无法加载插件：${pluginPath}（${(e as Error).message}）`);
+      return fail(
+        opts.revision,
+        'HARNESS',
+        `无法加载插件：${pluginPath}（${(e as Error).message}）`,
+      );
     }
   }
 
@@ -383,14 +396,14 @@ export async function runL2Item(opts: {
         /* ignore dispose errors on failure path */
       }
     }
-    return fail(opts.item, attr, (e as Error).message);
+    return fail(opts.revision, attr, (e as Error).message);
   }
 
   if (disposeHooks) {
     try {
       await Promise.resolve(disposeHooks());
     } catch (e) {
-      return fail(opts.item, 'HARNESS', `plugin dispose 失败：${(e as Error).message}`);
+      return fail(opts.revision, 'HARNESS', `plugin dispose 失败：${(e as Error).message}`);
     }
   }
 
@@ -412,7 +425,7 @@ export async function runL2Item(opts: {
   }
 
   const failures: OracleOutcome[] = [];
-  for (const [i, oracle] of opts.item.expect.oracles.entries()) {
+  for (const [i, oracle] of opts.revision.expect.oracles.entries()) {
     const oid = typeof oracle.id === 'string' ? oracle.id : `${oracle.type}#${i}`;
     if (oracle.type === 'event_subsequence') {
       const names = Array.isArray(oracle.names) ? oracle.names.map(String) : [];
@@ -456,10 +469,12 @@ export async function runL2Item(opts: {
   }
 
   const draftMetrics = computeAxisDraftMetrics(failures);
-  applyMetricThresholdPass(opts.item.expect.oracles, draftMetrics, focus, (o) => failures.push(o));
+  applyMetricThresholdPass(opts.revision.expect.oracles, draftMetrics, focus, (o) =>
+    failures.push(o),
+  );
 
   return finalizeAxisResult({
-    item: opts.item,
+    revision: opts.revision,
     failures,
     ...(opts.artifactDir !== undefined ? { artifactDir: opts.artifactDir } : {}),
   });

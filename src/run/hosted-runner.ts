@@ -15,7 +15,7 @@ import {
 } from '../attribution/ndjson-probes.ts';
 import { ensureHostedGitRepo, readWanxiangEventStore } from '../attribution/event-store.ts';
 import { loadJournal, sealJournalToManifestFields } from '../drivers/cassette/journal.ts';
-import type { ItemDoc, RoomDoc } from '../exam-engine/types.ts';
+import type { CaseRevision, EnvironmentProfile } from '../domain/types.ts';
 import type { AxisItemResult } from './l2-runner.ts';
 import { fail } from './runner-shared.ts';
 import { evaluateHostedOracles } from './hosted-oracles.ts';
@@ -33,15 +33,19 @@ import { materialsMutated, snapshotSeededFiles } from './hosted-workspace-state.
  * - 耐久归因读 `refs/wanxiang/store`（EventStore）；`.wanxiangshu.ndjson` / 旧 WanEvent 不当挂载信号
  */
 export async function runHostedSmokeItem(opts: {
-  item: ItemDoc;
-  room: RoomDoc;
+  revision: CaseRevision;
+  environment: EnvironmentProfile;
   projectRoot: string;
   artifactDir?: string;
+  pairKey?: string;
 }): Promise<AxisItemResult> {
-  const focus = opts.item.intent.attribution_focus;
-  const hostBin = typeof opts.room.host?.command === 'string' ? opts.room.host.command : 'opencode';
-  const protocolProbesRaw = Array.isArray(opts.item.intent.protocol_probes)
-    ? opts.item.intent.protocol_probes.map(String)
+  const focus = opts.revision.attribution_focus;
+  const hostBin =
+    typeof opts.environment.recipe.host_command === 'string'
+      ? opts.environment.recipe.host_command
+      : 'opencode';
+  const protocolProbesRaw = Array.isArray(opts.revision.protocol_probes)
+    ? opts.revision.protocol_probes.map(String)
     : [];
   const { active: protocolProbes, skippedStale: staleProtocolProbes } =
     partitionHostedProtocolProbes(protocolProbesRaw);
@@ -61,16 +65,19 @@ export async function runHostedSmokeItem(opts: {
 
   if (version.status !== 0) {
     const d = diagnoseHostedFailure({ harnessFault: true });
-    return fail(opts.item, d.attribution, `无法执行 ${hostBin} --version`, {
+    return fail(opts.revision, d.attribution, `无法执行 ${hostBin} --version`, {
       artifactDir: opts.artifactDir,
-      effectPair: opts.item.intent.effect_pair,
+      effectPair: opts.pairKey,
     });
   }
 
-  // .env 里的 PROCTOR_HOSTED_MODEL 会盖掉考场声明。必须把来源记进产物，
+  // .env 里的 PROCTOR_HOSTED_MODEL 会盖掉环境声明。必须把来源记进产物，
   // 否则报告显示的实验条件与真实执行不符，配对结论无从复现。
   const envModel = process.env.PROCTOR_HOSTED_MODEL;
-  const roomModel = typeof opts.room.host?.model === 'string' ? opts.room.host.model : undefined;
+  const roomModel =
+    typeof opts.environment.recipe.host_model === 'string'
+      ? opts.environment.recipe.host_model
+      : undefined;
   const hostModel = envModel ?? roomModel;
   const modelSource =
     envModel === undefined
@@ -78,14 +85,16 @@ export async function runHostedSmokeItem(opts: {
       : roomModel !== undefined && roomModel !== envModel
         ? 'env-override-environment'
         : 'env';
-  // A 轴 freeze 无 model_id；B/C 轴才冻结模型
+  // 题目级冻结模型（V1 freeze.model_id 迁移）
   const frozenModel =
-    'model_id' in opts.item.freeze ? String(opts.item.freeze.model_id) : undefined;
+    opts.revision.model_id !== undefined ? String(opts.revision.model_id) : undefined;
   const hostAgent =
     process.env.PROCTOR_HOSTED_AGENT ??
-    (typeof opts.room.host?.agent === 'string' ? opts.room.host.agent : undefined);
+    (typeof opts.environment.recipe.host_agent === 'string'
+      ? opts.environment.recipe.host_agent
+      : undefined);
 
-  const pluginPath = resolvePluginPath(opts.room, opts.projectRoot);
+  const pluginPath = resolvePluginPath(opts.environment, opts.projectRoot);
   const recordId = process.env.PROCTOR_RECORD_CASSETTE?.trim();
   const recorderPlugin =
     recordId && recordId.length > 0
@@ -93,17 +102,17 @@ export async function runHostedSmokeItem(opts: {
       : undefined;
 
   const wantDurable =
-    Boolean(opts.room.durable_log_glob) ||
-    opts.item.execution.requires_durable_log === true ||
+    Boolean(opts.environment.recipe.durable_log_glob) ||
+    opts.revision.execution.requires_durable_log === true ||
     pluginPath !== undefined ||
     recorderPlugin !== undefined;
 
   /**
    * 工作区隔离必须与「是否挂插件」解耦：否则 OFF 侧落在 projectRoot（能看到题库与引擎源码），
    * ON 侧落在临时空仓，配对实验就同时变了工作区内容与插件两个因子，分差无法归因。
-   * room.workspace = "isolated" 让无插件的对照侧拿到同构空仓。
+   * recipe.isolation_profile = "isolated" 让无插件的对照侧拿到同构空仓。
    */
-  const wantIsolated = wantDurable || opts.room.workspace === 'isolated';
+  const wantIsolated = wantDurable || opts.environment.recipe.isolation_profile === 'isolated';
 
   const workDir = wantIsolated ? mkdtempSync(join(tmpdir(), 'proctor-hosted-')) : opts.projectRoot;
   let isolatedHome: string | undefined;
@@ -136,7 +145,7 @@ export async function runHostedSmokeItem(opts: {
       ? seedStimulusMaterials({
           workDir,
           projectRoot: opts.projectRoot,
-          stimulusRef: opts.item.stimulus.ref,
+          stimulusRef: opts.revision.stimulus.ref,
         }).copied
       : [];
     const seedSnapshot = snapshotSeededFiles(workDir, seeded);
@@ -147,7 +156,7 @@ export async function runHostedSmokeItem(opts: {
       writeFileSync(join(cassetteOutDir, 'journal.ndjson'), '');
     }
 
-    const prompt = resolveHostedPrompt(opts.item, opts.projectRoot);
+    const prompt = resolveHostedPrompt(opts.revision, opts.projectRoot);
 
     const runArgs = ['run'];
     // 隔离仓必须显式 --dir：只设 spawn cwd 时，OpenCode 仍会发现并切到引擎仓
@@ -158,12 +167,10 @@ export async function runHostedSmokeItem(opts: {
     if (hostAgent !== undefined && hostAgent.length > 0) runArgs.push('--agent', hostAgent);
     // 宿主内部错误默认不落盘，失败时只剩一个 UnknownError ref，无从归因
     runArgs.push('--print-logs');
-    const extraArgsRaw = opts.room.host?.args;
-    if (Array.isArray(extraArgsRaw)) runArgs.push(...extraArgsRaw.map(String));
     runArgs.push(prompt);
 
-    const deadline = opts.item.execution.deadline_ms || 180_000;
-    const managedAgentsRaw = opts.room.host?.managed_agents;
+    const deadline = opts.revision.execution.deadline_ms || 180_000;
+    const managedAgentsRaw = opts.environment.recipe.managed_agents;
     const managedAgents = Array.isArray(managedAgentsRaw) ? managedAgentsRaw.map(String) : [];
     const hostConfig = prepareIsolatedHostConfig({ managedAgents, model: hostModel });
     isolatedHome = hostConfig.home;
@@ -209,10 +216,10 @@ export async function runHostedSmokeItem(opts: {
     const ndjsonExists = existsSync(ndjsonPath) || ndjsonText.length > 0;
     const stdoutFull = run.stdout || '';
     const stderrFull = run.stderr || '';
-    const tokenObs = observeHostedPassToken(opts.item, stdoutFull);
+    const tokenObs = observeHostedPassToken(opts.revision, stdoutFull);
     const mutated = materialsMutated(workDir, seeded, seedSnapshot);
     const oracleEval = evaluateHostedOracles({
-      item: opts.item,
+      revision: opts.revision,
       workspace: workDir,
       exitCode: typeof run.status === 'number' ? run.status : 1,
       hostStatus: run.status,
@@ -351,12 +358,12 @@ export async function runHostedSmokeItem(opts: {
         hostObs.timed_out && !mutated ? '超时且材料未改；' : hostObs.timed_out ? '超时；' : '';
       return finish(
         fail(
-          opts.item,
+          opts.revision,
           attr,
           `${untouched}${why}${hostNote}${sealNote}${storeNote}${staleProbeNote}`,
           {
             artifactDir: opts.artifactDir,
-            effectPair: opts.item.intent.effect_pair,
+            effectPair: opts.pairKey,
             extraFailures: oracleEval.workspace_failures,
           },
         ),
@@ -367,12 +374,12 @@ export async function runHostedSmokeItem(opts: {
       const d = diagnoseHostedFailure({ contextProbeMiss: true });
       return finish(
         fail(
-          opts.item,
+          opts.revision,
           d.attribution,
           `hosted 鉴权/额度失败（status=${String(run.status)}）${hostNote}：${(run.stderr || run.stdout || '').slice(0, 240)}${sealNote} [rule ${d.matched_rule}]`,
           {
             artifactDir: opts.artifactDir,
-            effectPair: opts.item.intent.effect_pair,
+            effectPair: opts.pairKey,
           },
         ),
       );
@@ -382,12 +389,12 @@ export async function runHostedSmokeItem(opts: {
       const d = diagnoseHostedFailure({ protocolProbeMiss: true });
       return finish(
         fail(
-          opts.item,
+          opts.revision,
           resolveHostedAttribution(d.attribution, focus),
           `协议探针缺失：${missingProbes.join(', ')}（已见 kinds=${[...kinds].sort().join('|') || '∅'}）${sealNote}${storeNote}${staleProbeNote} [rule ${d.matched_rule}]`,
           {
             artifactDir: opts.artifactDir,
-            effectPair: opts.item.intent.effect_pair,
+            effectPair: opts.pairKey,
           },
         ),
       );
@@ -396,27 +403,25 @@ export async function runHostedSmokeItem(opts: {
     if (oracleEval.veto !== undefined) {
       return finish(
         fail(
-          opts.item,
+          opts.revision,
           oracleEval.veto.attribution,
           `${oracleEval.veto.message}${hostNote}${sealNote}${storeNote}${staleProbeNote}`,
           {
             artifactDir: opts.artifactDir,
-            effectPair: opts.item.intent.effect_pair,
+            effectPair: opts.pairKey,
           },
         ),
       );
     }
 
     return finish({
-      item_id: opts.item.id,
-      item_rev: opts.item.rev,
+      item_id: opts.revision.case_revision_id,
+      item_rev: opts.revision.revision_number,
       pass: true,
       oracle_failures: [],
       metrics: { a_case_pass_rate: 1, a_invariant_violations: 0 },
       ...(opts.artifactDir !== undefined ? { artifact_dir: opts.artifactDir } : {}),
-      ...(opts.item.intent.effect_pair !== undefined
-        ? { effect_pair: opts.item.intent.effect_pair }
-        : {}),
+      ...(opts.pairKey !== undefined ? { effect_pair: opts.pairKey } : {}),
     });
   } finally {
     if (wantIsolated) {

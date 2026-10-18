@@ -30,6 +30,8 @@ export function runInit(options: InitOptions): number {
   writeFileSync(manifestPath, `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
 
   console.log(green(`已生成考卷库骨架：${target}`));
-  console.log('下一步：编辑 items/ 下的样例试题，然后运行 proctor item validate');
+  console.log(
+    '下一步：编辑 cases/ 与 case-revisions/ 下的样例试题，然后运行 proctor item validate',
+  );
   return 0;
 }

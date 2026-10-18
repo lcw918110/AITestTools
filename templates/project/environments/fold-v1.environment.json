@@ -1,0 +1,22 @@
+{
+  "$schema": "../../../schemas/environment.schema.json",
+  "environment_profile_id": "fold-v1",
+  "name": "fold-v1",
+  "lifecycle": "active",
+  "recipe": {
+    "network_policy": "deny",
+    "kind": "fold",
+    "model_driver": "none",
+    "fold_entries": {
+      "example-fold": {
+        "module": "build/projection.js",
+        "export": "fold",
+        "signature": "pure_fold_v1",
+        "event_schema": "example-events-v1",
+        "resolve_root": "sut",
+        "normalize": "json_clone"
+      }
+    },
+    "sut": { "name": "your-agent", "root_env": "SUT_ROOT" }
+  }
+}

@@ -39,20 +39,15 @@ function runFixture(job: EvalJob, projectRoot: string): FrameworkRawResult {
   for (const model of job.models) {
     for (const item of job.items) {
       for (let repeat = 1; repeat <= job.repeats; repeat += 1) {
+        // fixture 与 task.md 同目录（prompt_ref 的父目录），沿用 legacy_item_id 命名的 materials 目录。
+        const matDir = dirname(item.prompt_ref);
         const fixturePath = join(
           projectRoot,
-          'materials',
-          item.id,
+          matDir,
           'fixtures',
           `${sanitize(model)}.repeat${repeat}.json`,
         );
-        const fallback = join(
-          projectRoot,
-          'materials',
-          item.id,
-          'fixtures',
-          `${sanitize(model)}.json`,
-        );
+        const fallback = join(projectRoot, matDir, 'fixtures', `${sanitize(model)}.json`);
         const path = existsSync(fixturePath)
           ? fixturePath
           : existsSync(fallback)

@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { canonicalize, semanticDigest } from '../../src/exam-engine/digest.ts';
-import type { CaseDoc } from '../../src/exam-engine/types.ts';
-import { baseCase } from '../helpers/case-factory.ts';
+import { canonicalize, revisionDigest } from '../../src/exam-engine/digest.ts';
+import type { CaseRevision } from '../../src/exam-engine/types.ts';
+import { baseRevision } from '../helpers/case-factory.ts';
 
-const doc = (overrides: Record<string, unknown> = {}): CaseDoc =>
-  baseCase(overrides) as unknown as CaseDoc;
+const doc = (overrides: Record<string, unknown> = {}): CaseRevision =>
+  baseRevision(overrides) as unknown as CaseRevision;
 
 describe('规范化 JSON', () => {
   it('键序不影响结果', () => {
@@ -16,19 +16,19 @@ describe('规范化 JSON', () => {
   });
 });
 
-describe('语义 digest（PRD 附录 A 不变式）', () => {
+describe('修订 digest（cases-v1 content_hash 不变式）', () => {
   it('改判定条件会改变 digest', () => {
     const changed = doc({
-      expect: { oracles: [{ type: 'no_event', names: ['X'] }] },
+      expect: { oracles: [{ id: 'x', type: 'no_event', names: ['X'] }] },
     });
-    expect(semanticDigest(changed)).not.toBe(semanticDigest(doc()));
+    expect(revisionDigest(changed)).not.toBe(revisionDigest(doc()));
   });
 
-  it('只改文案不改变 digest——文案变更无需升 rev', () => {
-    expect(semanticDigest(doc({ title: '另一个标题', owner: '别人' }))).toBe(semanticDigest(doc()));
+  it('只改非内容字段不改变 digest——文案/元信息无需升 rev', () => {
+    expect(revisionDigest(doc({ change_log: { rev1: '另一个标题' } }))).toBe(revisionDigest(doc()));
   });
 
   it('同一内容重复计算稳定', () => {
-    expect(semanticDigest(doc())).toBe(semanticDigest(doc()));
+    expect(revisionDigest(doc())).toBe(revisionDigest(doc()));
   });
 });

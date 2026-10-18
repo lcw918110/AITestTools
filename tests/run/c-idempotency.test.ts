@@ -19,11 +19,19 @@ const demo = fileURLToPath(new URL('../../examples/demo-project', import.meta.ur
 describe('C axis idempotency (c_idempotent_pass_rate)', () => {
   it('同 write 契约跑两次产生相同的 oracle outcome', async () => {
     const project = loadProject(demo);
-    const { items, room } = resolveDatasetItems(project, 'smoke-c-write', 'shell-echo-v1');
-    const item = items.find((i) => i.id === 'DEMO-C-WRITE-01')!;
+    const { cases, environment } = resolveDatasetItems(project, 'smoke-c-write', 'shell-echo-v1');
+    const runCase = cases.find((c) => c.revision.case_id === 'demo-c-write-01')!;
 
-    const run1 = await runCItem({ item, room, projectRoot: project.root });
-    const run2 = await runCItem({ item, room, projectRoot: project.root });
+    const run1 = await runCItem({
+      revision: runCase.revision,
+      environment,
+      projectRoot: project.root,
+    });
+    const run2 = await runCItem({
+      revision: runCase.revision,
+      environment,
+      projectRoot: project.root,
+    });
 
     // 两次跑都必须 pass（PRD 建议门禁 c_idempotent_pass_rate = 1.0）
     expect(run1.pass).toBe(true);

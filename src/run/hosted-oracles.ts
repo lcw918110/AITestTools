@@ -1,4 +1,5 @@
-import type { Attribution, ItemDoc } from '../exam-engine/types.ts';
+import type { Attribution } from '../exam-engine/types.ts';
+import type { CaseRevision } from '../domain/types.ts';
 import { runStdoutAssertOracle } from '../oracles/stdout-assert.ts';
 import { runToolSideEffectOracle } from '../oracles/tool-side-effect.ts';
 import { runWorkspaceAssertOracle } from '../oracles/workspace-assert.ts';
@@ -25,8 +26,8 @@ export interface HostedOracleEvaluation {
   veto: HostedOracleVeto | undefined;
 }
 
-function hasWorkspaceOracle(item: ItemDoc): boolean {
-  return item.expect.oracles.some((o) => o.type === 'workspace_assert');
+function hasWorkspaceOracle(revision: CaseRevision): boolean {
+  return revision.expect.oracles.some((o) => o.type === 'workspace_assert');
 }
 
 /**
@@ -37,7 +38,7 @@ function hasWorkspaceOracle(item: ItemDoc): boolean {
  * 超时 / 被杀时 exit_code 不单独否决；进程真以非 0 结束时，有 workspace_assert 则交给工作区判定。
  */
 export function evaluateHostedOracles(opts: {
-  item: ItemDoc;
+  revision: CaseRevision;
   workspace: string;
   exitCode: number;
   stdout: string;
@@ -50,7 +51,7 @@ export function evaluateHostedOracles(opts: {
   const hostStatus = opts.hostStatus !== undefined ? opts.hostStatus : opts.exitCode;
   const timedOut = opts.timedOut === true;
   const inconclusive = timedOut || hostStatus === null;
-  const workspaceOracles = hasWorkspaceOracle(opts.item);
+  const workspaceOracles = hasWorkspaceOracle(opts.revision);
 
   const workspace_failures: Array<{ oracle_id: string; message: string }> = [];
   let workspace_ran = false;
@@ -60,7 +61,7 @@ export function evaluateHostedOracles(opts: {
   let otherVeto: HostedOracleVeto | undefined;
   let hardExitVeto: HostedOracleVeto | undefined;
 
-  for (const [i, oracle] of opts.item.expect.oracles.entries()) {
+  for (const [i, oracle] of opts.revision.expect.oracles.entries()) {
     const oid = typeof oracle.id === 'string' ? oracle.id : `${oracle.type}#${i}`;
     if (oracle.type === 'exit_code') {
       const want = Number(oracle.equals ?? 0);

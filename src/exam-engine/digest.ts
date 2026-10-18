@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import type { CaseRevision, ItemDoc } from './types.ts';
+import type { CaseRevision } from './types.ts';
 
 export function canonicalize(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
@@ -13,20 +13,6 @@ export function canonicalize(value: unknown): string {
 
 function sha256(input: string): string {
   return createHash('sha256').update(input, 'utf8').digest('hex');
-}
-
-/** @deprecated 使用 revisionDigest。基于 V1 字段（axis/freeze/...）。 */
-export function semanticDigest(doc: ItemDoc): string {
-  return sha256(
-    canonicalize({
-      axis: doc.axis,
-      freeze: doc.freeze,
-      stimulus: doc.stimulus,
-      expect: doc.expect,
-      metrics: doc.metrics,
-      execution: doc.execution,
-    }),
-  );
 }
 
 /**

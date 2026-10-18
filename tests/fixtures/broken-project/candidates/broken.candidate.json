@@ -1,0 +1,6 @@
+{
+  "$schema": "../../../schemas/candidate.schema.json",
+  "candidate_id": "broken-candidate",
+  "name": "broken-candidate",
+  "environment_profile": "ghost-environment"
+}

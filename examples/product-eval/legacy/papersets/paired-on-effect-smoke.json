@@ -1,7 +1,0 @@
-{
-  "name": "paired-on-effect-smoke",
-  "description": "实验 1 效果小样本：与 paired-off-effect-smoke 同题号的 ON 侧（有插件）。只变插件。",
-  "axis": "B",
-  "room": "hosted-plugin-v1",
-  "items": ["EVAL-B-PAIRED-TASK-157-ON", "EVAL-B-PAIRED-TASK-158-ON", "EVAL-B-PAIRED-TASK-159-ON"]
-}

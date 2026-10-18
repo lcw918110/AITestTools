@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import type { ItemDoc, RoomDoc } from '../../src/exam-engine/types.ts';
+import type { CaseRevision, EnvironmentProfile } from '../../src/exam-engine/types.ts';
 import { buildRunSummary } from '../../apps/console/run-summary.ts';
 import { writeRunArtifacts } from '../../src/run/write-artifacts.ts';
 
@@ -46,36 +46,34 @@ vi.mock('node:child_process', async (importOriginal) => {
 
 const { runHostedSmokeItem } = await import('../../src/run/hosted-runner.ts');
 
-function makeItem(oracles: ItemDoc['expect']['oracles']): ItemDoc {
+function makeRevision(oracles: CaseRevision['expect']['oracles']): CaseRevision {
   return {
-    id: 'EVAL-B-PAIRED-TASK-157-OFF',
-    rev: 1,
-    axis: 'B',
-    status: 'active',
-    title: 'aux token',
-    intent: { statement: 's', attribution_focus: 'MODEL_TASK', effect_pair: 'PAIRED-TASK-157' },
-    freeze: {
-      model_driver: 'live',
-      model_id: 'm',
-      host_profile: 'h',
-      tool_profile: 'none',
-      prompt_template: 'p',
-      channel: 'hosted',
+    case_id: 'paired-task-157',
+    case_revision_id: 'paired-task-157.r1.off',
+    revision_number: 1,
+    content_hash: '0'.repeat(64),
+    stimulus: {
+      kind: 'task_prompt',
+      ref: 'missing/prompt.txt',
+      hosted_pass_token: 'DUAL_FIX',
     },
-    stimulus: { kind: 'task_prompt', ref: 'missing/prompt.txt', hosted_pass_token: 'DUAL_FIX' },
     expect: { oracles },
-    metrics: { primary: ['a_case_pass_rate'] },
+    execution_profile: { mode: 'hosted' },
+    attribution_focus: 'MODEL_TASK',
     execution: { deadline_ms: 5_000, requires_network: true },
   };
 }
 
-const room: RoomDoc = {
+const environment: EnvironmentProfile = {
+  environment_profile_id: 'hosted-plain-test',
   name: 'hosted-plain-test',
-  kind: 'hosted',
-  model_driver: 'live',
-  network: true,
-  workspace: 'isolated',
-  host: { command: 'opencode', model: 'test/model' },
+  lifecycle: 'active',
+  recipe: {
+    kind: 'hosted',
+    host_command: 'opencode',
+    host_model: 'test/model',
+    isolation_profile: 'isolated',
+  },
 };
 
 describe('hosted_pass_token 降为辅助', () => {
@@ -99,7 +97,7 @@ describe('hosted_pass_token 降为辅助', () => {
   it('workspace 命中、无 token、空 stdout → 整题 PASS，产物/摘要 pass_token_present false', async () => {
     const projectRoot = mkdtempSync(join(tmpdir(), 'proctor-aux-proj-'));
     const artifactDir = mkdtempSync(join(tmpdir(), 'proctor-aux-art-'));
-    const item = makeItem([
+    const revision = makeRevision([
       { id: 'exit0', type: 'exit_code', equals: 0 },
       {
         id: 'readme',
@@ -109,7 +107,7 @@ describe('hosted_pass_token 降为辅助', () => {
       },
     ]);
 
-    const result = await runHostedSmokeItem({ item, room, projectRoot, artifactDir });
+    const result = await runHostedSmokeItem({ revision, environment, projectRoot, artifactDir });
     expect(result.pass).toBe(true);
     expect(result.oracle_failures).toEqual([]);
     expect(result.attribution).toBeUndefined();
@@ -139,7 +137,7 @@ describe('hosted_pass_token 降为辅助', () => {
         environment: 'hosted-plain-test',
         started_at: '2026-09-01T00:00:00.000Z',
         project_root: projectRoot,
-        items: [{ id: item.id, rev: item.rev }],
+        items: [{ id: revision.case_revision_id, rev: revision.revision_number }],
       },
       results: [result],
     });
@@ -177,7 +175,7 @@ describe('hosted_pass_token 降为辅助', () => {
   it('无 token 且 workspace 未命中 → FAIL MODEL_TASK，不是 PROTOCOL', async () => {
     const projectRoot = mkdtempSync(join(tmpdir(), 'proctor-aux-proj-'));
     const artifactDir = mkdtempSync(join(tmpdir(), 'proctor-aux-art-'));
-    const item = makeItem([
+    const revision = makeRevision([
       { id: 'exit0', type: 'exit_code', equals: 0 },
       {
         id: 'discount-round',
@@ -187,7 +185,7 @@ describe('hosted_pass_token 降为辅助', () => {
       },
     ]);
 
-    const result = await runHostedSmokeItem({ item, room, projectRoot, artifactDir });
+    const result = await runHostedSmokeItem({ revision, environment, projectRoot, artifactDir });
     expect(result.pass).toBe(false);
     expect(result.attribution).toBe('MODEL_TASK');
     expect(result.attribution).not.toBe('PROTOCOL');

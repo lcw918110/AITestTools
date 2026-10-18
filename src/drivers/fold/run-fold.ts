@@ -1,9 +1,12 @@
-import type { FreezeA } from '../../exam-engine/types.ts';
+import type { CaseRevision } from '../../domain/types.ts';
 import type { FoldEvent } from './load-events.ts';
 import { FoldResolveError, normalizeFoldResult, type ResolvedFoldEntry } from './resolve-entry.ts';
 
-function pickSessionId(freeze: FreezeA, events: FoldEvent[]): string | undefined {
-  if (freeze.session_id !== undefined) return freeze.session_id;
+function pickSessionId(
+  execution_profile: NonNullable<CaseRevision['execution_profile']>,
+  events: FoldEvent[],
+): string | undefined {
+  if (execution_profile.session_id !== undefined) return execution_profile.session_id;
   const counts = new Map<string, number>();
   for (const e of events) {
     const s = e.Session ?? e.session;
@@ -23,7 +26,7 @@ function pickSessionId(freeze: FreezeA, events: FoldEvent[]): string | undefined
 export async function runFold(opts: {
   resolved: ResolvedFoldEntry;
   events: FoldEvent[];
-  freeze: FreezeA;
+  execution_profile: NonNullable<CaseRevision['execution_profile']>;
 }): Promise<unknown> {
   let mod: Record<string, unknown>;
   try {
@@ -50,7 +53,7 @@ export async function runFold(opts: {
   let raw: unknown;
   try {
     if (opts.resolved.spec.signature === 'session_fold_v1') {
-      const sid = pickSessionId(opts.freeze, opts.events);
+      const sid = pickSessionId(opts.execution_profile, opts.events);
       if (sid === undefined) {
         throw new FoldResolveError('session_fold_v1 需要 session_id 或事件中的 Session 字段');
       }

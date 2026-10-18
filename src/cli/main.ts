@@ -10,10 +10,7 @@ import { runBaselinePin } from './commands/baseline-pin.ts';
 import { runCompare } from './commands/compare.ts';
 import { runContractVerify } from './commands/contract-verify.ts';
 import { runInit } from './commands/init.ts';
-import { runItemBumpRev } from './commands/item-bump-rev.ts';
-import { runItemMigrate } from './commands/item-migrate.ts';
 import { runItemNew } from './commands/item-new.ts';
-import { runItemRetire } from './commands/item-retire.ts';
 import { runItemValidate } from './commands/item-validate.ts';
 import { runReportShow } from './commands/report-show.ts';
 import { runReportTrend } from './commands/report-trend.ts';
@@ -29,9 +26,6 @@ const HELP = `agent-proctor — 第三方独立 Agent 监考/评测引擎
   proctor init [目录]                     生成考卷库骨架
   proctor item validate [文件...]         校验试题（cases-v1）
   proctor item new --id <case_id> --mode <fold|scripted|cassette|hosted|direct_tool>
-  proctor item bump-rev <id|文件>         试题升 rev
-  proctor item retire <id|文件>           退役（deprecated）
-  proctor item migrate <id|文件> --map Old:New
   proctor cassette record --from <trace> --id <名>
   proctor run --dataset <名> --environment <名>   cases-v1：测试集 × 运行环境组合开跑
   proctor compare --baseline <run> --candidate <run>
@@ -243,9 +237,7 @@ export async function main(argv: string[]): Promise<number> {
   if (group === 'item' || group === 'case') {
     const [sub, ...files] = rest;
     if (sub === undefined) {
-      console.error(
-        `用法错误：proctor ${group} 需要子命令（validate | new | bump-rev | retire | migrate）`,
-      );
+      console.error(`用法错误：proctor ${group} 需要子命令（validate | new）`);
       return 2;
     }
     if (sub === 'new') {
@@ -256,31 +248,6 @@ export async function main(argv: string[]): Promise<number> {
         layer: values.layer,
         title: values.title,
         dataset: values.dataset,
-        name: values.name,
-        json: values.json === true,
-      });
-    }
-    if (sub === 'bump-rev') {
-      return runItemBumpRev({
-        project: values.project,
-        idOrPath: files[0],
-        name: values.name,
-        json: values.json === true,
-      });
-    }
-    if (sub === 'retire') {
-      return runItemRetire({
-        project: values.project,
-        idOrPath: files[0],
-        name: values.name,
-        json: values.json === true,
-      });
-    }
-    if (sub === 'migrate') {
-      return runItemMigrate({
-        project: values.project,
-        idOrPath: files[0],
-        map: values.map ?? [],
         name: values.name,
         json: values.json === true,
       });

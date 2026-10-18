@@ -9,7 +9,7 @@ import type {
   RunPlanSnapshot,
 } from '../domain/types.ts';
 import { RUN_TRANSITIONS } from '../domain/types.ts';
-import type { ItemDoc, RoomDoc } from '../exam-engine/types.ts';
+import type { CaseRevision, EnvironmentProfile } from '../domain/types.ts';
 import type {
   AdapterContext,
   ExecutionAdapter,
@@ -126,12 +126,12 @@ export class RunOrchestrator {
   }
 
   /**
-   * 为单个 item 创建 CaseExecution + Attempt，执行 adapter，落终态。
-   * caseIdentity 缺省时从 item.id 反推 case_id（降级，仅当前 B 轴数据可靠）。
+   * 为单个 case-revision 创建 CaseExecution + Attempt，执行 adapter，落终态。
+   * caseIdentity 缺省时从 revision.case_id / case_revision_id 取身份。
    */
   async executeCase(
-    item: ItemDoc,
-    room: RoomDoc,
+    revision: CaseRevision,
+    environment: EnvironmentProfile,
     adapter: ExecutionAdapter,
     caseIdentity?: CaseIdentity,
   ): Promise<CaseExecution> {
@@ -140,8 +140,8 @@ export class RunOrchestrator {
     }
     const run = this.run;
 
-    const caseId = caseIdentity?.case_id ?? inferCaseId(item.id);
-    const caseRevisionId = caseIdentity?.case_revision_id ?? caseId;
+    const caseId = caseIdentity?.case_id ?? revision.case_id;
+    const caseRevisionId = caseIdentity?.case_revision_id ?? revision.case_revision_id;
     const replicateIndex = caseIdentity?.replicate_index ?? 0;
 
     const pairKey: PairKey = { case_revision_id: caseRevisionId, replicate_index: replicateIndex };
@@ -171,8 +171,8 @@ export class RunOrchestrator {
     // 注意：projectRoot / models 暂为占位空值，7 个 runner 尚未改造为 adapter，
     // 待 Phase 2 接入时由 executeCase 显式传入（见设计稿 §6 边界）。
     const ctx: AdapterContext = {
-      item,
-      room,
+      revision,
+      environment,
       projectRoot: '',
       models: [],
       run,
@@ -266,11 +266,4 @@ export class RunOrchestrator {
     };
     return manifest;
   }
-}
-
-/** 从 V1 item_id（EVAL-B-PAIRED-TASK-22-OFF）反推 case_id（降级路径）。 */
-function inferCaseId(itemId: string): string {
-  const m = /^EVAL-[A-Z]-([A-Z0-9-]+?)-(OFF|ON)$/.exec(itemId);
-  const caseId = m?.[1];
-  return caseId !== undefined ? caseId.toLowerCase() : itemId;
 }

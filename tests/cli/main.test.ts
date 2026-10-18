@@ -36,7 +36,10 @@ describe('退出码约定', () => {
 
   it('--strict 下单文件无警告则仍通过', async () => {
     const doc = fileURLToPath(
-      new URL('../fixtures/broken-project/items/net.item.json', import.meta.url),
+      new URL(
+        '../../examples/demo-project/case-revisions/demo-a-todo-fold-01.r1.case-revision.json',
+        import.meta.url,
+      ),
     );
     expect(await main(['item', 'validate', doc])).toBe(0);
     expect(await main(['item', 'validate', '--strict', doc])).toBe(0);
@@ -52,19 +55,16 @@ describe('退出码约定', () => {
   });
 });
 
-describe('试题演进命令', () => {
+describe('试题命令', () => {
   it('缺参时返回 2 并打印用法，不得静默成功', async () => {
-    expect(await main(['item', 'bump-rev'])).toBe(2);
-    expect(out.join('\n')).toContain('用法');
-    out.length = 0;
     expect(await main(['item', 'new'])).toBe(2);
     expect(out.join('\n')).toContain('用法');
     out.length = 0;
     expect(await main(['item', 'retire'])).toBe(2);
-    expect(out.join('\n')).toContain('用法');
+    expect(out.join('\n')).toContain('未知子命令');
     out.length = 0;
     expect(await main(['item', 'migrate'])).toBe(2);
-    expect(out.join('\n')).toContain('用法');
+    expect(out.join('\n')).toContain('未知子命令');
   });
 });
 
@@ -111,7 +111,7 @@ describe('L1 run', () => {
         '--project',
         demoProject,
         '--only',
-        'DEMO-A-TODO-FOLD-01',
+        'demo-a-todo-fold-01.r1',
       ]),
     ).toBe(0);
   });
@@ -202,6 +202,6 @@ describe('baseline pin + report show', () => {
 
     out = [];
     expect(await main(['report', 'show', '--run', runDir])).toBe(0);
-    expect(out.join('\n')).toContain('DEMO-A-NUDGE-TIMING-01');
+    expect(out.join('\n')).toContain('demo-a-nudge-timing-01.r2');
   });
 });

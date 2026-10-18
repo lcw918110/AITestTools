@@ -1,7 +1,0 @@
-{
-  "name": "paired-off-smoke",
-  "description": "配对 baseline 的 3 题冒烟：先验证 LIVE 链路通，再跑全量 156，避免一上来烧额度",
-  "axis": "B",
-  "room": "hosted-plain-v1",
-  "items": ["EVAL-B-PAIRED-TASK-OFF", "EVAL-B-PAIRED-TASK-02-OFF", "EVAL-B-PAIRED-TASK-03-OFF"]
-}

@@ -1,7 +1,0 @@
-{
-  "name": "hosted-smoke",
-  "description": "万象术 hosted：真 OpenCode + Plugin；归因读 EventStore（refs/wanxiang/store）。Plugin 全量 import 未绿前真跑会失败，不当门禁绿。",
-  "axis": "B",
-  "room": "hosted-wanxiangshu-v1",
-  "items": ["WX-B-HOSTED-PLUGIN-01"]
-}

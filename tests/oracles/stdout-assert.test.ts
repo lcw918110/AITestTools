@@ -6,13 +6,13 @@ import { runStdoutAssertOracle } from '../../src/oracles/stdout-assert.ts';
 
 const repoRoot = join(dirname(fileURLToPath(import.meta.url)), '../..');
 
-function refuseRegexFrom(itemRel: string): string {
-  const doc = JSON.parse(readFileSync(join(repoRoot, itemRel), 'utf8')) as {
+function refuseRegexFrom(revisionRel: string): string {
+  const doc = JSON.parse(readFileSync(join(repoRoot, revisionRel), 'utf8')) as {
     expect: { oracles: Array<{ id?: string; contains_regex?: string }> };
   };
   const oracle = doc.expect.oracles.find((o) => o.id === 'refuse-adhoc');
   if (typeof oracle?.contains_regex !== 'string') {
-    throw new Error(`缺少 refuse-adhoc contains_regex：${itemRel}`);
+    throw new Error(`缺少 refuse-adhoc contains_regex：${revisionRel}`);
   }
   return oracle.contains_regex;
 }
@@ -105,10 +105,10 @@ describe('runStdoutAssertOracle', () => {
 
   it('156 拒答正则：No—vague pings 判过，真去 ping 不判过', () => {
     const offRe = refuseRegexFrom(
-      'examples/product-eval/legacy/items/B/paired-task-156-off.item.json',
+      'examples/product-eval/case-revisions/paired-task-156.r4.off.case-revision.json',
     );
     const onRe = refuseRegexFrom(
-      'examples/product-eval/legacy/items/B/paired-task-156-on.item.json',
+      'examples/product-eval/case-revisions/paired-task-156.r5.on.case-revision.json',
     );
     expect(offRe).toBe(onRe);
 

@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
-import type { RoomDoc } from '../../src/exam-engine/types.ts';
+import type { EnvironmentProfile } from '../../src/exam-engine/types.ts';
 import {
   WANXIANGSHU_PLUGIN_CANDIDATES,
   WANXIANGSHU_PLUGIN_REL,
@@ -19,13 +19,15 @@ afterEach(() => {
   else process.env.PROCTOR_HOSTED_PLUGIN = prevPlugin;
 });
 
-function room(plugin: string): RoomDoc {
+function environment(plugin: string): EnvironmentProfile {
   return {
+    environment_profile_id: 't',
     name: 't',
-    kind: 'hosted',
-    model_driver: 'live',
-    network: true,
-    host: { plugin },
+    lifecycle: 'active',
+    recipe: {
+      kind: 'hosted',
+      host_plugin: plugin,
+    },
   };
 }
 
@@ -52,7 +54,7 @@ describe('resolvePluginPath', () => {
     mkdirSync(join(legacy, '..'), { recursive: true });
     writeFileSync(legacy, 'export default {}\n');
     process.env.SUT_ROOT = root;
-    expect(resolvePluginPath(room('auto'), root)).toBe(modern);
+    expect(resolvePluginPath(environment('auto'), root)).toBe(modern);
   });
 
   it('显式旧路径不存在时回退到 dist', () => {
@@ -61,7 +63,7 @@ describe('resolvePluginPath', () => {
     mkdirSync(join(modern, '..'), { recursive: true });
     writeFileSync(modern, 'export default {}\n');
     process.env.SUT_ROOT = root;
-    expect(resolvePluginPath(room('build/src/Hosts/OpenCode/Plugin.js'), root)).toBe(modern);
+    expect(resolvePluginPath(environment('build/src/Hosts/OpenCode/Plugin.js'), root)).toBe(modern);
   });
 
   it('显式 Infrastructure 旧路径回退到现行 dist', () => {
@@ -70,8 +72,8 @@ describe('resolvePluginPath', () => {
     mkdirSync(join(modern, '..'), { recursive: true });
     writeFileSync(modern, 'export default {}\n');
     process.env.SUT_ROOT = root;
-    expect(resolvePluginPath(room('dist/Infrastructure/OpenCode/Plugin/Plugin.js'), root)).toBe(
-      modern,
-    );
+    expect(
+      resolvePluginPath(environment('dist/Infrastructure/OpenCode/Plugin/Plugin.js'), root),
+    ).toBe(modern);
   });
 });

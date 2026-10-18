@@ -1,6 +1,6 @@
 import { pathToFileURL } from 'node:url';
 import { resolve } from 'node:path';
-import type { FoldEntrySpec, FreezeA, RoomDoc } from '../../exam-engine/types.ts';
+import type { CaseRevision, EnvironmentProfile, FoldEntrySpec } from '../../domain/types.ts';
 
 export interface ResolvedFoldEntry {
   logicalName: string;
@@ -17,22 +17,25 @@ export class FoldResolveError extends Error {
 }
 
 export function resolveFoldEntry(opts: {
-  room: RoomDoc;
-  freeze: FreezeA;
+  environment: EnvironmentProfile;
+  execution_profile: NonNullable<CaseRevision['execution_profile']>;
   projectRoot: string;
   sutRoot?: string;
 }): ResolvedFoldEntry {
-  const name = opts.freeze.fold_entry;
-  if (name === undefined) throw new FoldResolveError('freeze.fold_entry 缺失');
-  const spec = opts.room.fold_entries?.[name];
+  const name = opts.execution_profile.fold_entry;
+  if (name === undefined) throw new FoldResolveError('execution_profile.fold_entry 缺失');
+  const spec = opts.environment.recipe.fold_entries?.[name];
   if (spec === undefined) {
     throw new FoldResolveError(
-      `fold_entry "${name}" 不在考场 ${opts.room.name} 的 fold_entries 中`,
+      `fold_entry "${name}" 不在环境 ${opts.environment.environment_profile_id} 的 fold_entries 中`,
     );
   }
-  if (opts.freeze.event_schema !== undefined && opts.freeze.event_schema !== spec.event_schema) {
+  if (
+    opts.execution_profile.event_schema !== undefined &&
+    opts.execution_profile.event_schema !== spec.event_schema
+  ) {
     throw new FoldResolveError(
-      `event_schema 不一致：试题 ${opts.freeze.event_schema} vs 入口 ${spec.event_schema}`,
+      `event_schema 不一致：试题 ${opts.execution_profile.event_schema} vs 入口 ${spec.event_schema}`,
     );
   }
   const root =

@@ -1,7 +1,0 @@
-{
-  "name": "eval-agent",
-  "description": "测 Agent：demo 真宿主 smoke（无插件）；需网",
-  "axis": "B",
-  "room": "hosted-opencode-v1",
-  "items": ["DEMO-B-HOSTED-SMOKE-01"]
-}

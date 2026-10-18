@@ -1,9 +1,12 @@
 import { relative, resolve } from 'node:path';
-import { loadItemFile } from '../../exam-engine/loader.ts';
+import { loadCaseFileV2, loadCaseRevisionFileV2 } from '../../exam-engine/loader.ts';
 import { loadProject } from '../../exam-engine/project.ts';
-import { semanticDigest } from '../../exam-engine/digest.ts';
-import { validateItem, validateProject } from '../../exam-engine/validate.ts';
-import type { ItemReport, ValidationReport } from '../../exam-engine/validate.ts';
+import {
+  validateCaseRevision,
+  validateCaseV2,
+  validateProject,
+} from '../../exam-engine/validate.ts';
+import type { CaseReport, ValidationReport } from '../../exam-engine/validate.ts';
 import { formatValidationReport } from '../../report/format.ts';
 
 export interface ItemValidateOptions {
@@ -15,24 +18,31 @@ export interface ItemValidateOptions {
   verbose: boolean;
 }
 
-function validateFiles(files: string[], checkFixtures: boolean): ValidationReport {
+/** 校验指定文件（*.case.json / *.case-revision.json），按后缀分派到对应校验器。 */
+function validateFiles(files: string[]): ValidationReport {
   const cwd = process.cwd();
-  const items: ItemReport[] = [];
+  const caseReports: CaseReport[] = [];
   for (const file of files) {
     const abs = resolve(cwd, file);
-    const asset = loadItemFile(abs, cwd);
-    const issues = validateItem(asset, checkFixtures ? cwd : undefined);
-    const report: ItemReport = { file: abs, relPath: relative(cwd, abs), issues };
-    if (typeof asset.doc.id === 'string') report.id = asset.doc.id;
-    if (typeof asset.doc.rev === 'number') report.rev = asset.doc.rev;
-    if (issues.every((i) => i.level !== 'error')) report.digest = semanticDigest(asset.doc);
-    items.push(report);
+    if (abs.endsWith('.case-revision.json')) {
+      const asset = loadCaseRevisionFileV2(abs, cwd);
+      const issues = validateCaseRevision(asset);
+      const report: CaseReport = { file: abs, relPath: relative(cwd, abs), issues };
+      report.caseId = asset.doc.case_id;
+      report.rev = asset.doc.revision_number;
+      if (issues.every((i) => i.level !== 'error')) report.digest = asset.doc.content_hash;
+      caseReports.push(report);
+    } else {
+      const asset = loadCaseFileV2(abs, cwd);
+      const issues = validateCaseV2(asset);
+      const report: CaseReport = { file: abs, relPath: relative(cwd, abs), issues };
+      report.caseId = asset.doc.case_id;
+      caseReports.push(report);
+    }
   }
-  const all = items.flatMap((c) => c.issues);
+  const all = caseReports.flatMap((c) => c.issues);
   return {
-    items,
-    cases: items,
-    caseReports: [],
+    caseReports,
     projectIssues: [],
     errorCount: all.filter((i) => i.level === 'error').length,
     warningCount: all.filter((i) => i.level === 'warning').length,
@@ -42,7 +52,7 @@ function validateFiles(files: string[], checkFixtures: boolean): ValidationRepor
 export function runItemValidate(options: ItemValidateOptions): number {
   const report =
     options.files.length > 0
-      ? validateFiles(options.files, options.checkFixtures)
+      ? validateFiles(options.files)
       : validateProject(loadProject(options.project), { checkFixtures: options.checkFixtures });
 
   if (options.json) {
@@ -55,6 +65,3 @@ export function runItemValidate(options: ItemValidateOptions): number {
   if (options.strict && report.warningCount > 0) return 1;
   return 0;
 }
-
-/** @deprecated */
-export const runCaseValidate = runItemValidate;

@@ -1,0 +1,10 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "example-l1-01",
+  "title": "示例：事件折叠后状态符合预期",
+  "owner": "unassigned",
+  "tags": ["l1", "projection"],
+  "lifecycle": "draft",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "example-l1-01.r1"
+}

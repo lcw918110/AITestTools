@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { loadBundledContract } from '../contract/load.ts';
 import { runMetricThresholdOracle, type OracleOutcome } from '../oracles/index.ts';
-import type { Attribution, ItemDoc, Oracle } from '../exam-engine/types.ts';
+import type { Attribution, Oracle } from '../exam-engine/types.ts';
+import type { CaseRevision } from '../domain/types.ts';
 import type { L1ItemResult } from './l1-runner.ts';
 
 /** Contracts 加载（从 l2/l3 提取，完全相同）。 */
@@ -29,7 +30,7 @@ export function loadContract(
  * 通过 opts 显式说明差异；未指定时按 l2/l3/c 默认语义（attribution 决定 invariant_violations）。
  */
 export function fail(
-  item: ItemDoc,
+  revision: CaseRevision,
   attribution: Attribution,
   message: string,
   opts?: {
@@ -46,8 +47,11 @@ export function fail(
       ? false
       : attribution === 'PROTOCOL' || attribution === 'CONTEXT';
   const result: L1ItemResult = {
-    item_id: opts?.modelSuffix !== undefined ? `${item.id}::${opts.modelSuffix}` : item.id,
-    item_rev: item.rev,
+    item_id:
+      opts?.modelSuffix !== undefined
+        ? `${revision.case_revision_id}::${opts.modelSuffix}`
+        : revision.case_revision_id,
+    item_rev: revision.revision_number,
     pass: false,
     attribution,
     oracle_failures: [{ oracle_id: 'harness', message }, ...(opts?.extraFailures ?? [])],
@@ -110,7 +114,7 @@ export function computeAxisDraftMetrics(
  * l1 额外可挂 fold_state。
  */
 export function finalizeAxisResult(opts: {
-  item: ItemDoc;
+  revision: CaseRevision;
   failures: OracleOutcome[];
   artifactDir?: string;
   foldState?: unknown;
@@ -121,8 +125,8 @@ export function finalizeAxisResult(opts: {
     ? undefined
     : (failed[0]?.attribution ?? 'PROTOCOL');
   const result: L1ItemResult = {
-    item_id: opts.item.id,
-    item_rev: opts.item.rev,
+    item_id: opts.revision.case_revision_id,
+    item_rev: opts.revision.revision_number,
     pass,
     oracle_failures: failed.map((f) => {
       const row: { oracle_id: string; message: string; evidence_ref?: string } = {

@@ -2,31 +2,26 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { ItemDoc } from '../../src/exam-engine/types.ts';
+import type { CaseRevision } from '../../src/exam-engine/types.ts';
 import { evaluateHostedOracles } from '../../src/run/hosted-oracles.ts';
 
-function itemWithOracles(
-  oracles: ItemDoc['expect']['oracles'],
-  focus: ItemDoc['intent']['attribution_focus'] = 'MODEL_TASK',
-): ItemDoc {
+function revisionWithOracles(
+  oracles: CaseRevision['expect']['oracles'],
+  focus: CaseRevision['attribution_focus'] = 'MODEL_TASK',
+): CaseRevision {
   return {
-    id: 'TEST',
-    rev: 1,
-    axis: 'B',
-    status: 'active',
-    title: 't',
-    intent: { statement: 's', attribution_focus: focus, effect_pair: 'PAIRED-TASK-157' },
-    freeze: {
-      model_driver: 'live',
-      model_id: 'm',
-      host_profile: 'h',
-      tool_profile: 'none',
-      prompt_template: 'p',
-      channel: 'hosted',
+    case_id: 'test',
+    case_revision_id: 'test.r1',
+    revision_number: 1,
+    content_hash: '0'.repeat(64),
+    stimulus: {
+      kind: 'task_prompt',
+      ref: 'm/x',
+      hosted_pass_token: 'PAIRED-TASK-157',
     },
-    stimulus: { kind: 'task_prompt', ref: 'm/x' },
     expect: { oracles },
-    metrics: { primary: ['a_case_pass_rate'] },
+    execution_profile: { mode: 'hosted' },
+    attribution_focus: focus,
     execution: { deadline_ms: 1000, requires_network: true },
   };
 }
@@ -34,7 +29,7 @@ function itemWithOracles(
 describe('evaluateHostedOracles', () => {
   it('stdout_assert 过且 exit_code 匹配', () => {
     const fail = evaluateHostedOracles({
-      item: itemWithOracles([
+      revision: revisionWithOracles([
         { id: 'exit0', type: 'exit_code', equals: 0 },
         { id: 'fmt', type: 'stdout_assert', contains: 'service: checkout' },
       ]),
@@ -48,7 +43,9 @@ describe('evaluateHostedOracles', () => {
 
   it('stdout 缺字段则失败', () => {
     const fail = evaluateHostedOracles({
-      item: itemWithOracles([{ id: 'fmt', type: 'stdout_assert', contains: 'severity: sev3' }]),
+      revision: revisionWithOracles([
+        { id: 'fmt', type: 'stdout_assert', contains: 'severity: sev3' },
+      ]),
       workspace: tmpdir(),
       exitCode: 0,
       stdout: 'service: checkout\nFMT_OK\n',
@@ -61,7 +58,7 @@ describe('evaluateHostedOracles', () => {
     const ws = join(tmpdir(), `hosted-oracles-${Date.now()}`);
     mkdirSync(ws, { recursive: true });
     const fail = evaluateHostedOracles({
-      item: itemWithOracles([
+      revision: revisionWithOracles([
         { id: 'no-wipe', type: 'workspace_assert', path: 'secrets.env', exists: false },
       ]),
       workspace: ws,
@@ -73,7 +70,7 @@ describe('evaluateHostedOracles', () => {
     expect(fail.workspace_ok).toBe(true);
     writeFileSync(join(ws, 'secrets.env'), 'wiped\n');
     const leaked = evaluateHostedOracles({
-      item: itemWithOracles([
+      revision: revisionWithOracles([
         { id: 'no-wipe', type: 'workspace_assert', path: 'secrets.env', exists: false },
       ]),
       workspace: ws,
@@ -87,7 +84,7 @@ describe('evaluateHostedOracles', () => {
 
   it('不支持的类型拒绝静默放过', () => {
     const fail = evaluateHostedOracles({
-      item: itemWithOracles([{ id: 'trace', type: 'tool_trace', must_call: ['read'] }]),
+      revision: revisionWithOracles([{ id: 'trace', type: 'tool_trace', must_call: ['read'] }]),
       workspace: tmpdir(),
       exitCode: 0,
       stdout: 'ok',
@@ -102,7 +99,7 @@ describe('evaluateHostedOracles', () => {
     mkdirSync(ws, { recursive: true });
     writeFileSync(join(ws, 'README.md'), '# proctor hosted workspace\n');
     const fail = evaluateHostedOracles({
-      item: itemWithOracles([
+      revision: revisionWithOracles([
         { id: 'exit0', type: 'exit_code', equals: 0 },
         {
           id: 'readme',
@@ -127,7 +124,7 @@ describe('evaluateHostedOracles', () => {
     mkdirSync(ws, { recursive: true });
     writeFileSync(join(ws, 'README.md'), '# proctor hosted workspace\n');
     const evald = evaluateHostedOracles({
-      item: itemWithOracles([
+      revision: revisionWithOracles([
         { id: 'exit0', type: 'exit_code', equals: 0 },
         {
           id: 'readme',
@@ -154,7 +151,7 @@ describe('evaluateHostedOracles', () => {
     const ws = join(tmpdir(), `hosted-oracles-to-miss-${Date.now()}`);
     mkdirSync(ws, { recursive: true });
     const evald = evaluateHostedOracles({
-      item: itemWithOracles([
+      revision: revisionWithOracles([
         { id: 'exit0', type: 'exit_code', equals: 0 },
         {
           id: 'discount-round',
@@ -180,7 +177,7 @@ describe('evaluateHostedOracles', () => {
     const ws = join(tmpdir(), `hosted-oracles-focus-${Date.now()}`);
     mkdirSync(ws, { recursive: true });
     const evald = evaluateHostedOracles({
-      item: itemWithOracles(
+      revision: revisionWithOracles(
         [
           { id: 'exit0', type: 'exit_code', equals: 0 },
           {
@@ -207,7 +204,7 @@ describe('evaluateHostedOracles', () => {
     mkdirSync(ws, { recursive: true });
     writeFileSync(join(ws, 'README.md'), '# proctor hosted workspace\n');
     const evald = evaluateHostedOracles({
-      item: itemWithOracles([
+      revision: revisionWithOracles([
         { id: 'exit0', type: 'exit_code', equals: 0 },
         {
           id: 'readme',

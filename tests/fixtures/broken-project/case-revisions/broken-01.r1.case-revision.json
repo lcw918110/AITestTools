@@ -1,0 +1,14 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "broken-01",
+  "case_revision_id": "broken-01.r1",
+  "revision_number": 1,
+  "content_hash": "0000000000000000000000000000000000000000000000000000000000000000",
+  "stimulus": { "kind": "event_sequence", "ref": "materials/broken-01/stimulus.ndjson" },
+  "expect": {
+    "oracles": [{ "id": "fold", "type": "event_fold", "spec": "materials/broken-01/expected.json" }]
+  },
+  "execution_profile": { "mode": "fold", "layer": "L1", "fold_entry": "todo-projection" },
+  "attribution_focus": "PROTOCOL",
+  "execution": { "deadline_ms": 5000, "requires_network": false }
+}

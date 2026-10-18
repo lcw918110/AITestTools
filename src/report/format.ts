@@ -22,28 +22,19 @@ export function formatValidationReport(report: ValidationReport, verbose: boolea
     lines.push(dim(`考卷库：${report.projectName}`), '');
   }
 
-  const isCasesV1 = report.caseReports.length > 0;
   const list: Array<{
     relPath: string;
     digest: string | undefined;
     issues: Issue[];
     id: string | undefined;
     rev: number | undefined;
-  }> = isCasesV1
-    ? report.caseReports.map((c) => ({
-        relPath: c.relPath,
-        digest: c.digest,
-        issues: c.issues,
-        id: c.caseId,
-        rev: c.rev,
-      }))
-    : (report.items ?? report.cases).map((c) => ({
-        relPath: c.relPath,
-        digest: c.digest,
-        issues: c.issues,
-        id: c.id,
-        rev: c.rev,
-      }));
+  }> = report.caseReports.map((c) => ({
+    relPath: c.relPath,
+    digest: c.digest,
+    issues: c.issues,
+    id: c.caseId,
+    rev: c.rev,
+  }));
   for (const c of list) {
     const failed = c.issues.some((i) => i.level === 'error');
     const label = failed ? red('FAIL') : c.issues.length > 0 ? yellow('WARN') : green('PASS');
@@ -56,14 +47,7 @@ export function formatValidationReport(report: ValidationReport, verbose: boolea
   }
 
   if (report.projectIssues.length > 0) {
-    lines.push(
-      '',
-      dim(
-        isCasesV1
-          ? 'case / dataset-release / environment / candidate：'
-          : 'paperset / room / 交叉引用：',
-      ),
-    );
+    lines.push('', dim('case / dataset-release / environment / candidate：'));
     for (const issue of report.projectIssues) {
       lines.push(`      ${issue.file ?? ''}`.trimEnd());
       lines.push(formatIssue(issue));
