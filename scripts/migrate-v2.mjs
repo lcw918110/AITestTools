@@ -17,6 +17,7 @@
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, resolve } from 'node:path';
+import prettier from 'prettier';
 
 // ─────────────────────────────────────────────────────────────
 // 规范化摘要（与 src/exam-engine/digest.ts 的 canonicalize 语义一致）
@@ -56,9 +57,13 @@ function readJson(file) {
   return JSON.parse(readFileSync(file, 'utf8'));
 }
 
-function writeJson(file, data) {
+async function writeJson(file, data) {
   mkdirSync(dirname(file), { recursive: true });
-  writeFileSync(file, JSON.stringify(data, null, 2) + '\n', 'utf8');
+  const json = JSON.stringify(data, null, 2);
+  // 读取仓库 .prettierrc（printWidth=100 等），确保迁移产物与 format:check 口径一致
+  const options = await prettier.resolveConfig(file);
+  const formatted = await prettier.format(json, { ...options, parser: 'json' });
+  writeFileSync(file, formatted, 'utf8');
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -224,7 +229,7 @@ function parseArgs(argv) {
   return args;
 }
 
-function main() {
+async function main() {
   const { project, dryRun } = parseArgs(process.argv.slice(2));
   const root = resolve(project);
   // items 源路径：深迁移 6f 后 papers-v1 源资产归档到 legacy/（items/papersets/rooms）
@@ -281,11 +286,11 @@ function main() {
   const revisionsDir = join(root, 'case-revisions');
   for (const caseDoc of cases) {
     const file = join(casesDir, `${caseDoc.case_id}.case.json`);
-    if (!dryRun) writeJson(file, caseDoc);
+    if (!dryRun) await writeJson(file, caseDoc);
   }
   for (const { caseId, revDoc } of revisions) {
     const file = join(revisionsDir, `${revDoc.case_revision_id}.case-revision.json`);
-    if (!dryRun) writeJson(file, revDoc);
+    if (!dryRun) await writeJson(file, revDoc);
   }
 
   // ── paperset → dataset-release ──
@@ -314,7 +319,7 @@ function main() {
       created_at: undefined,
     };
     const file = join(datasetDir, `${ps.name.toLowerCase()}.dataset-release.json`);
-    if (!dryRun) writeJson(file, dataset);
+    if (!dryRun) await writeJson(file, dataset);
     datasetCount++;
   }
 
@@ -353,7 +358,7 @@ function main() {
       },
     };
     const file = join(envDir, `${room.name}.environment.json`);
-    if (!dryRun) writeJson(file, envProfile);
+    if (!dryRun) await writeJson(file, envProfile);
     envCount++;
 
     // candidate：从 room 的 host 提取（plugin 维度由 freeze.host_profile 决定）
@@ -371,7 +376,7 @@ function main() {
       tool_profile: 'none',
     };
     const cfile = join(candidateDir, `${candidate.candidate_id}.candidate.json`);
-    if (!dryRun) writeJson(cfile, candidate);
+    if (!dryRun) await writeJson(cfile, candidate);
     candidateCount++;
   }
 
@@ -383,4 +388,4 @@ function main() {
   );
 }
 
-main();
+await main();
