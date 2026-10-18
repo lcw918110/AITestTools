@@ -2,11 +2,19 @@
  * product-eval 题库读写（严格版 · 对齐需求 03 / 设计 09）。
  * 仅操作 bank/ + 相关 papersets。
  */
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';
 import { spawn } from 'node:child_process';
-import { getTestSet, papersetFilesForTestSet, testSetIdsForTask } from './test-sets.ts';
+import {
+  getTestSet,
+  offReleaseOf,
+  onReleaseOf,
+  releaseFilesForTestSet,
+  testSetIdsForTask,
+} from './test-sets.ts';
 import { writeJsonAtomic, writeTextAtomic } from './json-io.ts';
+import { revisionDigest } from '../../src/exam-engine/digest.ts';
+import type { CaseRevision } from '../../src/exam-engine/types.ts';
 
 /** 路径安全：已有任务（含历史特例） */
 const TASK_ID_SAFE_RE = /^[A-Z][A-Z0-9-]*$/;
@@ -132,7 +140,7 @@ type CreateSnapshot = {
   taskId: string;
   materialsDir: string;
   files: string[];
-  papersetAdds: Array<{ papersetFile: string; itemId: string }>;
+  releaseAdds: Array<{ releaseFile: string; caseRevisionId: string }>;
 };
 
 export function safeUnder(root: string, target: string): string | undefined {
@@ -277,10 +285,6 @@ export function resolvePassToken(body: {
   return (body.passToken ?? body.hosted_pass_token ?? '').trim();
 }
 
-function kebabItemFile(id: string): string {
-  return `${id.toLowerCase().replace(/_/g, '-')}.item.json`;
-}
-
 function materialsDir(project: string, taskId: string): string {
   return join(project, 'bank/materials', taskId);
 }
@@ -359,9 +363,8 @@ function sideFromRevision(
     }
   }
   const v1Id = caseIdToV1ItemId(rev.case_id, variant);
-  // file 指向 item.json 路径（写路径 updateTask/deleteTask 的操作目标），而非 case-revision 路径，
-  // 避免写路径按 ItemDoc 语义误改 case-revision.json。步骤 2 写路径切 cases-v1 后此字段语义再调整。
-  const file = join(itemsBDir(project), kebabItemFile(v1Id));
+  // file 指向 case-revision 路径（写路径 updateTask/deleteTask 的操作目标）。
+  const file = join(caseRevisionsV1Dir(project), caseRevisionFileName(rev.case_revision_id));
   return {
     id: v1Id,
     rev: Number(rev.revision_number) || 0,
@@ -583,49 +586,6 @@ function writeJson(file: string, doc: unknown): void {
   writeJsonAtomic(file, doc);
 }
 
-function updateItemStimulus(
-  file: string,
-  patch: { hosted_pass_token?: string; notes?: string },
-): ItemDoc {
-  const doc = readItem(file);
-  if (!doc) throw new Error(`缺少 item：${file}`);
-  const prev = doc.stimulus ?? {};
-  const stimulus: NonNullable<ItemDoc['stimulus']> = {
-    kind: prev.kind ?? 'task_prompt',
-  };
-  if (prev.ref !== undefined) stimulus.ref = prev.ref;
-  if (patch.hosted_pass_token !== undefined) stimulus.hosted_pass_token = patch.hosted_pass_token;
-  else if (prev.hosted_pass_token !== undefined)
-    stimulus.hosted_pass_token = prev.hosted_pass_token;
-  if (patch.notes !== undefined) stimulus.notes = patch.notes;
-  else if (prev.notes !== undefined) stimulus.notes = prev.notes;
-  doc.stimulus = stimulus;
-  writeJson(file, doc);
-  return doc;
-}
-
-function updateItemTags(file: string, tags: string[]): void {
-  const doc = readItem(file);
-  if (!doc) throw new Error(`缺少 item：${file}`);
-  if (tags.length > 0) doc.tags = tags;
-  else delete doc.tags;
-  writeJson(file, doc);
-}
-
-/** 本地升版（与 proctor item bump-rev 语义一致） */
-export function bumpItemFile(file: string, changeName: string): void {
-  const doc = readItem(file);
-  if (!doc) throw new Error(`缺少 item：${file}`);
-  const prev = Number(doc.rev);
-  if (!Number.isFinite(prev)) throw new Error(`试题缺少合法 rev：${file}`);
-  const next = prev + 1;
-  doc.rev = next;
-  const log = doc.change_log && typeof doc.change_log === 'object' ? { ...doc.change_log } : {};
-  log[`rev${next}`] = changeName;
-  doc.change_log = log;
-  writeJson(file, doc);
-}
-
 export async function updateTask(
   project: string,
   _repoRoot: string,
@@ -680,10 +640,56 @@ export async function updateTask(
   if (!safeUnder(join(project, 'bank'), mat)) return { error: '路径非法', code: 400 };
 
   const promptFile = join(mat, 'prompt.txt');
-  const offFile = existing.off?.file;
-  const onFile = existing.on?.file;
+  const caseId = caseIdOfTask(taskId);
+  const caseFile = join(casesV1Dir(project), caseFileName(caseId));
+
+  // 继承旧值，应用 patch，得到 OFF/ON 各自的新 revision 内容。
+  const offNextRev = (existing.off?.rev ?? 0) + 1;
+  const onNextRev = (existing.on?.rev ?? 0) + 1;
+  const offNextToken = tokenProvided ? nextToken : (existing.off?.passToken ?? nextToken);
+  const onNextToken = tokenProvided ? nextToken : (existing.on?.passToken ?? nextToken);
+  const offNextNotes = body.notes !== undefined ? body.notes : (existing.off?.notes ?? '');
+  const onNextNotes = body.notes !== undefined ? body.notes : (existing.on?.notes ?? '');
+  const offNextContains = containsProvided
+    ? asTrimmedList(body.contains)
+    : (existing.off?.contains ?? []);
+  const onNextContains = containsProvided
+    ? asTrimmedList(body.contains)
+    : (existing.on?.contains ?? []);
+  const offNextNotContains = notContainsProvided
+    ? asTrimmedList(body.notContains ?? body.not_contains)
+    : (existing.off?.notContains ?? []);
+  const onNextNotContains = notContainsProvided
+    ? asTrimmedList(body.notContains ?? body.not_contains)
+    : (existing.on?.notContains ?? []);
+
+  const offRevDoc = buildCaseRevisionDoc({
+    taskId,
+    side: 'off',
+    revisionNumber: offNextRev,
+    token: offNextToken,
+    notes: offNextNotes,
+    contains: offNextContains,
+    notContains: offNextNotContains,
+    changeName,
+  });
+  const onRevDoc = buildCaseRevisionDoc({
+    taskId,
+    side: 'on',
+    revisionNumber: onNextRev,
+    token: onNextToken,
+    notes: onNextNotes,
+    contains: onNextContains,
+    notContains: onNextNotContains,
+    changeName,
+  });
+  const offNextRevisionId = caseRevisionIdOf(caseId, offNextRev, 'off');
+  const onNextRevisionId = caseRevisionIdOf(caseId, onNextRev, 'on');
+  const offNextRevFile = join(caseRevisionsV1Dir(project), caseRevisionFileName(offNextRevisionId));
+  const onNextRevFile = join(caseRevisionsV1Dir(project), caseRevisionFileName(onNextRevisionId));
+
   // 快照所有可能被本次更新改写的文件，用于失败回滚。
-  const snap = snapshotFiles([promptFile, offFile, onFile]);
+  const snap = snapshotFiles([promptFile, caseFile, offNextRevFile, onNextRevFile]);
 
   try {
     if (body.prompt !== undefined) {
@@ -693,70 +699,50 @@ export async function updateTask(
       );
     }
 
-    if (changedStim) {
-      if (existing.off?.file) updateItemStimulus(existing.off.file, stimPatch);
-      if (existing.on?.file) updateItemStimulus(existing.on.file, stimPatch);
-    }
+    mkdirSync(caseRevisionsV1Dir(project), { recursive: true });
+    if (existing.off) writeJson(offNextRevFile, offRevDoc);
+    if (existing.on) writeJson(onNextRevFile, onRevDoc);
 
+    // 更新 case.json 的 head_revision_id 与 tags。
+    const caseDoc = readCaseFile(caseFile);
+    if (!caseDoc) throw new Error('缺少 case：' + caseFile);
+    caseDoc.head_revision_id = onNextRevisionId;
     if (nextTags !== undefined) {
-      if (existing.off?.file) updateItemTags(existing.off.file, nextTags);
-      if (existing.on?.file) updateItemTags(existing.on.file, nextTags);
+      if (nextTags.length > 0) caseDoc.tags = nextTags;
+      else delete caseDoc.tags;
     }
+    writeJson(caseFile, caseDoc);
 
-    if (containsProvided || notContainsProvided) {
-      const srcFile = existing.off?.file ?? existing.on?.file;
-      const contains = containsProvided
-        ? asTrimmedList(body.contains)
-        : oracleValueOf(srcFile, 'stdout-must', 'contains');
-      const notContains = notContainsProvided
-        ? asTrimmedList(body.notContains ?? body.not_contains)
-        : oracleValueOf(srcFile, 'stdout-forbid', 'not_contains');
-      const oracles = buildOracles({ token: nextToken, contains, notContains });
-      if (existing.off?.file) updateItemOracles(existing.off.file, oracles);
-      if (existing.on?.file) updateItemOracles(existing.on.file, oracles);
+    // 更新 dataset-release 的 content_hash 引用：按测试集定位 off/on release，
+    // 移除旧 revision 引用并追加新 revision 引用（off 进 off release，on 进 on release）。
+    for (const testSetId of testSetIdsForTask(project, taskId)) {
+      if (existing.off) {
+        const oldOffId = caseRevisionIdOf(caseId, existing.off.rev, 'off');
+        const offReleaseFile = `${offReleaseOf(testSetId)}.dataset-release.json`;
+        removeDatasetReleaseItem(project, offReleaseFile, oldOffId);
+        appendDatasetReleaseItem(project, offReleaseFile, {
+          case_id: caseId,
+          case_revision_id: offNextRevisionId,
+          content_hash: offRevDoc.content_hash as string,
+        });
+      }
+      if (existing.on) {
+        const oldOnId = caseRevisionIdOf(caseId, existing.on.rev, 'on');
+        const onReleaseFile = `${onReleaseOf(testSetId)}.dataset-release.json`;
+        removeDatasetReleaseItem(project, onReleaseFile, oldOnId);
+        appendDatasetReleaseItem(project, onReleaseFile, {
+          case_id: caseId,
+          case_revision_id: onNextRevisionId,
+          content_hash: onRevDoc.content_hash as string,
+        });
+      }
     }
-
-    // 强制升版本（无 bump 开关）
-    if (existing.off?.file) bumpItemFile(existing.off.file, changeName);
-    if (existing.on?.file) bumpItemFile(existing.on.file, changeName);
   } catch (e) {
     restoreFiles(snap);
     return { error: (e as Error).message, code: 500 };
   }
 
   return getTask(project, taskId);
-}
-
-function appendPapersetItem(project: string, papersetFile: string, itemId: string): boolean {
-  const path = join(project, 'papersets', papersetFile);
-  if (!existsSync(path)) return false;
-  const doc = JSON.parse(readFileSync(path, 'utf8')) as { items: string[] };
-  if (!Array.isArray(doc.items)) doc.items = [];
-  if (!doc.items.includes(itemId)) {
-    doc.items.push(itemId);
-    writeJson(path, doc);
-    return true;
-  }
-  return false;
-}
-
-function removePapersetItem(project: string, papersetFile: string, itemId: string): void {
-  const path = join(project, 'papersets', papersetFile);
-  if (!existsSync(path)) return;
-  const doc = JSON.parse(readFileSync(path, 'utf8')) as { items: string[] };
-  if (!Array.isArray(doc.items)) return;
-  const next = doc.items.filter((id) => id !== itemId);
-  if (next.length === doc.items.length) return;
-  doc.items = next;
-  writeJson(path, doc);
-}
-
-function removeItemFromAllPapersets(project: string, itemId: string): void {
-  const dir = join(project, 'papersets');
-  if (!existsSync(dir)) return;
-  for (const f of readdirSync(dir)) {
-    if (f.endsWith('.json')) removePapersetItem(project, f, itemId);
-  }
 }
 
 /** stdout 断言 oracles：与创建路径完全一致（创建与改题共用） */
@@ -786,113 +772,203 @@ function buildOracles(opts: {
   return oracles;
 }
 
-/** 读取某个 item 的 expect.oracles 中指定 id 的 contains/not_contains 值（缺省=[]） */
-function oracleValueOf(
-  file: string | undefined,
-  id: string,
-  key: 'contains' | 'not_contains',
-): string[] {
-  if (!file) return [];
-  const doc = readItem(file);
-  if (!doc) return [];
-  const expect = doc.expect;
-  if (typeof expect !== 'object' || expect === null || Array.isArray(expect)) return [];
-  const oracles = (expect as Record<string, unknown>).oracles;
-  if (!Array.isArray(oracles)) return [];
-  for (const o of oracles) {
-    if (o && typeof o === 'object' && (o as Record<string, unknown>).id === id) {
-      return asTrimmedList((o as Record<string, unknown>)[key]);
-    }
-  }
-  return [];
+// ── cases-v1 写路径（阶段 5 步骤 2 B2/B3）──
+
+/** taskId（PAIRED-TASK-99）→ case_id（paired-task-99）。 */
+function caseIdOfTask(taskId: string): string {
+  return taskId.toLowerCase();
 }
 
-/** 覆盖 item 的 expect.oracles（保留 expect 的其它字段） */
-function updateItemOracles(file: string, oracles: Record<string, unknown>[]): void {
-  const doc = readItem(file);
-  if (!doc) throw new Error(`缺少 item：${file}`);
-  const prevExpect =
-    typeof doc.expect === 'object' && doc.expect !== null && !Array.isArray(doc.expect)
-      ? (doc.expect as Record<string, unknown>)
-      : {};
-  doc.expect = { ...prevExpect, oracles };
-  writeJson(file, doc);
+/** case_id + revision_number + side → case_revision_id（paired-task-99.r1.off）。 */
+function caseRevisionIdOf(caseId: string, revisionNumber: number, side: 'off' | 'on'): string {
+  return `${caseId}.r${revisionNumber}.${side}`;
 }
 
-function buildPairedItem(opts: {
+/** case_id → case 文件名（paired-task-99.case.json）。 */
+function caseFileName(caseId: string): string {
+  return `${caseId}.case.json`;
+}
+
+/** case_revision_id → case-revision 文件名（paired-task-99.r1.off.case-revision.json）。 */
+function caseRevisionFileName(caseRevisionId: string): string {
+  return `${caseRevisionId}.case-revision.json`;
+}
+
+function datasetReleasesDir(project: string): string {
+  return join(project, 'dataset-releases');
+}
+
+/** 生成 Case 文档（不含 created_at/updated_at，与现有资产一致）。 */
+function buildCaseDoc(opts: {
   taskId: string;
-  side: 'OFF' | 'ON';
+  title: string;
+  tags: string[];
+  headRevisionId: string;
+}): Record<string, unknown> {
+  return {
+    $schema: '../../../schemas/case.schema.json',
+    case_id: caseIdOfTask(opts.taskId),
+    title: opts.title,
+    owner: 'product-eval',
+    tags: opts.tags,
+    lifecycle: 'released',
+    automation_readiness: 'design_ready',
+    head_revision_id: opts.headRevisionId,
+    pair_key: opts.taskId,
+  };
+}
+
+/** 生成 CaseRevision 文档（含 content_hash）。 */
+function buildCaseRevisionDoc(opts: {
+  taskId: string;
+  side: 'off' | 'on';
+  revisionNumber: number;
   token: string;
   notes: string;
   contains: string[];
   notContains: string[];
-  tags: string[];
-}): { id: string; doc: ItemDoc } {
-  const { taskId, side, token, notes, contains, notContains, tags } = opts;
-  const id = `EVAL-B-${taskId}-${side}`;
+  changeName: string;
+}): Record<string, unknown> {
+  const { taskId, side, revisionNumber, token, notes, contains, notContains, changeName } = opts;
+  const caseId = caseIdOfTask(taskId);
+  const caseRevisionId = caseRevisionIdOf(caseId, revisionNumber, side);
   const ref = `bank/materials/${taskId}/prompt.txt`;
-  const isOn = side === 'ON';
+  const isOn = side === 'on';
   const oracles = buildOracles({ token, contains, notContains });
-  const doc: ItemDoc = {
-    id,
-    rev: 1,
-    axis: 'B',
-    status: 'active',
-    title: isOn
-      ? `配对任务 ${taskId}（有插件）：终态须含 ${token}`
-      : `配对任务 ${taskId}（无插件）：终态须含 ${token}`,
-    owner: 'product-eval',
-    intent: {
-      statement: isOn
-        ? '与 OFF 同任务；挂万象术后应完成终态并产生 RuntimeStarted / JournalEnvelope'
-        : '固定 Agent+模型+任务；无万象术时仍应完成约定终态（对照基线）',
-      attribution_focus: isOn ? 'PROTOCOL' : 'MODEL_TASK',
-      effect_pair: taskId,
-      ...(isOn ? { protocol_probes: ['RuntimeStarted', 'JournalEnvelope'] } : {}),
-    },
-    freeze: {
-      model_driver: 'live',
-      model_id: DEFAULT_MODEL,
-      host_profile: isOn ? 'hosted-plugin-v1' : 'hosted-plain-v1',
-      tool_profile: 'none',
-      prompt_template: ref,
-      channel: 'hosted',
-    },
-    stimulus: {
-      kind: 'task_prompt',
-      ref,
-      notes: notes || `Seal with ${token}. Use the repo and tools when the task requires it.`,
-      hosted_pass_token: token,
-    },
-    expect: {
-      oracles,
-    },
-    metrics: {
-      primary: ['b_task_pass_rate', 'a_case_pass_rate'],
-      secondary: isOn ? ['a_invariant_violations'] : [],
-    },
-    execution: {
-      deadline_ms: 180000,
-      requires_network: true,
-      requires_durable_log: isOn,
-    },
-    change_log: {
-      rev1: '控制台录题',
-    },
+
+  const stimulus = {
+    kind: 'task_prompt',
+    ref,
+    notes: notes || `Seal with ${token}. Use the repo and tools when the task requires it.`,
+    hosted_pass_token: token,
   };
-  if (tags.length > 0) doc.tags = tags;
-  return { id, doc };
+  const expect = { oracles };
+  const execution = {
+    deadline_ms: 180000,
+    requires_network: true,
+    requires_durable_log: isOn,
+  };
+
+  // content_hash 只依赖 stimulus/preconditions/expect/evidence_requirements/setup_cleanup。
+  const draft = {
+    case_id: caseId,
+    case_revision_id: caseRevisionId,
+    revision_number: revisionNumber,
+    content_hash: '',
+    stimulus,
+    preconditions: [],
+    steps: [],
+    setup_cleanup: [],
+    permissions_side_effects: [],
+    expect,
+    evidence_requirements: [],
+    attribution_focus: isOn ? 'PROTOCOL' : 'MODEL_TASK',
+    ...(isOn ? { protocol_probes: ['RuntimeStarted', 'JournalEnvelope'] } : { protocol_probes: [] }),
+    model_id: DEFAULT_MODEL,
+    execution,
+    change_log: { [`rev${revisionNumber}`]: changeName },
+  } as unknown as CaseRevision;
+
+  const contentHash = revisionDigest(draft);
+
+  return {
+    $schema: '../../../schemas/case-revision.schema.json',
+    case_id: caseId,
+    case_revision_id: caseRevisionId,
+    revision_number: revisionNumber,
+    content_hash: contentHash,
+    stimulus,
+    preconditions: [],
+    steps: [],
+    setup_cleanup: [],
+    permissions_side_effects: [],
+    expect,
+    evidence_requirements: [],
+    attribution_focus: isOn ? 'PROTOCOL' : 'MODEL_TASK',
+    ...(isOn ? { protocol_probes: ['RuntimeStarted', 'JournalEnvelope'] } : { protocol_probes: [] }),
+    model_id: DEFAULT_MODEL,
+    execution,
+    change_log: { [`rev${revisionNumber}`]: changeName },
+  };
+}
+
+/** 读 dataset-release 文档（轻量）。 */
+function readDatasetRelease(project: string, fileName: string): Record<string, unknown> | undefined {
+  const path = join(datasetReleasesDir(project), fileName);
+  if (!existsSync(path)) return undefined;
+  try {
+    return JSON.parse(readFileSync(path, 'utf8')) as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
+}
+
+/** 往 dataset-release 追加 case_revision 引用（含 content_hash）。 */
+function appendDatasetReleaseItem(
+  project: string,
+  releaseFile: string,
+  ref: { case_id: string; case_revision_id: string; content_hash: string },
+): boolean {
+  const doc = readDatasetRelease(project, releaseFile);
+  if (!doc) return false;
+  const caseRevisions = Array.isArray(doc.case_revisions) ? doc.case_revisions : [];
+  const exists = caseRevisions.some(
+    (r) => r && typeof r === 'object' && (r as Record<string, unknown>).case_revision_id === ref.case_revision_id,
+  );
+  if (!exists) {
+    caseRevisions.push(ref);
+    doc.case_revisions = caseRevisions;
+    writeJson(join(datasetReleasesDir(project), releaseFile), doc);
+  }
+  return true;
+}
+
+/** 从 dataset-release 移除 case_revision 引用。 */
+function removeDatasetReleaseItem(project: string, releaseFile: string, caseRevisionId: string): void {
+  const doc = readDatasetRelease(project, releaseFile);
+  if (!doc) return;
+  const caseRevisions = Array.isArray(doc.case_revisions) ? doc.case_revisions : [];
+  const next = caseRevisions.filter(
+    (r) => !(r && typeof r === 'object' && (r as Record<string, unknown>).case_revision_id === caseRevisionId),
+  );
+  if (next.length === caseRevisions.length) return;
+  doc.case_revisions = next;
+  writeJson(join(datasetReleasesDir(project), releaseFile), doc);
+}
+
+/** 从所有 dataset-release 移除某个 case_revision 引用。 */
+function removeFromAllDatasetReleases(project: string, caseRevisionId: string): void {
+  const dir = datasetReleasesDir(project);
+  if (!existsSync(dir)) return;
+  for (const f of readdirSync(dir)) {
+    if (f.endsWith('.dataset-release.json')) removeDatasetReleaseItem(project, f, caseRevisionId);
+  }
+}
+
+/** 读 case 文档（轻量）。 */
+function readCaseFile(file: string): Record<string, unknown> | undefined {
+  if (!existsSync(file)) return undefined;
+  try {
+    return JSON.parse(readFileSync(file, 'utf8')) as Record<string, unknown>;
+  } catch {
+    return undefined;
+  }
 }
 
 /** 文件快照：记录是否存在与原文，用于多文件写入失败时回滚。 */
-type FileSnapshot = { file: string; existed: boolean; content?: string };
+type FileSnapshot = { file: string; existed: boolean; content?: string | undefined };
 
 function snapshotFiles(files: Array<string | undefined>): FileSnapshot[] {
   const out: FileSnapshot[] = [];
   for (const f of files) {
     if (!f) continue;
-    if (existsSync(f)) out.push({ file: f, existed: true, content: readFileSync(f, 'utf8') });
-    else out.push({ file: f, existed: false });
+    if (existsSync(f)) {
+      // 目录占位（非文件）跳过内容读取，回滚时按 existed 处理（restoreFiles 已容错）。
+      const isDir = statSync(f).isDirectory();
+      out.push({ file: f, existed: true, content: isDir ? undefined : readFileSync(f, 'utf8') });
+    } else {
+      out.push({ file: f, existed: false });
+    }
   }
   return out;
 }
@@ -910,8 +986,8 @@ function restoreFiles(snaps: FileSnapshot[]): void {
 }
 
 export function rollbackCreate(project: string, snap: CreateSnapshot): void {
-  for (const add of [...snap.papersetAdds].reverse()) {
-    removePapersetItem(project, add.papersetFile, add.itemId);
+  for (const add of [...snap.releaseAdds].reverse()) {
+    removeDatasetReleaseItem(project, add.releaseFile, add.caseRevisionId);
   }
   for (const file of [...snap.files].reverse()) {
     if (existsSync(file)) rmSync(file, { force: true });
@@ -967,56 +1043,86 @@ export async function createTask(
   if (!testSetId) return { error: '请选择测试集', code: 400 };
   const testSet = getTestSet(project, testSetId);
   if ('error' in testSet) return testSet;
-  const hang = papersetFilesForTestSet(testSet.id);
+  const hang = releaseFilesForTestSet(testSet.id);
 
-  const offBuilt = buildPairedItem({
+  const caseId = caseIdOfTask(taskId);
+  const offRevisionId = caseRevisionIdOf(caseId, 1, 'off');
+  const onRevisionId = caseRevisionIdOf(caseId, 1, 'on');
+  const changeName = '控制台录题';
+
+  const caseFile = join(casesV1Dir(project), caseFileName(caseId));
+  const offRevFile = join(caseRevisionsV1Dir(project), caseRevisionFileName(offRevisionId));
+  const onRevFile = join(caseRevisionsV1Dir(project), caseRevisionFileName(onRevisionId));
+  if (existsSync(caseFile) || existsSync(offRevFile) || existsSync(onRevFile)) {
+    return { error: '任务已存在', code: 409 };
+  }
+
+  const offRevDoc = buildCaseRevisionDoc({
     taskId,
-    side: 'OFF',
+    side: 'off',
+    revisionNumber: 1,
     token,
     notes,
     contains,
     notContains,
-    tags: parsedTags.tags,
+    changeName,
   });
-  const onBuilt = buildPairedItem({
+  const onRevDoc = buildCaseRevisionDoc({
     taskId,
-    side: 'ON',
+    side: 'on',
+    revisionNumber: 1,
     token,
     notes,
     contains,
     notContains,
-    tags: parsedTags.tags,
+    changeName,
   });
-  const offFile = join(itemsBDir(project), kebabItemFile(offBuilt.id));
-  const onFile = join(itemsBDir(project), kebabItemFile(onBuilt.id));
-  if (existsSync(offFile) || existsSync(onFile)) return { error: 'item 已存在', code: 409 };
+  const caseDoc = buildCaseDoc({
+    taskId,
+    title: `配对任务 ${taskId}（有插件）：终态须含 ${token}`,
+    tags: parsedTags.tags,
+    headRevisionId: onRevisionId,
+  });
 
   const snap: CreateSnapshot = {
     taskId,
     materialsDir: mat,
     files: [],
-    papersetAdds: [],
+    releaseAdds: [],
   };
 
   try {
     mkdirSync(mat, { recursive: true });
-    mkdirSync(itemsBDir(project), { recursive: true });
+    mkdirSync(casesV1Dir(project), { recursive: true });
+    mkdirSync(caseRevisionsV1Dir(project), { recursive: true });
     const promptFile = join(mat, 'prompt.txt');
     writeFileSync(promptFile, prompt.endsWith('\n') ? prompt : `${prompt}\n`);
     snap.files.push(promptFile);
-    writeJson(offFile, offBuilt.doc);
-    snap.files.push(offFile);
-    writeJson(onFile, onBuilt.doc);
-    snap.files.push(onFile);
+    writeJson(caseFile, caseDoc);
+    snap.files.push(caseFile);
+    writeJson(offRevFile, offRevDoc);
+    snap.files.push(offRevFile);
+    writeJson(onRevFile, onRevDoc);
+    snap.files.push(onRevFile);
 
-    if (!appendPapersetItem(project, hang.offFile, offBuilt.id)) {
+    const offRef = {
+      case_id: caseId,
+      case_revision_id: offRevisionId,
+      content_hash: offRevDoc.content_hash as string,
+    };
+    const onRef = {
+      case_id: caseId,
+      case_revision_id: onRevisionId,
+      content_hash: onRevDoc.content_hash as string,
+    };
+    if (!appendDatasetReleaseItem(project, hang.offFile, offRef)) {
       throw new Error('测试集无插件名单不存在');
     }
-    snap.papersetAdds.push({ papersetFile: hang.offFile, itemId: offBuilt.id });
-    if (!appendPapersetItem(project, hang.onFile, onBuilt.id)) {
+    snap.releaseAdds.push({ releaseFile: hang.offFile, caseRevisionId: offRevisionId });
+    if (!appendDatasetReleaseItem(project, hang.onFile, onRef)) {
       throw new Error('测试集有插件名单不存在');
     }
-    snap.papersetAdds.push({ papersetFile: hang.onFile, itemId: onBuilt.id });
+    snap.releaseAdds.push({ releaseFile: hang.onFile, caseRevisionId: onRevisionId });
 
     if (options?.validate) {
       const v = await options.validate();
@@ -1056,13 +1162,27 @@ export function deleteTask(
   const mat = materialsDir(project, taskId);
   if (!safeUnder(join(project, 'bank/materials'), mat)) return { error: '路径非法', code: 400 };
 
-  if (existing.off?.file && safeUnder(join(project, 'bank/items'), existing.off.file)) {
-    removeItemFromAllPapersets(project, existing.off.id);
-    rmSync(existing.off.file, { force: true });
+  const caseId = caseIdOfTask(taskId);
+  const caseFile = join(casesV1Dir(project), caseFileName(caseId));
+  const revisionsDir = caseRevisionsV1Dir(project);
+
+  // 删除该 case 的所有 case-revision 文件（r1..rN × off/on）。
+  if (existsSync(revisionsDir)) {
+    const prefix = `${caseId}.r`;
+    for (const f of readdirSync(revisionsDir)) {
+      if (f.startsWith(prefix) && f.endsWith('.case-revision.json')) {
+        const revFile = join(revisionsDir, f);
+        if (safeUnder(join(project, 'case-revisions'), revFile)) {
+          const caseRevisionId = f.slice(0, -'.case-revision.json'.length);
+          removeFromAllDatasetReleases(project, caseRevisionId);
+          rmSync(revFile, { force: true });
+        }
+      }
+    }
   }
-  if (existing.on?.file && safeUnder(join(project, 'bank/items'), existing.on.file)) {
-    removeItemFromAllPapersets(project, existing.on.id);
-    rmSync(existing.on.file, { force: true });
+  // 删除 case.json。
+  if (existsSync(caseFile) && safeUnder(join(project, 'cases'), caseFile)) {
+    rmSync(caseFile, { force: true });
   }
   if (existsSync(mat)) {
     rmSync(mat, { recursive: true, force: true });

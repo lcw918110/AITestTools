@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
@@ -64,7 +64,7 @@ describe('updateTask 回滚', () => {
     expect(readFileSync(promptFile, 'utf8')).toBe(before);
   });
 
-  it('落盘中途失败（bump 遇非法 rev）回滚 prompt 与 OFF item', async () => {
+  it('落盘中途失败（r2 文件被目录占位）回滚 prompt 与 OFF revision', async () => {
     root = seedProject();
     await createTask(
       root,
@@ -77,15 +77,12 @@ describe('updateTask 回滚', () => {
       { validate: okValidate },
     );
     const promptFile = join(root, 'bank/materials/PAIRED-TASK-51/prompt.txt');
-    const offFile = join(root, 'bank/items/B/eval-b-paired-task-51-off.item.json');
-    const onFile = join(root, 'bank/items/B/eval-b-paired-task-51-on.item.json');
+    const offFile = join(root, 'case-revisions/paired-task-51.r2.off.case-revision.json');
+    const onFile = join(root, 'case-revisions/paired-task-51.r2.on.case-revision.json');
     const promptBefore = readFileSync(promptFile, 'utf8');
-    const offBefore = readFileSync(offFile, 'utf8');
 
-    // 把 ON item 的 rev 改成非法值，使 bump 阶段抛错（OFF 已先被写，须整体回滚）
-    const onDoc = JSON.parse(readFileSync(onFile, 'utf8')) as { rev: unknown };
-    onDoc.rev = 'not-a-number';
-    writeFileSync(onFile, `${JSON.stringify(onDoc, null, 2)}\n`);
+    // 用目录占位 ON 的 r2 case-revision 文件，使写盘阶段抛错（OFF r2 已先被写，须整体回滚）
+    mkdirSync(onFile, { recursive: true });
 
     const r = await updateTask(root, root, 'PAIRED-TASK-51', {
       prompt: 'Reply with exactly B.',
@@ -94,9 +91,9 @@ describe('updateTask 回滚', () => {
     });
     expect(r).toMatchObject({ code: 500 });
 
-    // prompt.txt 与 OFF item 应回滚到改前内容
+    // prompt.txt 应回滚到改前内容；OFF r2 revision 文件应被回滚删除（未残留）
     expect(readFileSync(promptFile, 'utf8')).toBe(promptBefore);
-    expect(readFileSync(offFile, 'utf8')).toBe(offBefore);
+    expect(existsSync(offFile)).toBe(false);
     // 任务仍可读且 OFF rev 仍为 1
     const detail = getTask(root, 'PAIRED-TASK-51');
     expect('error' in detail).toBe(false);

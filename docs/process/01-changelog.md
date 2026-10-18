@@ -472,3 +472,20 @@
 - `pair_key` 关联 OFF/ON（`case.pair_key ?? case_id.toUpperCase()`）
 - `loadPairedItems` 绞杀者兼容：优先读 cases-v1，回退读 item.json（写路径迁移前，新录题仍写 item.json）
 - 测试：新增 `bank-cases-v1.test.ts`（3 用例：listTasks/getTask 读回显 + item.json 回退），80 个 console 测试全绿，typecheck/prettier 通过
+
+**阶段 5 步骤 2 切片 B2/B3（bank 写路径切 cases-v1，2026-10-18，已提交）：**
+
+- `bank.ts` 写路径整体切换（createTask/updateTask/deleteTask 一起切，因 `ItemSide.file` 语义必须统一）：
+  - 新增 cases-v1 写路径辅助：`caseIdOfTask`（`PAIRED-TASK-99`→`paired-task-99`）、`caseRevisionIdOf`（`paired-task-99.r1.off`）、`buildCaseDoc`（case.json：`lifecycle: released`/`automation_readiness: design_ready`/`head_revision_id`/`pair_key`）、`buildCaseRevisionDoc`（case-revision.json：`content_hash` 用 `revisionDigest` 计算、`attribution_focus` OFF=MODEL_TASK/ON=PROTOCOL、`protocol_probes` ON=RuntimeStarted+JournalEnvelope）
+  - `createTask`：写 `cases/*.case.json` + `case-revisions/*.r1.off|on.case-revision.json` + 追加 `dataset-releases/*.dataset-release.json` 的 `case_revisions` 引用（含 `content_hash`）
+  - `updateTask`：升版语义——继承旧值 + patch，写新 `r{n+1}` case-revision（旧 revision 保留不可变）、更新 case.json `head_revision_id`/`tags`、按测试集定位 off/on release 精确替换引用（移除旧 revision + 追加新 revision）
+  - `deleteTask`：删 case.json + 全部 case-revision + 移除 dataset-release 引用
+  - `ItemSide.file` 语义改为 case-revision 路径；`CreateSnapshot.papersetAdds`→`releaseAdds`（回滚用 case_revision_id）
+  - 删除死代码：`buildPairedItem`/`updateItemStimulus`/`updateItemTags`/`updateItemOracles`/`oracleValueOf`/`bumpItemFile`/`appendPapersetItem`/`removeItemFromAllPapersets`/`kebabItemFile`/`readCaseRevisionFile`
+- **关键决策（明日复核）**：
+  1. `head_revision_id` 指向最新 revision（revision_number 最大），录题 OFF r1 + ON r1 时 head 指向 ON r1
+  2. `content_hash` 只依赖 `stimulus`/`preconditions`/`expect`/`evidence_requirements`/`setup_cleanup`（`revisionDigest` 语义），改题只改题干/判定器时 hash 变
+  3. `updateTask` 升版 = 写新 case-revision 文件（不可变），不原地改；旧 revision 保留
+  4. case.json 不加 `created_at`/`updated_at`（与现有资产一致）
+- 测试：新增 `bank-write-cases-v1.test.ts`（3 用例：create 写 case+revision+release / update 升 revision+head+release 闭包 / delete 删资产）；`bank.test.ts`/`update-task-rollback.test.ts` 断言从 item.json/papersets 改为 case-revision/dataset-release；83 个 console 测试全绿，typecheck 通过
+- Bugbot 1 finding（high）：`updateTask` 的 dataset-release 引用更新用「release 是否含该 case_id」判断，移除旧 revision 后判断失效导致 off release 被清空、on release 混入 off+on 两条——已修复为按测试集定位 off/on release 精确替换，并补回归断言

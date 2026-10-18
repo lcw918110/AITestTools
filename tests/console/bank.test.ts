@@ -39,6 +39,9 @@ function seedProject(): string {
   for (const name of [
     'paired-off',
     'paired-on',
+    'eval-model',
+    'eval-agent',
+    'eval-model-alt',
     'paired-off-calibrate',
     'paired-on-calibrate',
     'paired-off-alt-calibrate',
@@ -116,51 +119,59 @@ describe('console bank', () => {
     expect(nextCreateTaskId(root)).toBe('PAIRED-TASK-100');
 
     const offDoc = JSON.parse(
-      readFileSync(join(root, 'bank/items/B/eval-b-paired-task-99-off.item.json'), 'utf8'),
+      readFileSync(join(root, 'case-revisions/paired-task-99.r1.off.case-revision.json'), 'utf8'),
     ) as {
-      tags?: string[];
       stimulus: { notes: string };
       expect: { oracles: Array<{ type: string; contains?: string }> };
     };
     const onDoc = JSON.parse(
-      readFileSync(join(root, 'bank/items/B/eval-b-paired-task-99-on.item.json'), 'utf8'),
+      readFileSync(join(root, 'case-revisions/paired-task-99.r1.on.case-revision.json'), 'utf8'),
     ) as {
-      intent: { protocol_probes?: string[] };
+      protocol_probes?: string[];
       expect: { oracles: unknown[] };
     };
-    expect(offDoc.tags ?? []).toEqual([]);
+    const caseDoc = JSON.parse(
+      readFileSync(join(root, 'cases/paired-task-99.case.json'), 'utf8'),
+    ) as { tags?: string[] };
+    expect(caseDoc.tags ?? []).toEqual([]);
     expect(offDoc.stimulus.notes).not.toMatch(/Do not use tools/i);
     expect(offDoc.expect.oracles.some((o) => o.type === 'exit_code')).toBe(true);
     expect(
       offDoc.expect.oracles.some((o) => o.type === 'stdout_assert' && o.contains === 'Z'),
     ).toBe(true);
-    expect(onDoc.intent.protocol_probes).toEqual(['RuntimeStarted', 'JournalEnvelope']);
+    expect(onDoc.protocol_probes).toEqual(['RuntimeStarted', 'JournalEnvelope']);
     expect(JSON.stringify(onDoc.expect.oracles)).toBe(JSON.stringify(offDoc.expect.oracles));
 
     const calOff = JSON.parse(
-      readFileSync(join(root, 'papersets/paired-off-calibrate.json'), 'utf8'),
-    ) as { items: string[] };
-    const fullOff = JSON.parse(readFileSync(join(root, 'papersets/paired-off.json'), 'utf8')) as {
-      items: string[];
-    };
-    const evalModel = JSON.parse(readFileSync(join(root, 'papersets/eval-model.json'), 'utf8')) as {
-      items: string[];
-    };
+      readFileSync(join(root, 'dataset-releases/paired-off-calibrate.dataset-release.json'), 'utf8'),
+    ) as { case_revisions: Array<{ case_revision_id: string }> };
+    const fullOff = JSON.parse(
+      readFileSync(join(root, 'dataset-releases/paired-off.dataset-release.json'), 'utf8'),
+    ) as { case_revisions: Array<{ case_revision_id: string }> };
+    const evalModel = JSON.parse(
+      readFileSync(join(root, 'dataset-releases/eval-model.dataset-release.json'), 'utf8'),
+    ) as { case_revisions: Array<{ case_revision_id: string }> };
     const calOn = JSON.parse(
-      readFileSync(join(root, 'papersets/paired-on-calibrate.json'), 'utf8'),
-    ) as { items: string[] };
+      readFileSync(join(root, 'dataset-releases/paired-on-calibrate.dataset-release.json'), 'utf8'),
+    ) as { case_revisions: Array<{ case_revision_id: string }> };
     const altOff = JSON.parse(
-      readFileSync(join(root, 'papersets/paired-off-alt-calibrate.json'), 'utf8'),
-    ) as { items: string[] };
+      readFileSync(join(root, 'dataset-releases/paired-off-alt-calibrate.dataset-release.json'), 'utf8'),
+    ) as { case_revisions: Array<{ case_revision_id: string }> };
     const altOn = JSON.parse(
-      readFileSync(join(root, 'papersets/paired-on-alt-calibrate.json'), 'utf8'),
-    ) as { items: string[] };
-    expect(calOff.items).toContain('EVAL-B-PAIRED-TASK-99-OFF');
-    expect(calOn.items).toContain('EVAL-B-PAIRED-TASK-99-ON');
-    expect(altOff.items).not.toContain('EVAL-B-PAIRED-TASK-99-OFF');
-    expect(altOn.items).not.toContain('EVAL-B-PAIRED-TASK-99-ON');
-    expect(fullOff.items).not.toContain('EVAL-B-PAIRED-TASK-99-OFF');
-    expect(evalModel.items).not.toContain('EVAL-B-PAIRED-TASK-99-OFF');
+      readFileSync(join(root, 'dataset-releases/paired-on-alt-calibrate.dataset-release.json'), 'utf8'),
+    ) as { case_revisions: Array<{ case_revision_id: string }> };
+    expect(calOff.case_revisions.map((r) => r.case_revision_id)).toContain('paired-task-99.r1.off');
+    expect(calOn.case_revisions.map((r) => r.case_revision_id)).toContain('paired-task-99.r1.on');
+    expect(altOff.case_revisions.map((r) => r.case_revision_id)).not.toContain(
+      'paired-task-99.r1.off',
+    );
+    expect(altOn.case_revisions.map((r) => r.case_revision_id)).not.toContain('paired-task-99.r1.on');
+    expect(fullOff.case_revisions.map((r) => r.case_revision_id)).not.toContain(
+      'paired-task-99.r1.off',
+    );
+    expect(evalModel.case_revisions.map((r) => r.case_revision_id)).not.toContain(
+      'paired-task-99.r1.off',
+    );
 
     const noChange = await updateTask(root, root, 'PAIRED-TASK-99', {
       prompt: 'Reply with exactly ZZ.',
@@ -216,10 +227,10 @@ describe('console bank', () => {
     expect('error' in created).toBe(false);
     if ('error' in created) return;
     expect(created.tags).toEqual(['coding']);
-    const offDoc = JSON.parse(
-      readFileSync(join(root, 'bank/items/B/eval-b-paired-task-88-off.item.json'), 'utf8'),
+    const caseDoc = JSON.parse(
+      readFileSync(join(root, 'cases/paired-task-88.case.json'), 'utf8'),
     ) as { tags?: string[] };
-    expect(offDoc.tags).toEqual(['coding']);
+    expect(caseDoc.tags).toEqual(['coding']);
     const banned = await makeTask(root, {
       taskId: 'PAIRED-TASK-89',
       prompt: 'Reply with exactly NOPE.',
@@ -479,7 +490,7 @@ describe('console bank', () => {
     );
     expect('error' in created).toBe(false);
     const offDoc = JSON.parse(
-      readFileSync(join(root, 'bank/items/B/eval-b-paired-task-83-off.item.json'), 'utf8'),
+      readFileSync(join(root, 'case-revisions/paired-task-83.r1.off.case-revision.json'), 'utf8'),
     ) as {
       expect: { oracles: Array<{ id?: string; contains?: string; not_contains?: string }> };
     };
@@ -506,8 +517,8 @@ describe('console bank', () => {
     );
     expect('error' in created).toBe(false);
 
-    const offFile = join(root, 'bank/items/B/eval-b-paired-task-84-off.item.json');
-    const onFile = join(root, 'bank/items/B/eval-b-paired-task-84-on.item.json');
+    const offFile = join(root, 'case-revisions/paired-task-84.r2.off.case-revision.json');
+    const onFile = join(root, 'case-revisions/paired-task-84.r2.on.case-revision.json');
 
     const updated = await updateTask(root, root, 'PAIRED-TASK-84', {
       changeName: '修改断言',
@@ -552,7 +563,9 @@ describe('console bank', () => {
     });
     expect('error' in preserved).toBe(false);
     if ('error' in preserved) return;
-    const offAfter = JSON.parse(readFileSync(offFile, 'utf8')) as {
+    const offAfter = JSON.parse(
+      readFileSync(join(root, 'case-revisions/paired-task-84.r3.off.case-revision.json'), 'utf8'),
+    ) as {
       expect: {
         oracles: Array<{ id?: string; contains?: unknown; not_contains?: unknown }>;
       };
