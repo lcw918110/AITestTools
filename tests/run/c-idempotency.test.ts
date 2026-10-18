@@ -1,9 +1,8 @@
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { loadProject } from '../../src/exam-engine/project.ts';
-import { loadItems, loadRooms } from '../../src/exam-engine/loader.ts';
 import { runCItem } from '../../src/run/c-runner.ts';
-import type { RoomDoc } from '../../src/exam-engine/types.ts';
+import { resolveDatasetItems } from '../../src/cli/commands/run.ts';
 
 const demo = fileURLToPath(new URL('../../examples/demo-project', import.meta.url));
 
@@ -20,12 +19,8 @@ const demo = fileURLToPath(new URL('../../examples/demo-project', import.meta.ur
 describe('C axis idempotency (c_idempotent_pass_rate)', () => {
   it('同 write 契约跑两次产生相同的 oracle outcome', async () => {
     const project = loadProject(demo);
-    const item = loadItems(project.dirs.items, project.root).find(
-      (i) => i.doc.id === 'DEMO-C-WRITE-01',
-    )!.doc;
-    const room = loadRooms(project.dirs.rooms, project.root).find(
-      (r) => r.doc.name === 'shell-echo-v1',
-    )!.doc as RoomDoc;
+    const { items, room } = resolveDatasetItems(project, 'smoke-c-write', 'shell-echo-v1');
+    const item = items.find((i) => i.id === 'DEMO-C-WRITE-01')!;
 
     const run1 = await runCItem({ item, room, projectRoot: project.root });
     const run2 = await runCItem({ item, room, projectRoot: project.root });

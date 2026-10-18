@@ -52,7 +52,15 @@ describe('run --concurrency (a_concurrency_pass_rate)', () => {
 
     // 串行（默认并发 1）
     expect(
-      await main(['run', '--axis', 'A', '--paperset', 'smoke-A-L1', '--project', demoProject]),
+      await main([
+        'run',
+        '--dataset',
+        'smoke-a-l1',
+        '--environment',
+        'fold-v1',
+        '--project',
+        demoProject,
+      ]),
     ).toBe(0);
     const serialDir = out
       .find((l) => l.startsWith('run 完成：'))
@@ -66,10 +74,10 @@ describe('run --concurrency (a_concurrency_pass_rate)', () => {
     expect(
       await main([
         'run',
-        '--axis',
-        'A',
-        '--paperset',
-        'smoke-A-L1',
+        '--dataset',
+        'smoke-a-l1',
+        '--environment',
+        'fold-v1',
         '--concurrency',
         '2',
         '--project',

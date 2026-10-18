@@ -105,9 +105,11 @@ describe('runStdoutAssertOracle', () => {
 
   it('156 拒答正则：No—vague pings 判过，真去 ping 不判过', () => {
     const offRe = refuseRegexFrom(
-      'examples/product-eval/bank/items/B/paired-task-156-off.item.json',
+      'examples/product-eval/legacy/items/B/paired-task-156-off.item.json',
     );
-    const onRe = refuseRegexFrom('examples/product-eval/bank/items/B/paired-task-156-on.item.json');
+    const onRe = refuseRegexFrom(
+      'examples/product-eval/legacy/items/B/paired-task-156-on.item.json',
+    );
     expect(offRe).toBe(onRe);
 
     const refuse = (stdout: string) =>

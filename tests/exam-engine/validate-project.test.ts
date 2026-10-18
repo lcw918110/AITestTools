@@ -11,12 +11,12 @@ describe('示例考卷库', () => {
     const report = validateProject(loadProject(demoProject), { checkFixtures: true });
     expect(report.errorCount).toBe(0);
     expect(report.warningCount).toBe(0);
-    expect(report.items.length).toBeGreaterThanOrEqual(3);
+    expect(report.caseReports.length).toBeGreaterThanOrEqual(3);
   });
 
   it('每条通过的试题都产出语义 digest', () => {
     const report = validateProject(loadProject(demoProject));
-    expect(report.items.every((c) => typeof c.digest === 'string')).toBe(true);
+    expect(report.caseReports.every((c) => typeof c.digest === 'string')).toBe(true);
   });
 });
 

@@ -44,9 +44,17 @@ function normalizeNdjson(runDir: string): string {
 }
 
 describe('切片 7：重跑一致性 + compare CLI', () => {
-  it('smoke-A 连续两次归一化 results 一致，且 compare 全 unchanged', async () => {
+  it('smoke-a 连续两次归一化 results 一致，且 compare 全 unchanged', async () => {
     expect(
-      await main(['run', '--axis', 'A', '--paperset', 'smoke-A', '--project', demoProject]),
+      await main([
+        'run',
+        '--dataset',
+        'smoke-a',
+        '--environment',
+        'fake-host-v1',
+        '--project',
+        demoProject,
+      ]),
     ).toBe(0);
     const run1 = out
       .find((l) => l.startsWith('run 完成：'))
@@ -56,7 +64,15 @@ describe('切片 7：重跑一致性 + compare CLI', () => {
 
     out = [];
     expect(
-      await main(['run', '--axis', 'A', '--paperset', 'smoke-A', '--project', demoProject]),
+      await main([
+        'run',
+        '--dataset',
+        'smoke-a',
+        '--environment',
+        'fake-host-v1',
+        '--project',
+        demoProject,
+      ]),
     ).toBe(0);
     const run2 = out
       .find((l) => l.startsWith('run 完成：'))

@@ -71,9 +71,12 @@ describe('试题演进命令', () => {
 describe('输出形态', () => {
   it('--json 输出可被解析且含错误计数', async () => {
     await main(['item', 'validate', '--project', demoProject, '--json']);
-    const parsed = JSON.parse(out.join('\n')) as { errorCount: number; items: unknown[] };
+    const parsed = JSON.parse(out.join('\n')) as {
+      errorCount: number;
+      caseReports: unknown[];
+    };
     expect(parsed.errorCount).toBe(0);
-    expect(parsed.items.length).toBeGreaterThanOrEqual(3);
+    expect(parsed.caseReports.length).toBeGreaterThanOrEqual(3);
   });
 
   it('--version 输出版本号', async () => {
@@ -83,20 +86,28 @@ describe('输出形态', () => {
 });
 
 describe('L1 run', () => {
-  it('smoke-A-L1 全绿', async () => {
-    expect(
-      await main(['run', '--axis', 'A', '--paperset', 'smoke-A-L1', '--project', demoProject]),
-    ).toBe(0);
-  });
-
-  it('smoke-A-L1 --only 一题全绿', async () => {
+  it('smoke-a-l1 全绿', async () => {
     expect(
       await main([
         'run',
-        '--axis',
-        'A',
-        '--paperset',
-        'smoke-A-L1',
+        '--dataset',
+        'smoke-a-l1',
+        '--environment',
+        'fold-v1',
+        '--project',
+        demoProject,
+      ]),
+    ).toBe(0);
+  });
+
+  it('smoke-a-l1 --only 一题全绿', async () => {
+    expect(
+      await main([
+        'run',
+        '--dataset',
+        'smoke-a-l1',
+        '--environment',
+        'fold-v1',
         '--project',
         demoProject,
         '--only',
@@ -105,14 +116,14 @@ describe('L1 run', () => {
     ).toBe(0);
   });
 
-  it('smoke-A-L1 --only 不在试卷中则失败', async () => {
+  it('smoke-a-l1 --only 不在测试集中则失败', async () => {
     expect(
       await main([
         'run',
-        '--axis',
-        'A',
-        '--paperset',
-        'smoke-A-L1',
+        '--dataset',
+        'smoke-a-l1',
+        '--environment',
+        'fold-v1',
         '--project',
         demoProject,
         '--only',
@@ -124,9 +135,17 @@ describe('L1 run', () => {
 });
 
 describe('L2 run', () => {
-  it('smoke-A（nudge+review）全绿', async () => {
+  it('smoke-a（nudge+review）全绿', async () => {
     expect(
-      await main(['run', '--axis', 'A', '--paperset', 'smoke-A', '--project', demoProject]),
+      await main([
+        'run',
+        '--dataset',
+        'smoke-a',
+        '--environment',
+        'fake-host-v1',
+        '--project',
+        demoProject,
+      ]),
     ).toBe(0);
   });
 });
@@ -136,7 +155,15 @@ describe('B fixture matrix', () => {
     process.env.PROCTOR_PROMPTFOO_LIVE = '0';
     process.env.MATRIX_SUBJECTS = 'fixture-a,fixture-b';
     expect(
-      await main(['run', '--axis', 'B', '--paperset', 'model-core', '--project', demoProject]),
+      await main([
+        'run',
+        '--dataset',
+        'model-core',
+        '--environment',
+        'model-direct-v1',
+        '--project',
+        demoProject,
+      ]),
     ).toBe(0);
   });
 });
@@ -144,7 +171,15 @@ describe('B fixture matrix', () => {
 describe('baseline pin + report show', () => {
   it('钉选后可 show report', async () => {
     expect(
-      await main(['run', '--axis', 'A', '--paperset', 'smoke-A', '--project', demoProject]),
+      await main([
+        'run',
+        '--dataset',
+        'smoke-a',
+        '--environment',
+        'fake-host-v1',
+        '--project',
+        demoProject,
+      ]),
     ).toBe(0);
     const runLine = out.find((l) => l.startsWith('run 完成：'));
     expect(runLine).toBeDefined();

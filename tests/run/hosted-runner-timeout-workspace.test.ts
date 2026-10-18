@@ -65,7 +65,7 @@ const { runHostedSmokeItem } = await import('../../src/run/hosted-runner.ts');
 const projectRoot = resolve('examples/product-eval');
 
 function loadItem(name: string): ItemDoc {
-  return JSON.parse(readFileSync(join(projectRoot, 'bank/items/B', name), 'utf8')) as ItemDoc;
+  return JSON.parse(readFileSync(join(projectRoot, 'legacy/items/B', name), 'utf8')) as ItemDoc;
 }
 
 function timeoutError(): Error & { code: string } {

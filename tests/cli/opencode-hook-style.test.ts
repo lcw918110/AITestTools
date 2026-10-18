@@ -27,9 +27,10 @@ afterEach(() => {
 
 function writeMiniProject(): string {
   const root = mkdtempSync(join(tmpdir(), 'proctor-oc-'));
-  mkdirSync(join(root, 'items/A'), { recursive: true });
-  mkdirSync(join(root, 'rooms'), { recursive: true });
-  mkdirSync(join(root, 'papersets'), { recursive: true });
+  mkdirSync(join(root, 'cases'), { recursive: true });
+  mkdirSync(join(root, 'case-revisions'), { recursive: true });
+  mkdirSync(join(root, 'dataset-releases'), { recursive: true });
+  mkdirSync(join(root, 'environments'), { recursive: true });
   mkdirSync(join(root, 'materials/T1'), { recursive: true });
   mkdirSync(join(root, 'scripts'), { recursive: true });
   mkdirSync(join(root, 'contracts'), { recursive: true });
@@ -41,13 +42,11 @@ function writeMiniProject(): string {
     join(root, 'exam.json'),
     `${JSON.stringify({
       name: 'oc-mini',
-      asset_protocol: 'papers-v1',
+      asset_protocol: 'cases-v1',
       paths: {
-        items: 'items',
-        papersets: 'papersets',
-        rooms: 'rooms',
         materials: 'materials',
         scripts: 'scripts',
+        contracts: 'contracts',
       },
     })}\n`,
   );
@@ -64,17 +63,21 @@ function writeMiniProject(): string {
     })}\n`,
   );
   writeFileSync(
-    join(root, 'rooms/fh.json'),
+    join(root, 'environments/fh.environment.json'),
     `${JSON.stringify({
+      environment_profile_id: 'fh',
       name: 'fh',
-      kind: 'fake-host',
-      model_driver: 'scripted',
-      network: false,
-      contract: 'opencode-hooks-v1',
-      adapter: {
-        framework: 'test',
-        config: 'sut/plugin.mjs',
-        hook_style: 'opencode-v1',
+      lifecycle: 'active',
+      recipe: {
+        network_policy: 'deny',
+        kind: 'fake-host',
+        model_driver: 'scripted',
+        contract: 'opencode-hooks-v1',
+        adapter: {
+          framework: 'test',
+          config: 'sut/plugin.mjs',
+          hook_style: 'opencode-v1',
+        },
       },
     })}\n`,
   );
@@ -94,20 +97,22 @@ function writeMiniProject(): string {
     `${JSON.stringify({ session: { id: 's', nudge_count: 0 } })}\n`,
   );
   writeFileSync(
-    join(root, 'items/A/t1.item.json'),
+    join(root, 'cases/t1.case.json'),
     `${JSON.stringify({
-      id: 'T1',
-      rev: 1,
-      axis: 'A',
-      status: 'active',
+      case_id: 't1',
       title: 'oc nudge',
-      intent: { statement: 'x', attribution_focus: 'PROTOCOL' },
-      freeze: {
-        layer: 'L2',
-        model_driver: 'scripted',
-        contract: 'opencode-hooks-v1',
-        script: 'scripts/np.json',
-      },
+      lifecycle: 'released',
+      automation_readiness: 'design_ready',
+      head_revision_id: 't1.r1',
+    })}\n`,
+  );
+  writeFileSync(
+    join(root, 'case-revisions/t1.r1.case-revision.json'),
+    `${JSON.stringify({
+      case_id: 't1',
+      case_revision_id: 't1.r1',
+      revision_number: 1,
+      content_hash: 'placeholder',
       stimulus: { kind: 'hook_script', ref: 'materials/T1/session.json' },
       expect: {
         oracles: [
@@ -118,13 +123,26 @@ function writeMiniProject(): string {
           },
         ],
       },
-      metrics: { primary: ['a_case_pass_rate'] },
+      execution_profile: {
+        mode: 'scripted',
+        layer: 'L2',
+        contract: 'opencode-hooks-v1',
+        script: 'scripts/np.json',
+      },
+      attribution_focus: 'PROTOCOL',
       execution: { deadline_ms: 10000, requires_network: false },
     })}\n`,
   );
   writeFileSync(
-    join(root, 'papersets/p.json'),
-    `${JSON.stringify({ name: 'p', axis: 'A', room: 'fh', items: ['T1'] })}\n`,
+    join(root, 'dataset-releases/p.dataset-release.json'),
+    `${JSON.stringify({
+      dataset_release_id: 'p',
+      name: 'p',
+      case_revisions: [
+        { case_id: 't1', case_revision_id: 't1.r1', content_hash: 'placeholder' },
+      ],
+      closure_hash: 'placeholder',
+    })}\n`,
   );
   return root;
 }
@@ -132,7 +150,9 @@ function writeMiniProject(): string {
 describe('L2 hook_style=opencode-v1', () => {
   it('假宿主派发 session.idle 后插件可写 nudge_dispatched', async () => {
     const project = writeMiniProject();
-    expect(await main(['run', '--axis', 'A', '--paperset', 'p', '--project', project])).toBe(0);
+    expect(
+      await main(['run', '--dataset', 'p', '--environment', 'fh', '--project', project]),
+    ).toBe(0);
     expect(out.join('\n')).toMatch(/1\/1/);
   });
 });

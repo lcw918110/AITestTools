@@ -9,7 +9,7 @@ import { seedStimulusMaterials } from '../../src/run/seed-stimulus-materials.ts'
 const projectRoot = resolve('examples/product-eval');
 
 function loadItem(file: string): ItemDoc {
-  return JSON.parse(readFileSync(join(projectRoot, 'bank/items/B', file), 'utf8')) as ItemDoc;
+  return JSON.parse(readFileSync(join(projectRoot, 'legacy/items/B', file), 'utf8')) as ItemDoc;
 }
 
 function seedWork(item: ItemDoc): string {

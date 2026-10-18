@@ -2,7 +2,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
-const ITEMS = join(process.cwd(), 'examples/product-eval/bank/items/B');
+const ITEMS = join(process.cwd(), 'examples/product-eval/legacy/items/B');
 const FORBIDDEN = new Set(['paired', 'plugin-on', 'plugin-off', 'effect']);
 
 describe('product-eval item tags', () => {

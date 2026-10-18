@@ -518,3 +518,75 @@
 
 - 读路径（`test-sets.ts`/`project-reader.ts`/`run-plan.ts`/`bank.ts`）、写路径（`bank.ts` create/update/delete）、环境管理（`env-catalog.ts`/`controllers/env.ts`/`parse.ts`）、运行（`job-queue.ts`）、前端（`app.js`/`env.js`）全部切 cases-v1
 - 遗留（阶段 6）：`scripts/eval-paired.sh` 与 `package.json` 的 `eval:model` 脚本仍用 `--paperset`；run meta 字段名 `paperset`/`room` 未统一
+
+**阶段 6 切片 D（迁移脚本改造 + 单题结构 + 轴路由表达，2026-10-18，进行中）：**
+
+- 设计稿 `docs/09-轴路由cases-v1表达设计.md`：不恢复「轴」概念，用 `strata.task_type` + `execution_profile.mode` 表达执行驱动（fold/scripted/cassette/hosted/direct_tool）；题目级字段（fold_entry/contract/script/cassette 等）扩展 `CaseRevision.execution_profile`，环境级字段（kind/model_driver/fold_entries/adapter/sut 等）扩展 `EnvironmentProfile.recipe`
+- `scripts/migrate-v2.mjs` 改造：单题结构支持（`toCaseId` 单题完整小写化、`revisionVariant` 单题省略 variant、items 路径检测 `bank/items` vs `items`、`dataset_release_id` 小写化、paperset 迁移 content_hash 改内存查询避免 dry-run 读磁盘）
+- 迁移 `examples/demo-project`（21 单题）+ `examples/wanxiangshu-papers`（32 单题）到 cases-v1，644 资产全部通过 schema 校验
+- schema 扩展：`case-revision.schema.json` 新增 `execution_profile`、`environment.schema.json` recipe 新增 `kind`/`model_driver`/`fold_entries`/`adapter`/`sut`/`contract`/`event_schema`；`src/domain/types.ts` 新增 `FoldEntrySpec`/`RoomAdapter` 领域类型
+- `src/run/cases-v1-adapter.ts` 扩展：`caseRevisionToItemDoc` 按 `execution_profile.mode` 还原 `FreezeA`（A 轴 fold/scripted/cassette）或 `FreezeBC`（B/C 轴），`environmentToRoom` 按 `recipe.kind` 还原 `kind`/`fold_entries`/`adapter`/`sut`；新增 `tests/run/cases-v1-adapter-axis.test.ts`（6 用例）
+- 协议版本切换：`ASSET_PROTOCOL_VERSION = 'cases-v1'`；`exam.schema.json` `asset_protocol` 改 `enum: ['cases-v1', 'papers-v1']`（papers-v1 历史兼容）；`checkProtocolCompatibility` 对 papers-v1 降级 warning（`PROTOCOL_DEPRECATED`）
+- exam.json 迁移：product-eval/demo-project/wanxiangshu-papers/templates 切 `cases-v1`，移除 `defaults` 字段（无消费方）
+- 端到端验证：`proctor run --dataset smoke-a-l1 --environment fold-v1 --project examples/demo-project` 5/5 试题 PASS，item id 正确还原 `EVAL-A-DEMO-A-TODO-FOLD-01` 等
+- 测试：326 个测试全绿（含新增 6 个 A/C 轴适配层用例），typecheck/lint 通过
+
+**阶段 6 切片 D2（遗留脚本切换 + exam.json 目录字段保留，2026-10-18）：**
+
+- `scripts/eval-paired.sh`：`--axis B --paperset X`→`--dataset X --environment Y`（paired-off→hosted-plain-v1、paired-on→hosted-plugin-v1、eval-model→hosted-plain-v1、eval-agent→hosted-plain-v1、demo eval-model→model-direct-v1）
+- `package.json`：`eval:model`/`eval:model:demo-schema`/`smoke:offline`/`smoke:wanxiangshu`/`smoke:wanxiangshu:l1`/`smoke:plugin-fakehost` 全部切 `--dataset`/`--environment`
+- exam.json `paths` 保留 papers-v1 目录字段（`items`/`papersets`/`rooms`），因 papers-v1 资产仍在、validate 仍读这些目录（product-eval 的 `items: bank/items` 非默认值，删除会读错目录）
+- 端到端验证：demo-project 的 A（fold/scripted）、B（direct）、C（echo）三轴 cases-v1 路径全部跑通 PASS
+- 测试：326 个测试全绿，typecheck/lint 通过
+
+**阶段 6 切片 E（validate 切 cases-v1 校验，2026-10-18）：**
+
+- `validate.ts` 新增 cases-v1 校验函数：`validateCaseV2`（Case schema）、`validateCaseRevision`（schema + `content_hash` 与 `revisionDigest` 一致性）、`validateDatasetRelease`（schema + case_revision 交叉引用 + hash 一致性）、`validateEnvironment`（schema）、`validateCandidate`（schema + environment 交叉引用）
+- `validateProject` 扩展：papers-v1 校验之后追加 cases-v1 资产校验（case/case-revision/dataset-release/environment/candidate），结果并入 `projectIssues`
+- `validateCase` 语义：从「别名 validateItem（papers-v1 item 校验）」改为「@deprecated 别名」，新增 `validateCaseV2` 为 cases-v1 语义（papers-v1 item 校验保留供历史兼容）
+- 错误码：`REVISION_HASH_MISMATCH`/`DATASET_REVISION_MISSING`/`DATASET_HASH_MISMATCH`/`CANDIDATE_ENV_MISSING`
+- 测试：新增 `tests/exam-engine/validate-cases-v1.test.ts`（8 用例，含红测破坏 content_hash/引用不存在修订/environment）；334 个测试全绿，typecheck/lint 通过
+
+**阶段 6 遗留（待办）：**
+
+- papers-v1 资产归档（`docs/archive/` + `examples/*/legacy/`）未做
+- run meta 字段名 `paperset`/`room` 未统一为 `dataset`/`environment`
+- cases-v1 资产（case.json 等）的 prettier 格式问题（迁移脚本 `JSON.stringify` 单元素数组多行 vs prettier 单行）为既有问题，未纳入本阶段
+
+## §15 V2.17 深迁移阶段 6 切片 F（物理切换收尾，2026-10-18）
+
+本轮完成 papers-v1 → cases-v1 的**物理切换收尾**：归档 papers-v1 源资产、移除引擎遗留 run 路径、按协议分派校验、还原精确 item_id，并修复全部受影响的测试。
+
+**1. papers-v1 源资产归档（`git mv` 到 `examples/*/legacy/`）**
+
+- `examples/demo-project`、`examples/product-eval`、`examples/wanxiangshu-papers` 的 `items/`、`papersets/`、`rooms/`（及 product-eval 的 `bank/items/`）整体 `git mv` 到各项目 `legacy/` 下（`legacy/items/`、`legacy/papersets/`、`legacy/rooms/`），保留历史 run 兼容所需的原始 papers-v1 资产。
+
+**2. 引擎遗留 run 路径移除（`run.ts` / `main.ts`）**
+
+- `run.ts`：删除 papers-v1 分支（`--paperset`/`--room`/`--axis`），`RunOptions` 严格要求 `dataset` + `environment`；cases-v1 执行路径（`resolveDatasetItems` → 适配层 → `runOneItem`）并入 `runCommand`。
+- `main.ts`：run 处理器严格要求 `values.dataset` + `values.environment`，更新 CLI help 文本。
+
+**3. 校验按协议分派（`validate.ts` / `format.ts`）**
+
+- `validate.ts`：`validateProject` 按 `manifest.asset_protocol` 分派——cases-v1 走 `validateCasesV1Assets`（产出 `caseReports`），papers-v1 走 `validatePapersV1Assets`（产出 `items`）；`ValidationReport` 新增 `caseReports: CaseReport[]`。
+- `format.ts`：`formatValidationReport` 按 `caseReports`/`items` 动态渲染。
+
+**4. 精确 item_id 还原（`legacy_item_id`）**
+
+- 根因：`toCaseId` 非双射（`DEMO-B-TOOL-SCHEMA-01` → `demo-b-tool-schema-01`，但 `WX-A-ST-01-MAIN` 原 id 无 `EVAL-` 前缀），适配层启发式 `caseIdToV1ItemId` 无法精确还原，导致 demo-project 的 promptfoo 夹具路径（`materials/<item_id>/fixtures/`）断裂。
+- 方案：`CaseRevision` 新增 `legacy_item_id` 字段（schema + 类型 + 迁移脚本记录 `item.id`），适配层 `caseRevisionToItemDoc` 优先用 `legacy_item_id` 还原 `ItemDoc.id`，fallback 到 `caseIdToV1ItemId`。
+- 迁移脚本源路径改为读 `legacy/items`、`legacy/papersets`、`legacy/rooms`，重新迁移三项目（demo 21 + product-eval 318 + wanxiangshu 32 个 CaseRevision 全部带 `legacy_item_id`）。
+
+**5. 测试修复（A/B/C/D 四类）**
+
+- A 类（改路径到 legacy，4 文件）：`item-tags.test.ts`、`stdout-assert.test.ts`、`effect-workspace-oracles.test.ts`、`hosted-runner-timeout-workspace.test.ts` 的 `bank/items/B` → `legacy/items/B`。
+- B 类（改用适配层，2 文件）：`fold.test.ts`、`c-idempotency.test.ts` 从 `loadItems`/`loadRooms` 切换为 `resolveDatasetItems`（dataset-release × environment 还原）。
+- C 类（id 断言，1 文件）：`cases-v1-adapter-axis.test.ts` 的 `EVAL-A-WX-A-ST-01-MAIN` → `WX-A-ST-01-MAIN`（wanxiangshu 原 id 无 `EVAL-` 前缀，`legacy_item_id` 精确还原）。
+- D 类（改断言，1 文件）：`validate-project.test.ts` 的 `report.items` → `report.caseReports`（demo-project 为 cases-v1 协议）。
+
+**验证（实测，2026-10-18）：**
+
+- `npm test`：59 文件 334 测试全绿（唯一需非沙箱环境的是 `event-store.test.ts` 的 git init 权限，非本次改动引入）
+- `npm run typecheck`：0 错误
+- `npm run lint`：通过
+- `format:check`：本次改动文件全部干净；cases-v1 资产（case.json 等）的 prettier 格式问题为既有遗留（见上「阶段 6 遗留」第 3 项），未纳入本阶段
