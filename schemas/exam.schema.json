@@ -11,8 +11,8 @@
     "name": { "type": "string", "minLength": 1 },
     "description": { "type": "string" },
     "asset_protocol": {
-      "const": "papers-v1",
-      "description": "资产协议版本（ADR-0006）。"
+      "enum": ["cases-v1", "papers-v1"],
+      "description": "资产协议版本（ADR-0006）。cases-v1 为现行协议；papers-v1 已废弃，仅供历史 run 兼容。"
     },
     "engine": {
       "type": "object",
@@ -49,14 +49,6 @@
         "dataset_releases": { "type": "string" },
         "environments": { "type": "string" },
         "candidates": { "type": "string" }
-      }
-    },
-    "defaults": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "paperset": { "type": "string" },
-        "room": { "type": "string" }
       }
     }
   }

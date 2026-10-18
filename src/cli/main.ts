@@ -27,14 +27,12 @@ const HELP = `agent-proctor — 第三方独立 Agent 监考/评测引擎
 
 用法：
   proctor init [目录]                     生成考卷库骨架
-  proctor item validate [文件...]         校验 papers-v1 试题
+  proctor item validate [文件...]         校验试题（cases-v1）
   proctor item new --id <ID> --axis A|B|C [--layer L1|L2|L3]
   proctor item bump-rev <id|文件>         试题升 rev
   proctor item retire <id|文件>           退役（deprecated）
   proctor item migrate <id|文件> --map Old:New
   proctor cassette record --from <trace> --id <名>
-  proctor run --axis A --paperset <名>    执行试卷（A-L1 / A-L2 / A-L3）
-  proctor run --axis C --paperset <名>    C 轴 CLI 壳
   proctor run --dataset <名> --environment <名>   cases-v1：测试集 × 运行环境组合开跑
   proctor compare --baseline <run> --candidate <run>
   proctor baseline pin --run <run> --name <别名>
@@ -50,9 +48,9 @@ const HELP = `agent-proctor — 第三方独立 Agent 监考/评测引擎
   --strict / --json / --verbose / --force
   --name <名称>        init / baseline / 变更说明 / score 备注
   --id / --layer / --title / --map / --from / --contract / --script
-  --axis / --paperset  run
+  --axis              item new（A|B|C）
   --dataset / --environment  run（cases-v1：测试集 × 运行环境组合）
-  --only <试题id>      run：只跑试卷中的这些题（可重复；不写回组卷）
+  --only <试题id>      run：只跑测试集中的这些题（可重复；不写回组卷）
   --concurrency <N>    run 试题并发（默认 1；hosted 建议 1）
   --metric / --limit   report trend
   --baseline / --candidate / --run / --host
@@ -130,28 +128,10 @@ export async function main(argv: string[]): Promise<number> {
   }
 
   if (group === 'run') {
-    const axis = values.axis;
-    const paperset = values.paperset ?? values.suite;
     const dataset = values.dataset;
     const environment = values.environment;
-    // cases-v1 路径：--dataset + --environment 显式组合（无 --axis/--paperset）
-    if (dataset !== undefined && environment !== undefined) {
-      const concRaw = values.concurrency;
-      const concurrency =
-        concRaw === undefined ? undefined : Math.max(1, Number.parseInt(concRaw, 10) || 1);
-      return runCommand({
-        project: values.project,
-        axis: 'B',
-        paperset: dataset,
-        json: values.json === true,
-        concurrency,
-        dataset,
-        environment,
-        ...(values.only !== undefined ? { only: values.only } : {}),
-      });
-    }
-    if (axis === undefined || paperset === undefined) {
-      console.error('用法错误：proctor run 需要 --axis 与 --paperset，或 --dataset 与 --environment');
+    if (dataset === undefined || environment === undefined) {
+      console.error('用法错误：proctor run 需要 --dataset 与 --environment');
       return 2;
     }
     const concRaw = values.concurrency;
@@ -159,10 +139,10 @@ export async function main(argv: string[]): Promise<number> {
       concRaw === undefined ? undefined : Math.max(1, Number.parseInt(concRaw, 10) || 1);
     return runCommand({
       project: values.project,
-      axis,
-      paperset,
       json: values.json === true,
       concurrency,
+      dataset,
+      environment,
       ...(values.only !== undefined ? { only: values.only } : {}),
     });
   }

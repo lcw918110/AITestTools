@@ -35,7 +35,57 @@
           "items": { "type": "string" }
         },
         "host_plugin": { "type": "string" },
-        "durable_log_glob": { "type": "string" }
+        "durable_log_glob": { "type": "string" },
+        "kind": {
+          "enum": ["fold", "fake-host", "cassette", "live-model", "hosted", "direct-tool"],
+          "description": "环境类型（原 papers-v1 room.kind 迁移）。"
+        },
+        "model_driver": {
+          "enum": ["none", "scripted", "as-recorded", "live"],
+          "description": "模型驱动（原 papers-v1 room.model_driver 迁移）。"
+        },
+        "fold_entries": {
+          "type": "object",
+          "additionalProperties": {
+            "type": "object",
+            "required": ["module", "export", "signature", "event_schema"],
+            "additionalProperties": false,
+            "properties": {
+              "module": { "type": "string" },
+              "export": { "type": "string" },
+              "signature": { "enum": ["session_fold_v1", "pure_fold_v1"] },
+              "event_schema": { "type": "string" },
+              "resolve_root": { "enum": ["sut", "project"] },
+              "normalize": { "enum": ["json_clone", "none"] }
+            }
+          },
+          "description": "L1 fold 入口表（原 papers-v1 room.fold_entries 迁移）。"
+        },
+        "adapter": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "framework": { "type": "string" },
+            "config": { "type": "string" },
+            "repeats": { "type": "integer" },
+            "hook_style": { "enum": ["demo-v1", "opencode-v1"] },
+            "workspace": { "type": "string" },
+            "skip_hook_dispatch": { "type": "boolean" }
+          },
+          "description": "L2/C 轴 adapter（原 papers-v1 room.adapter 迁移）。"
+        },
+        "sut": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "name": { "type": "string" },
+            "root_env": { "type": "string" },
+            "root_rel": { "type": ["string", "null"] }
+          },
+          "description": "SUT 根（原 papers-v1 room.sut 迁移）。"
+        },
+        "contract": { "type": "string" },
+        "event_schema": { "type": "string" }
       }
     }
   }

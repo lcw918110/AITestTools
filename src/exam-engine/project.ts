@@ -95,15 +95,24 @@ export function loadProject(target?: string, cwd: string = process.cwd()): ExamP
 }
 
 export function checkProtocolCompatibility(manifest: ExamManifest, file: string): Issue[] {
-  if (manifest.asset_protocol !== ASSET_PROTOCOL_VERSION) {
+  if (manifest.asset_protocol === ASSET_PROTOCOL_VERSION) return [];
+  // papers-v1 已废弃：不阻断加载（供历史 run 兼容），但降级为 warning 提示迁移
+  if (manifest.asset_protocol === 'papers-v1') {
     return [
       {
-        level: 'error',
-        code: 'PROTOCOL_INCOMPATIBLE',
-        message: `资产协议不兼容：项目声明 ${manifest.asset_protocol}，引擎支持 ${ASSET_PROTOCOL_VERSION}`,
+        level: 'warning',
+        code: 'PROTOCOL_DEPRECATED',
+        message: `资产协议 ${manifest.asset_protocol} 已废弃，建议迁移到 ${ASSET_PROTOCOL_VERSION}（历史 run 兼容仍可读取）`,
         file,
       },
     ];
   }
-  return [];
+  return [
+    {
+      level: 'error',
+      code: 'PROTOCOL_INCOMPATIBLE',
+      message: `资产协议不兼容：项目声明 ${manifest.asset_protocol}，引擎支持 ${ASSET_PROTOCOL_VERSION}`,
+      file,
+    },
+  ];
 }

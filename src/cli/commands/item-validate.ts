@@ -32,6 +32,7 @@ function validateFiles(files: string[], checkFixtures: boolean): ValidationRepor
   return {
     items,
     cases: items,
+    caseReports: [],
     projectIssues: [],
     errorCount: all.filter((i) => i.level === 'error').length,
     warningCount: all.filter((i) => i.level === 'warning').length,

@@ -23,6 +23,11 @@
       "description": "唯一修订标识（如 paired-task-22.r2）。"
     },
     "revision_number": { "type": "integer", "minimum": 1 },
+    "legacy_item_id": {
+      "type": "string",
+      "minLength": 1,
+      "description": "迁移自 papers-v1 时的原始 ItemDoc.id（toCaseId 非双射，需显式保留以还原历史 run 产物 id）。"
+    },
     "content_hash": {
       "type": "string",
       "minLength": 1,
@@ -75,6 +80,21 @@
         "difficulty_basis": { "type": "string" }
       },
       "additionalProperties": false
+    },
+    "execution_profile": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "mode": { "enum": ["fold", "scripted", "cassette", "hosted", "direct_tool"] },
+        "layer": { "enum": ["L1", "L2", "L3"] },
+        "fold_entry": { "type": "string" },
+        "event_schema": { "type": "string" },
+        "session_id": { "type": "string" },
+        "contract": { "type": "string" },
+        "script": { "type": "string" },
+        "cassette": { "type": "string" }
+      },
+      "description": "执行驱动配置（原 papers-v1 item.freeze 迁移；轴废除后用 mode/layer 表达路由）。"
     },
     "attribution_focus": { "$ref": "#/$defs/attribution" },
     "protocol_probes": {

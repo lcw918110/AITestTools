@@ -409,14 +409,24 @@ export interface ExamManifest {
     root_env?: string;
   };
   paths?: Partial<Record<AssetKind, string>>;
-  defaults?: { paperset?: string; room?: string };
 }
 
 /** @deprecated 使用 Artifact。 */
 export type AssetKind =
-  | 'items' | 'papersets' | 'rooms' | 'materials'
-  | 'scripts' | 'cassettes' | 'contracts' | 'shells' | 'runs'
-  | 'cases' | 'case_revisions' | 'dataset_releases' | 'environments' | 'candidates';
+  | 'items'
+  | 'papersets'
+  | 'rooms'
+  | 'materials'
+  | 'scripts'
+  | 'cassettes'
+  | 'contracts'
+  | 'shells'
+  | 'runs'
+  | 'cases'
+  | 'case_revisions'
+  | 'dataset_releases'
+  | 'environments'
+  | 'candidates';
 
 /** @deprecated 使用 Artifact。 */
 export interface LoadedAsset<T> {

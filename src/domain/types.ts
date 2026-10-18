@@ -54,18 +54,19 @@ export const ATTEMPT_STATUS = [
 export type AttemptStatus = (typeof ATTEMPT_STATUS)[number];
 
 /** Run 状态机允许的转换表（§3.4）。终态不可原地重开。 */
-export const RUN_TRANSITIONS: Readonly<Record<RunLifecycleStatus, readonly RunLifecycleStatus[]>> = {
-  created: ['preflight', 'blocked', 'failed', 'interrupted'],
-  preflight: ['queued', 'running', 'blocked', 'failed', 'interrupted'],
-  queued: ['running', 'cancelling', 'blocked', 'failed', 'interrupted'],
-  running: ['cancelling', 'completed', 'failed', 'interrupted'],
-  cancelling: ['cancelled', 'completed', 'failed', 'interrupted'],
-  interrupted: ['running', 'completed', 'failed', 'cancelled', 'blocked'],
-  completed: [],
-  failed: [],
-  cancelled: [],
-  blocked: [],
-};
+export const RUN_TRANSITIONS: Readonly<Record<RunLifecycleStatus, readonly RunLifecycleStatus[]>> =
+  {
+    created: ['preflight', 'blocked', 'failed', 'interrupted'],
+    preflight: ['queued', 'running', 'blocked', 'failed', 'interrupted'],
+    queued: ['running', 'cancelling', 'blocked', 'failed', 'interrupted'],
+    running: ['cancelling', 'completed', 'failed', 'interrupted'],
+    cancelling: ['cancelled', 'completed', 'failed', 'interrupted'],
+    interrupted: ['running', 'completed', 'failed', 'cancelled', 'blocked'],
+    completed: [],
+    failed: [],
+    cancelled: [],
+    blocked: [],
+  };
 
 /** 失败归因六选一（保留 V1 语义）。禁止无归因红灯。 */
 export const ATTRIBUTIONS = [
@@ -192,6 +193,8 @@ export interface CaseRevision {
   case_id: string;
   case_revision_id: string;
   revision_number: number;
+  /** 迁移自 papers-v1 时的原始 ItemDoc.id（toCaseId 非双射，需显式保留以还原历史 run 产物 id）。 */
+  legacy_item_id?: string;
   /** 内容 hash（输入/前提/预期/Oracle/Rubric/证据/清理 的规范化摘要）。 */
   content_hash: string;
   /** 输入材料引用。 */
@@ -216,6 +219,17 @@ export interface CaseRevision {
   evidence_requirements?: string[];
   /** 分层。 */
   strata?: TaskStrata;
+  /** 执行驱动配置（原 papers-v1 item.freeze 迁移；轴废除后用 mode/layer 表达路由）。 */
+  execution_profile?: {
+    mode: 'fold' | 'scripted' | 'cassette' | 'hosted' | 'direct_tool';
+    layer?: 'L1' | 'L2' | 'L3';
+    fold_entry?: string;
+    event_schema?: string;
+    session_id?: string;
+    contract?: string;
+    script?: string;
+    cassette?: string;
+  };
   /** 归因聚焦（保留 V1 attribution_focus 语义）。 */
   attribution_focus: Attribution;
   /** 协议探针（hosted 期望的 Kind）。 */
@@ -788,15 +802,31 @@ export interface IsolationProfile {
   /** 文件系统边界。 */
   filesystem: { allowed_read?: string[]; allowed_write?: string[]; deny_escape: true };
   /** 命令/进程边界。 */
-  command: { allowed_commands?: string[]; resource_limits?: { cpu?: number; memory?: number; time?: number; processes?: number } };
+  command: {
+    allowed_commands?: string[];
+    resource_limits?: { cpu?: number; memory?: number; time?: number; processes?: number };
+  };
   /** 网络边界。 */
-  network: { default_deny: true; allowlist?: Array<{ domain?: string; endpoint?: string; port?: number }> };
+  network: {
+    default_deny: true;
+    allowlist?: Array<{ domain?: string; endpoint?: string; port?: number }>;
+  };
   /** 凭据边界。 */
   credentials: { scoped_injection: true; canary_secret?: string };
   /** 控制台/API 边界。 */
-  console_api: { loopback_only: true; origin_check?: boolean; csrf?: boolean; request_byte_limit?: number };
+  console_api: {
+    loopback_only: true;
+    origin_check?: boolean;
+    csrf?: boolean;
+    request_byte_limit?: number;
+  };
   /** Artifact 边界。 */
-  artifact: { finite_capacity: true; low_disk_protection: true; hash_check: true; manual_delete_audit: true };
+  artifact: {
+    finite_capacity: true;
+    low_disk_protection: true;
+    hash_check: true;
+    manual_delete_audit: true;
+  };
 }
 
 /** 隔离后端注册（§7.2）。只可选取已注册且有真实实现的后端。 */
@@ -840,7 +870,13 @@ export interface FeatureCatalogNode {
   state_schema?: string;
   config_schema?: string;
   /** 控制能力分类（§4.5.1）。 */
-  control_ability: 'documented_external_setting' | 'named_profile_only' | 'verified_test_interface' | 'fixed_default' | 'observational_only' | 'unknown';
+  control_ability:
+    | 'documented_external_setting'
+    | 'named_profile_only'
+    | 'verified_test_interface'
+    | 'fixed_default'
+    | 'observational_only'
+    | 'unknown';
   /** 观测方法 / 验证状态。 */
   observation_method?: string;
   verification_status?: string;
@@ -856,8 +892,18 @@ export interface FeatureCatalogRelease {
   importer_version: string;
   nodes: FeatureCatalogNode[];
   /** 统计：节点数 / 外部控制点数 / 可单独干预项数分开。 */
-  stats: { package_count: number; slice_count: number; control_point_count: number; intervention_count: number };
-  mapping_reconciliation?: { unmapped?: string[]; many_to_one?: string[]; one_to_many?: string[]; orphan?: string[] };
+  stats: {
+    package_count: number;
+    slice_count: number;
+    control_point_count: number;
+    intervention_count: number;
+  };
+  mapping_reconciliation?: {
+    unmapped?: string[];
+    many_to_one?: string[];
+    one_to_many?: string[];
+    orphan?: string[];
+  };
 }
 
 /** 功能控制点（§3.1 FeatureControlPoint）。 */
@@ -922,6 +968,26 @@ export interface RouteSimulation {
 // 11. 环境（§4.7）
 // ─────────────────────────────────────────────────────────────
 
+/** L1 fold 入口（§4.7；原 papers-v1 FoldEntrySpec 迁移）。 */
+export interface FoldEntrySpec {
+  module: string;
+  export: string;
+  signature: 'session_fold_v1' | 'pure_fold_v1';
+  event_schema: string;
+  resolve_root?: 'sut' | 'project';
+  normalize?: 'json_clone' | 'none';
+}
+
+/** L2/C 轴 adapter（§4.7；原 papers-v1 RoomAdapter 迁移）。 */
+export interface RoomAdapter {
+  framework?: string;
+  config?: string;
+  repeats?: number;
+  hook_style?: 'demo-v1' | 'opencode-v1';
+  workspace?: 'temp-git';
+  skip_hook_dispatch?: boolean;
+}
+
 /** 环境 Profile（§4.7）。版本化配方。 */
 export interface EnvironmentProfile {
   environment_profile_id: string;
@@ -952,6 +1018,20 @@ export interface EnvironmentProfile {
     host_plugin?: string;
     /** 耐久日志 glob（V1 room.durable_log_glob 迁移）。 */
     durable_log_glob?: string;
+    /** 环境类型（V1 room.kind 迁移）。 */
+    kind?: 'fold' | 'fake-host' | 'cassette' | 'live-model' | 'hosted' | 'direct-tool';
+    /** 模型驱动（V1 room.model_driver 迁移）。 */
+    model_driver?: 'none' | 'scripted' | 'as-recorded' | 'live';
+    /** L1 fold 入口表（V1 room.fold_entries 迁移）。 */
+    fold_entries?: Record<string, FoldEntrySpec>;
+    /** L2/C 轴 adapter（V1 room.adapter 迁移）。 */
+    adapter?: RoomAdapter;
+    /** SUT 根（V1 room.sut 迁移）。 */
+    sut?: { name?: string; root_env?: string; root_rel?: string | null };
+    /** 契约（V1 room.contract 迁移）。 */
+    contract?: string;
+    /** 事件 schema（V1 room.event_schema 迁移）。 */
+    event_schema?: string;
   };
 }
 

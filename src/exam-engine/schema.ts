@@ -4,8 +4,8 @@ import { Ajv2020, type ErrorObject, type ValidateFunction } from 'ajv/dist/2020.
 import addFormats from 'ajv-formats';
 import type { Issue } from './types.ts';
 
-/** 资产协议版本（ADR-0006）。V2.17 深迁移：cases-v1 将替代 papers-v1，迁移完成前保持 papers-v1。 */
-export const ASSET_PROTOCOL_VERSION = 'papers-v1';
+/** 资产协议版本（ADR-0006）。V2.17 深迁移：cases-v1 已替代 papers-v1。 */
+export const ASSET_PROTOCOL_VERSION = 'cases-v1';
 
 const SCHEMA_FILES = {
   // 旧 papers-v1 schema（现行协议）

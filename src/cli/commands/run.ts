@@ -1,8 +1,5 @@
 import { join } from 'node:path';
 import {
-  loadItems,
-  loadPapersets,
-  loadRooms,
   loadCasesV2,
   loadCaseRevisions,
   loadDatasetReleases,
@@ -17,30 +14,22 @@ import { runL1Item } from '../../run/l1-runner.ts';
 import { runL2Item, type AxisItemResult } from '../../run/l2-runner.ts';
 import { runL3Item } from '../../run/l3-runner.ts';
 import { writeRunArtifacts } from '../../run/write-artifacts.ts';
-import { formatPassTokenCell } from '../../run/hosted-pass-token.ts';
 import {
   caseRevisionToItemDoc,
   environmentToRoom,
 } from '../../run/cases-v1-adapter.ts';
-import {
-  formatHostExitCell,
-  formatTimedOutCell,
-  formatWorkspaceCell,
-} from '../../run/hosted-host-exit.ts';
 
 export interface RunOptions {
   project?: string | undefined;
-  axis: string;
-  paperset: string;
   json: boolean;
   /** 试题级并发；默认 1。hosted 建议保持 1。 */
   concurrency?: number | undefined;
   /** 只跑试卷中的这些试题 id；不写回组卷。 */
   only?: string[] | undefined;
-  /** cases-v1：dataset-release 名（与 environment 组合，替代 paperset）。 */
-  dataset?: string | undefined;
+  /** cases-v1：dataset-release 名（与 environment 组合）。 */
+  dataset: string;
   /** cases-v1：environment 名（与 dataset 组合）。 */
-  environment?: string | undefined;
+  environment: string;
 }
 
 function runId(): string {
@@ -131,149 +120,11 @@ async function runOneItem(opts: {
   throw new Error(`试题 ${item.id} 轴 ${item.axis} 尚未支持`);
 }
 
-export async function runCommand(options: RunOptions): Promise<number> {
-  // cases-v1 路径：dataset-release × environment 显式组合（V2.17 口径）
-  if (options.dataset !== undefined && options.environment !== undefined) {
-    return runCommandV2(options);
-  }
-
-  const project = loadProject(options.project);
-  const papersets = loadPapersets(project.dirs.papersets, project.root);
-  const ps = papersets.find((p) => p.doc.name === options.paperset);
-  if (ps === undefined) {
-    console.error(`找不到试卷：${options.paperset}`);
-    return 1;
-  }
-  if (ps.doc.axis !== options.axis) {
-    console.error(`试卷 axis=${ps.doc.axis} 与 --axis ${options.axis} 不一致`);
-    return 1;
-  }
-
-  const rooms = loadRooms(project.dirs.rooms, project.root);
-  const room = rooms.find((r) => r.doc.name === ps.doc.room);
-  if (room === undefined) {
-    console.error(`找不到考场：${ps.doc.room}`);
-    return 1;
-  }
-
-  const items = loadItems(project.dirs.items, project.root);
-  const byId = new Map(items.map((i) => [i.doc.id, i.doc]));
-  let selected: ItemDoc[] = [];
-  for (const id of ps.doc.items) {
-    const it = byId.get(id);
-    if (it === undefined) {
-      console.error(`试卷引用了不存在的试题：${id}`);
-      return 1;
-    }
-    selected.push(it);
-  }
-
-  const only = options.only;
-  if (only !== undefined && only.length > 0) {
-    const allow = new Set(only);
-    const inPaper = new Set(selected.map((s) => s.id));
-    for (const id of allow) {
-      if (!inPaper.has(id)) {
-        console.error(`--only 试题不在试卷中：${id}`);
-        return 1;
-      }
-    }
-    selected = selected.filter((s) => allow.has(s.id));
-    if (selected.length === 0) {
-      console.error('--only 过滤后没有试题');
-      return 1;
-    }
-  }
-
-  const rid = runId();
-  const runsRoot = project.dirs.runs;
-  const models = resolveModels(ps.doc.matrix_env);
-  const sutEnv = room.doc.sut?.root_env;
-  const sutRoot = sutEnv !== undefined ? process.env[sutEnv] : undefined;
-
-  // hosted 默认串行，避免抢同一 OpenCode 会话；其它轴可用 --concurrency
-  const defaultConc = room.doc.kind === 'hosted' ? 1 : 1;
-  const concurrency = Math.max(1, options.concurrency ?? defaultConc);
-
-  let batchResults: AxisItemResult[][];
-  try {
-    batchResults = await mapPool(selected, concurrency, async (item) => {
-      const artifactDir = join(runsRoot, rid, 'artifacts', item.id);
-      return runOneItem({
-        item,
-        room: room.doc as RoomDoc,
-        projectRoot: project.root,
-        artifactDir,
-        models,
-        sutRoot,
-      });
-    });
-  } catch (e) {
-    console.error((e as Error).message);
-    return 2;
-  }
-
-  const results = batchResults.flat();
-
-  const { dir, gate_evaluations, gates_pass } = writeRunArtifacts({
-    runsRoot,
-    meta: {
-      run_id: rid,
-      axis: options.axis,
-      paperset: options.paperset,
-      room: room.doc.name,
-      started_at: new Date().toISOString(),
-      project_root: project.root,
-      items: selected.map((i) => ({ id: i.id, rev: i.rev })),
-    },
-    results,
-    gates: ps.doc.gates,
-  });
-
-  const itemsPass = results.every((r) => r.pass);
-
-  if (options.json) {
-    console.log(JSON.stringify({ run_dir: dir, results, gate_evaluations, gates_pass }, null, 2));
-  } else {
-    const passed = results.filter((r) => r.pass).length;
-    console.log(`run 完成：${dir}`);
-    console.log(`${passed}/${results.length} 试题通过`);
-    for (const r of results) {
-      const mark = r.pass ? 'PASS' : 'FAIL';
-      const tokenNote =
-        r.pass_token !== undefined || r.pass_token_present !== undefined
-          ? `  暗号：${formatPassTokenCell(r)}（辅助）`
-          : '';
-      const wsNote =
-        r.workspace_ok !== undefined ? `  工作区：${formatWorkspaceCell(r.workspace_ok)}` : '';
-      const toNote = r.timed_out !== undefined ? `  超时：${formatTimedOutCell(r.timed_out)}` : '';
-      const exitNote =
-        r.host_exit !== undefined || r.timed_out
-          ? `  host_exit：${formatHostExitCell({ host_exit: r.host_exit, timed_out: r.timed_out })}`
-          : '';
-      console.log(
-        `  ${mark}  ${r.item_id}@rev${r.item_rev}${r.attribution ? ` [${r.attribution}]` : ''}${wsNote}${tokenNote}${toNote}${exitNote}`,
-      );
-      for (const f of r.oracle_failures) console.log(`        - ${f.oracle_id}: ${f.message}`);
-    }
-    if (gate_evaluations.length > 0) {
-      console.log(`gates：${gates_pass ? 'PASS' : 'FAIL'}`);
-      for (const g of gate_evaluations) {
-        console.log(`  ${g.pass ? 'PASS' : 'FAIL'}  ${g.name}: ${g.message}`);
-      }
-    }
-  }
-
-  return itemsPass && gates_pass ? 0 : 1;
-}
-
 /**
- * cases-v1 执行路径（阶段 4a）：dataset-release × environment 显式组合。
+ * cases-v1 执行路径：dataset-release × environment 显式组合。
  *
- * 与 V1 路径（paperset 绑死 room）的区别：
- * - 数据源：dataset-release（冻结闭包）→ case-revision，environment → room
- * - 组合：运行时显式指定 --dataset + --environment，不写回资产
- * - 执行：适配层还原 ItemDoc/RoomDoc 后复用 runOneItem（绞杀者模式）
+ * 数据源：dataset-release（冻结闭包）→ case-revision，environment → room；
+ * 执行：适配层还原 ItemDoc/RoomDoc 后复用 runOneItem（绞杀者模式）。
  */
 
 /** 解析 dataset-release × environment，还原为 runner 认识的 ItemDoc[] + RoomDoc。 */
@@ -315,10 +166,10 @@ export function resolveDatasetItems(
   return { items, room: environmentToRoom(env.doc) };
 }
 
-async function runCommandV2(options: RunOptions): Promise<number> {
+export async function runCommand(options: RunOptions): Promise<number> {
   const project = loadProject(options.project);
-  const datasetName = options.dataset!;
-  const environmentName = options.environment!;
+  const datasetName = options.dataset;
+  const environmentName = options.environment;
 
   let selected: ItemDoc[];
   let room: RoomDoc;

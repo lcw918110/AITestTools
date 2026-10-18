@@ -12,13 +12,13 @@ echo "== 校验 product-eval（bank + rooms + papersets）=="
 
 echo "== 离线：demo schema fixture（工程服从率；非产品效果题）=="
 "${PROCTOR[@]}" item validate --project examples/demo-project --check-fixtures
-"${PROCTOR[@]}" run --axis B --paperset eval-model --project examples/demo-project
+"${PROCTOR[@]}" run --dataset eval-model --environment model-direct-v1 --project examples/demo-project
 
 if [[ "${PROCTOR_EVAL_LIVE:-}" != "1" ]]; then
   echo "已跳过直播。产品三对象同题："
-  echo "  测模型：  npm run eval:model   # 或 PROCTOR_HOSTED_MODEL=… / paperset eval-model-alt"
+  echo "  测模型：  npm run eval:model   # 或 PROCTOR_HOSTED_MODEL=… / dataset eval-model-alt"
   echo "  有无插件：SUT_ROOT=… PROCTOR_EVAL_LIVE=1 npm run eval:paired"
-  echo "  测 Agent：npm run proctor -- run --axis B --paperset eval-agent --project $PROJECT"
+  echo "  测 Agent：npm run proctor -- run --dataset eval-agent --environment hosted-plain-v1 --project $PROJECT"
   exit 0
 fi
 
@@ -30,7 +30,7 @@ fi
 unset PROCTOR_HOSTED_PLUGIN || true
 
 echo "== 直播：paired-off（无插件）=="
-OFF_OUT="$("${PROCTOR[@]}" run --axis B --paperset paired-off --project "$PROJECT" 2>&1)"
+OFF_OUT="$("${PROCTOR[@]}" run --dataset paired-off --environment hosted-plain-v1 --project "$PROJECT" 2>&1)"
 echo "$OFF_OUT"
 OFF_DIR="$(echo "$OFF_OUT" | sed -n 's/^run 完成：//p' | tail -1)"
 if [[ -z "$OFF_DIR" ]]; then
@@ -40,7 +40,7 @@ fi
 "${PROCTOR[@]}" baseline pin --run "$OFF_DIR" --name paired-off --project "$PROJECT"
 
 echo "== 直播：paired-on（有插件）=="
-ON_OUT="$("${PROCTOR[@]}" run --axis B --paperset paired-on --project "$PROJECT" 2>&1)"
+ON_OUT="$("${PROCTOR[@]}" run --dataset paired-on --environment hosted-plugin-v1 --project "$PROJECT" 2>&1)"
 echo "$ON_OUT"
 ON_DIR="$(echo "$ON_OUT" | sed -n 's/^run 完成：//p' | tail -1)"
 if [[ -z "$ON_DIR" ]]; then
