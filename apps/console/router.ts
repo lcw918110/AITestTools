@@ -14,8 +14,8 @@ import {
   envAddAgent,
   envAddModel,
   envCatalog,
-  envRoomsList,
-  envRoomsUpdate,
+  envEnvironmentsList,
+  envEnvironmentsUpdate,
   envVerify,
 } from './controllers/env.ts';
 import {
@@ -108,13 +108,13 @@ export async function handleRequest(req: IncomingMessage, res: ServerResponse): 
     json(res, r.status, r.body);
     return;
   }
-  if (req.method === 'GET' && pathname === '/api/env/rooms') {
-    const r = await envRoomsList();
+  if (req.method === 'GET' && pathname === '/api/env/environments') {
+    const r = await envEnvironmentsList();
     json(res, r.status, r.body);
     return;
   }
-  if (req.method === 'PUT' && pathname.startsWith('/api/env/rooms/')) {
-    const roomName = decodeURIComponent(pathname.slice('/api/env/rooms/'.length));
+  if (req.method === 'PUT' && pathname.startsWith('/api/env/environments/')) {
+    const environmentName = decodeURIComponent(pathname.slice('/api/env/environments/'.length));
     const parsed = parseJsonBody<{
       host?: Record<string, unknown>;
       workspace?: unknown;
@@ -124,7 +124,7 @@ export async function handleRequest(req: IncomingMessage, res: ServerResponse): 
       json(res, 400, { error: parsed.error });
       return;
     }
-    const r = await envRoomsUpdate(roomName, parsed.value);
+    const r = await envEnvironmentsUpdate(environmentName, parsed.value);
     json(res, r.status, r.body);
     return;
   }

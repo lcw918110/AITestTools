@@ -45,7 +45,7 @@ export function writeJsonAtomic(target: string, doc: unknown): void {
 /**
  * 带 CAS 的原子 JSON 写入：写前比对目标文件 mtime 与期望值。
  * 不一致说明读后被并发修改，拒绝覆盖并返回 false；一致则原子写并返回 true。
- * 用于 PUT /api/env/rooms/:name 的读-改-写 TOCTOU 竞态防护。
+ * 用于 PUT /api/env/environments/:name 的读-改-写 TOCTOU 竞态防护。
  * 基于文件系统真实 mtime（毫秒级、纳秒精度），比进程内存时间戳映射更强：
  * 连进程外对文件的修改也能检测到。
  */

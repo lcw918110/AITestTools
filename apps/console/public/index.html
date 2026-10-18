@@ -255,7 +255,7 @@
         <h1>运行环境</h1>
         <p class="hint">
           先在这里添加模型与 Agent，跑一次 Hello World
-          验证。通过后才能在测试任务里选用。配置记在本机清单里，不是任务之间共用一间房间。
+          验证。通过后才能在测试任务里选用。配置记在本机清单里，不是任务之间共用一套环境。
         </p>
         <p id="envStatus" class="status"></p>
         <div class="env-cols">
@@ -276,14 +276,14 @@
             <ul id="agentList" class="run-list"></ul>
           </div>
         </div>
-        <div id="roomPanel" class="room-panel">
-          <h2>房间配置</h2>
+        <div id="environmentPanel" class="environment-panel">
+          <h2>环境配置</h2>
           <p class="hint tiny">
-            直接改 rooms/*.json 的 host / workspace / network 字段。改后立即写回。
+            直接改 environments/*.environment.json 的 recipe 字段。改后立即写回。
           </p>
-          <div id="roomList" class="room-list"></div>
-          <datalist id="roomModelOptions"></datalist>
-          <datalist id="roomAgentOptions"></datalist>
+          <div id="environmentList" class="environment-list"></div>
+          <datalist id="environmentModelOptions"></datalist>
+          <datalist id="environmentAgentOptions"></datalist>
         </div>
         <pre id="envLog" class="log" hidden></pre>
       </section>

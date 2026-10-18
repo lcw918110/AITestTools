@@ -1,6 +1,6 @@
 /**
  * 可保存的测试任务：选题 + 配置 + 跑次历史。
- * 落在评测项目 eval-tasks/，不写回 papersets/。
+ * 落在评测项目 eval-tasks/，不写回 dataset-releases/。
  */
 import { existsSync, mkdirSync, readdirSync, readFileSync, unlinkSync } from 'node:fs';
 import { join, resolve, sep } from 'node:path';

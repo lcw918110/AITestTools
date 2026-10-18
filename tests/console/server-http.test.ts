@@ -129,15 +129,15 @@ describe('HTTP 层集成测试', () => {
     expect(body.error).toBe('unknown experiment');
   });
 
-  it('PUT /api/env/rooms/不存在 返回 404 room not found', async () => {
-    const res = await request('/api/env/rooms/not-exists-room', {
+  it('PUT /api/env/environments/不存在 返回 404 environment not found', async () => {
+    const res = await request('/api/env/environments/not-exists-environment', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({ recipe: {} }),
     });
     expect(res.status).toBe(404);
     const body = (await res.json()) as { error: string };
-    expect(body.error).toBe('room not found');
+    expect(body.error).toBe('environment not found');
   });
 
   it('POST /api/compare 缺 baseline 返回 400', async () => {

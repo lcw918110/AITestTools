@@ -101,7 +101,7 @@ export function sanitizeRecipeFields(raw: Record<string, unknown>): {
   return { recipe, rejected };
 }
 
-export type SanitizedRoomUpdate = {
+export type SanitizedEnvironmentUpdate = {
   recipe?: SanitizedRecipe;
   workspace?: string;
   network?: boolean;
@@ -109,19 +109,19 @@ export type SanitizedRoomUpdate = {
 };
 
 /**
- * 对 PUT /api/env/rooms/:name 的请求体做整体校验：
+ * 对 PUT /api/env/environments/:name 的请求体做整体校验：
  * - recipe：白名单过滤 + 类型校验（host_model/host_agent/host_plugin 为字符串，managed_agents 为字符串数组）
  * - workspace：应为字符串
  * - network：应为布尔
  * 校验失败或白名单外的值被忽略，并记入 warnings；不会抛出异常。
  */
-export function sanitizeRoomUpdate(body: {
+export function sanitizeEnvironmentUpdate(body: {
   recipe?: unknown;
   workspace?: unknown;
   network?: unknown;
-}): SanitizedRoomUpdate {
+}): SanitizedEnvironmentUpdate {
   const warnings: string[] = [];
-  const out: SanitizedRoomUpdate = { warnings };
+  const out: SanitizedEnvironmentUpdate = { warnings };
 
   if (body.recipe !== undefined) {
     if (typeof body.recipe === 'object' && body.recipe !== null && !Array.isArray(body.recipe)) {

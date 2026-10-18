@@ -7,7 +7,7 @@ export PATH="/usr/local/bin:${PATH:-}"
 PROJECT=examples/product-eval
 PROCTOR=(npm run proctor --)
 
-echo "== 校验 product-eval（bank + rooms + papersets）=="
+echo "== 校验 product-eval（cases + environments + dataset-releases）=="
 "${PROCTOR[@]}" item validate --project "$PROJECT" --check-fixtures
 
 echo "== 离线：demo schema fixture（工程服从率；非产品效果题）=="

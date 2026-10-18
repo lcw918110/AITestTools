@@ -655,3 +655,46 @@
 - `grep` 全文无 `--axis`/`--paperset`/`papersets`/`items[]`/`freeze.`/`rooms/`/`model_driver`/`轴` 残留。
 - dataset/environment 名称与 examples 下 `dataset-releases/`、`environments/` 实际文件名逐一核对一致。
 - 文档内链接（`01-wanxiangshu-ops.md`、`archive/v1-design/*`、`architecture/adr/0008`、`archive/v1-requirements/01-prd.md`、`process/`）全部可解析。
+
+## §18 全盘审核 + console 命名统一残留修复（rooms→environments，2026-10-18）
+
+对全仓库（docs / src / apps / scripts / tests）做 papers-v1 → cases-v1 残留扫描。代码/脚本的功能逻辑已完全切到 cases-v1，但发现一批「口径未统一的注释/文案/命名」残留（功能已切、命名仍是旧口径），违反「不留两套口径」原则。本轮统一修复。
+
+**1. 后端命名统一（rooms → environments）**
+
+- `apps/console/controllers/env.ts`：`envRoomsList`→`envEnvironmentsList`、`envRoomsUpdate`→`envEnvironmentsUpdate`、`roomsDir`→`environmentsDir`、`roomName`→`environmentName`、`roomFiles`→`environmentFiles`；响应字段 `{ rooms }`→`{ environments }`；错误文案 `room not found`→`environment not found`、`房间配置已被并发修改`→`环境配置已被并发修改`。
+- `apps/console/parse.ts`：`SanitizedRoomUpdate`→`SanitizedEnvironmentUpdate`、`sanitizeRoomUpdate`→`sanitizeEnvironmentUpdate`。
+- `apps/console/router.ts`：API 路径 `/api/env/rooms`→`/api/env/environments`、`/api/env/rooms/:name`→`/api/env/environments/:name`；调用 `envEnvironmentsList`/`envEnvironmentsUpdate`。
+- `apps/console/env-catalog.ts`：函数 `roomsDir`→`environmentsDir`；局部变量 `rooms`→`environments`。
+- `apps/console/project-reader.ts`：`roomsDir`→`environmentsDir`、返回字段 `rooms`→`environments`（`projectSummary` 的该字段未被前端/测试消费，改名安全）。
+- `apps/console/json-io.ts`、`bank.ts`、`eval-tasks.ts`、`run-plan.ts`：注释口径统一（`rooms/`→`environments/`、`papersets/`→`dataset-releases/`）。
+
+**2. 前端命名统一（房间 → 环境）**
+
+- `apps/console/public/index.html`：DOM id `roomPanel`/`roomList`/`roomModelOptions`/`roomAgentOptions`→`environmentPanel`/`environmentList`/`environmentModelOptions`/`environmentAgentOptions`；文案「房间配置」→「环境配置」、「rooms/*.json」→「environments/*.environment.json」、「共用一间房间」→「共用一套环境」。
+- `apps/console/public/env.js`：变量 `rooms`→`environments`、函数 `loadRooms`/`renderRooms`/`saveRoomField`→`loadEnvironments`/`renderEnvironments`/`saveEnvironmentField`、`pendingRoomChanges`/`roomTimers`→`pendingEnvironmentChanges`/`environmentTimers`、循环变量 `room`→`environment`、API 路径 `/api/env/rooms`→`/api/env/environments`、响应 `data.rooms`→`data.environments`、文案「没有房间文件」→「没有环境文件」。
+- `apps/console/public/styles.css`：CSS class `.room-panel`/`.room-list`/`.room-card`→`.environment-panel`/`.environment-list`/`.environment-card`；注释「房间配置面板」→「环境配置面板」。
+
+**3. 脚本与测试**
+
+- `scripts/eval-paired.sh`：文案「bank + rooms + papersets」→「cases + environments + dataset-releases」。
+- `tests/console/server-http.test.ts`：断言 `/api/env/rooms/not-exists-room`→`/api/env/environments/not-exists-environment`、`room not found`→`environment not found`。
+- `tests/console/room-host-sanitize.test.ts` → `git mv` 为 `environment-host-sanitize.test.ts`，`sanitizeRoomUpdate`→`sanitizeEnvironmentUpdate`（13 处）。
+
+**4. 合法保留（不改，记录在案）**
+
+- `src/exam-engine/loader.ts`/`index.ts`/`validate.ts` 的 `loadRooms`：引擎层 papers-v1 兼容函数（加载 legacy `RoomDoc`），`@deprecated`，不改。
+- `src/run/cases-v1-adapter.ts` 及 7 个 runner 的 `freeze.*`/`model_driver`：绞杀者适配层还原目标字段，runner 内部仍消费旧形状，不改。
+- `docs/process/01-changelog.md`、`docs/archive/v1-design/*`、`docs/09`/`06`/`08`/`07`/`05`：历史记录/归档/设计稿/映射表，`axis`/`model_driver`/`ItemDoc` 是迁移映射描述，保留。
+
+**5. 遗留项（本次未改，记录在案）**
+
+- `apps/console/env-catalog.ts` 的 `EnvEntry.source` 枚举值 `'room' | 'console'`（及 `app.js` 的 `model_source === 'room'` 判断）：数据字段语义（「来源是环境文件」），改 `'room'`→`'environment'` 涉及 `dashboard.ts` 的 `model_source` 持久化兼容（历史 run 数据），属独立决策，暂不改。
+- `apps/console/test-sets.ts:4` 注释「阶段 5：数据源从 papersets/ 切换到 dataset-releases/」：历史阶段记录性注释，保留。
+- `docs/09-轴路由cases-v1表达设计.md` 状态仍为「草案（待评审）」，按 §17 决策「按当前口径迁移、不先定稿」，定稿另立任务。
+
+**验证（实测，2026-10-18）**：
+- `npm run typecheck`：0 错误
+- `npm run lint`：通过
+- `npx vitest run tests/console/server-http.test.ts tests/console/environment-host-sanitize.test.ts`：25 测试全绿
+- `npm test`：59 文件 335 测试通过（`event-store.test.ts` 的 4 个 git init 用例为沙箱权限问题，非沙箱重跑全绿，非本次改动引入）

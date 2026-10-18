@@ -1,6 +1,6 @@
 /**
  * product-eval 题库读写（严格版 · 对齐需求 03 / 设计 09）。
- * 仅操作 bank/ + 相关 papersets。
+ * 仅操作 bank/ + 相关 dataset-releases。
  */
 import {
   existsSync,

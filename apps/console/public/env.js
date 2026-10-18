@@ -68,33 +68,33 @@ async function verifyRow(kind, id) {
   }
 }
 
-let rooms = [];
-const pendingRoomChanges = new Map();
-const roomTimers = new Map();
+let environments = [];
+const pendingEnvironmentChanges = new Map();
+const environmentTimers = new Map();
 
-function saveRoomField(name, partial) {
-  const pending = pendingRoomChanges.get(name) || {};
+function saveEnvironmentField(name, partial) {
+  const pending = pendingEnvironmentChanges.get(name) || {};
   if (partial.recipe) {
     pending.recipe = { ...(pending.recipe || {}), ...partial.recipe };
   }
   if ('workspace' in partial) pending.workspace = partial.workspace;
   if ('network' in partial) pending.network = partial.network;
-  pendingRoomChanges.set(name, pending);
-  clearTimeout(roomTimers.get(name));
-  roomTimers.set(
+  pendingEnvironmentChanges.set(name, pending);
+  clearTimeout(environmentTimers.get(name));
+  environmentTimers.set(
     name,
     setTimeout(async () => {
-      const toSave = pendingRoomChanges.get(name);
-      pendingRoomChanges.delete(name);
+      const toSave = pendingEnvironmentChanges.get(name);
+      pendingEnvironmentChanges.delete(name);
       if (!toSave) return;
       try {
-        const updated = await api(`/api/env/rooms/${encodeURIComponent(name)}`, {
+        const updated = await api(`/api/env/environments/${encodeURIComponent(name)}`, {
           method: 'PUT',
           headers: { 'content-type': 'application/json' },
           body: JSON.stringify(toSave),
         });
-        const idx = rooms.findIndex((r) => r.name === name);
-        if (idx >= 0) rooms[idx] = updated;
+        const idx = environments.findIndex((r) => r.name === name);
+        if (idx >= 0) environments[idx] = updated;
         setEnvStatus(`${name} 已保存`, 'ok');
       } catch (e) {
         setEnvStatus(`${name}: ${e.message || e}`, 'err');
@@ -103,27 +103,27 @@ function saveRoomField(name, partial) {
   );
 }
 
-async function loadRooms() {
+async function loadEnvironments() {
   try {
-    const data = await api('/api/env/rooms');
-    rooms = data.rooms || [];
-    renderRooms();
+    const data = await api('/api/env/environments');
+    environments = data.environments || [];
+    renderEnvironments();
   } catch (e) {
-    rooms = [];
-    renderRooms();
+    environments = [];
+    renderEnvironments();
   }
 }
 
-function renderRooms() {
-  const host = document.getElementById('roomList');
+function renderEnvironments() {
+  const host = document.getElementById('environmentList');
   if (!host) return;
-  if (!rooms.length) {
-    host.innerHTML = '<p class="bank-empty">（没有房间文件）</p>';
+  if (!environments.length) {
+    host.innerHTML = '<p class="bank-empty">（没有环境文件）</p>';
     return;
   }
   const vmodels = verifiedModels();
   const vagents = verifiedAgents();
-  const modelOptions = document.getElementById('roomModelOptions');
+  const modelOptions = document.getElementById('environmentModelOptions');
   if (modelOptions) {
     modelOptions.innerHTML = '';
     for (const m of vmodels) {
@@ -132,7 +132,7 @@ function renderRooms() {
       modelOptions.appendChild(o);
     }
   }
-  const agentOptions = document.getElementById('roomAgentOptions');
+  const agentOptions = document.getElementById('environmentAgentOptions');
   if (agentOptions) {
     agentOptions.innerHTML = '';
     for (const a of vagents) {
@@ -142,11 +142,11 @@ function renderRooms() {
     }
   }
   host.innerHTML = '';
-  for (const room of rooms) {
+  for (const environment of environments) {
     const card = document.createElement('div');
-    card.className = 'room-card';
+    card.className = 'environment-card';
     const title = document.createElement('h3');
-    title.textContent = room.name;
+    title.textContent = environment.name;
     card.appendChild(title);
 
     // recipe.host_model
@@ -154,11 +154,11 @@ function renderRooms() {
     modelLabel.textContent = '模型';
     const modelInput = document.createElement('input');
     modelInput.type = 'text';
-    modelInput.setAttribute('list', 'roomModelOptions');
-    modelInput.value = room.recipe?.host_model || '';
+    modelInput.setAttribute('list', 'environmentModelOptions');
+    modelInput.value = environment.recipe?.host_model || '';
     modelInput.placeholder = '模型标识';
     modelInput.addEventListener('change', () =>
-      saveRoomField(room.name, { recipe: { host_model: modelInput.value } }),
+      saveEnvironmentField(environment.name, { recipe: { host_model: modelInput.value } }),
     );
     modelLabel.appendChild(modelInput);
     card.appendChild(modelLabel);
@@ -168,11 +168,11 @@ function renderRooms() {
     agentLabel.textContent = 'Agent';
     const agentInput = document.createElement('input');
     agentInput.type = 'text';
-    agentInput.setAttribute('list', 'roomAgentOptions');
-    agentInput.value = room.recipe?.host_agent || '';
+    agentInput.setAttribute('list', 'environmentAgentOptions');
+    agentInput.value = environment.recipe?.host_agent || '';
     agentInput.placeholder = 'Agent 标识';
     agentInput.addEventListener('change', () =>
-      saveRoomField(room.name, { recipe: { host_agent: agentInput.value } }),
+      saveEnvironmentField(environment.name, { recipe: { host_agent: agentInput.value } }),
     );
     agentLabel.appendChild(agentInput);
     card.appendChild(agentLabel);
@@ -182,10 +182,10 @@ function renderRooms() {
     plugLabel.textContent = '插件';
     const plugInput = document.createElement('input');
     plugInput.type = 'text';
-    plugInput.value = room.recipe?.host_plugin || '';
+    plugInput.value = environment.recipe?.host_plugin || '';
     plugInput.placeholder = '插件路径';
     plugInput.addEventListener('change', () =>
-      saveRoomField(room.name, { recipe: { host_plugin: plugInput.value } }),
+      saveEnvironmentField(environment.name, { recipe: { host_plugin: plugInput.value } }),
     );
     plugLabel.appendChild(plugInput);
     card.appendChild(plugLabel);
@@ -195,8 +195,8 @@ function renderRooms() {
     maLabel.textContent = '托管 Agent';
     const maInput = document.createElement('input');
     maInput.type = 'text';
-    maInput.value = Array.isArray(room.recipe?.managed_agents)
-      ? room.recipe.managed_agents.join(', ')
+    maInput.value = Array.isArray(environment.recipe?.managed_agents)
+      ? environment.recipe.managed_agents.join(', ')
       : '';
     maInput.placeholder = '逗号分隔';
     maInput.addEventListener('change', () => {
@@ -207,7 +207,7 @@ function renderRooms() {
             .map((s) => s.trim())
             .filter(Boolean)
         : [];
-      saveRoomField(room.name, { recipe: { managed_agents: agents } });
+      saveEnvironmentField(environment.name, { recipe: { managed_agents: agents } });
     });
     maLabel.appendChild(maInput);
     card.appendChild(maLabel);
@@ -221,10 +221,10 @@ function renderRooms() {
       const o = document.createElement('option');
       o.value = v;
       o.textContent = v;
-      if (room.workspace === v) o.selected = true;
+      if (environment.workspace === v) o.selected = true;
       wsSel.appendChild(o);
     }
-    wsSel.addEventListener('change', () => saveRoomField(room.name, { workspace: wsSel.value }));
+    wsSel.addEventListener('change', () => saveEnvironmentField(environment.name, { workspace: wsSel.value }));
     wsLabel.appendChild(wsSel);
     card.appendChild(wsLabel);
 
@@ -233,9 +233,9 @@ function renderRooms() {
     netLabel.className = 'check';
     const netCheck = document.createElement('input');
     netCheck.type = 'checkbox';
-    netCheck.checked = room.network === true || room.network === 'true';
+    netCheck.checked = environment.network === true || environment.network === 'true';
     netCheck.addEventListener('change', () =>
-      saveRoomField(room.name, { network: netCheck.checked }),
+      saveEnvironmentField(environment.name, { network: netCheck.checked }),
     );
     netLabel.appendChild(netCheck);
     netLabel.appendChild(document.createTextNode(' 网络'));
@@ -279,7 +279,7 @@ export async function initEnv() {
     }
   });
   await loadEnvCatalog();
-  await loadRooms();
+  await loadEnvironments();
 }
 
-document.addEventListener('env-catalog-changed', () => renderRooms());
+document.addEventListener('env-catalog-changed', () => renderEnvironments());

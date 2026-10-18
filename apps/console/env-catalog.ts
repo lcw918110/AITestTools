@@ -1,6 +1,6 @@
 /**
  * 运行环境配置：模型 / Agent 清单与 Hello World 验证。
- * 清单点文件在 rooms/（引擎跳过点文件）；Agent 还会写入 hosted 房间的 managed_agents。
+ * 清单点文件在 environments/（引擎跳过点文件）；Agent 还会写入 hosted 环境的 managed_agents。
  */
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
@@ -45,12 +45,12 @@ type EnvironmentFile = {
   recipe?: EnvironmentRecipe;
 };
 
-function roomsDir(project: string): string {
+function environmentsDir(project: string): string {
   return join(project, 'environments');
 }
 
 function catalogPath(project: string): string {
-  return join(roomsDir(project), CATALOG_FILE);
+  return join(environmentsDir(project), CATALOG_FILE);
 }
 
 function readCatalogFile(project: string): CatalogFile {
@@ -68,7 +68,7 @@ function writeCatalogFile(project: string, doc: CatalogFile): void {
 }
 
 function listEnvironmentFiles(project: string): Array<{ file: string; doc: EnvironmentFile }> {
-  const dir = roomsDir(project);
+  const dir = environmentsDir(project);
   if (!existsSync(dir)) return [];
   const out: Array<{ file: string; doc: EnvironmentFile }> = [];
   for (const f of readdirSync(dir)) {
@@ -100,11 +100,11 @@ function unique(ids: string[]): string[] {
 }
 
 export function loadEnvCatalog(project: string): EnvCatalog {
-  const rooms = listEnvironmentFiles(project);
+  const environments = listEnvironmentFiles(project);
   const file = readCatalogFile(project);
   const roomModels: string[] = [];
   const roomAgents: string[] = [];
-  for (const r of rooms) {
+  for (const r of environments) {
     const recipe = r.doc.recipe;
     if (typeof recipe?.host_model === 'string' && recipe.host_model.trim())
       roomModels.push(recipe.host_model.trim());
@@ -171,7 +171,7 @@ function appendManagedAgent(project: string, agentId: string): void {
     if (list.includes(agentId)) continue;
     recipe.managed_agents = [...list, agentId];
     r.doc.recipe = recipe;
-    writeJsonAtomic(join(roomsDir(project), r.file), r.doc);
+    writeJsonAtomic(join(environmentsDir(project), r.file), r.doc);
   }
 }
 

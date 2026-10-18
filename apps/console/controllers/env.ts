@@ -1,11 +1,11 @@
 /**
- * 运行环境 API：模型/Agent 清单、添加、验证、房间（controller）。
+ * 运行环境 API：模型/Agent 清单、添加、验证、环境（controller）。
  */
 import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import type { HttpResponse } from '../http.ts';
 import { PROJECT } from '../config.ts';
-import { parseJsonObject, sanitizeRoomUpdate } from '../parse.ts';
+import { parseJsonObject, sanitizeEnvironmentUpdate } from '../parse.ts';
 import { safeUnder } from '../bank.ts';
 import { writeJsonAtomicCas } from '../json-io.ts';
 import { addEnvAgent, addEnvModel, loadEnvCatalog, verifyEnvEntry } from '../env-catalog.ts';
@@ -41,19 +41,19 @@ export async function envVerify(body: { kind?: string; id?: string }): Promise<H
   return { status: 200, body: result };
 }
 
-export async function envRoomsList(): Promise<HttpResponse> {
-  const roomsDir = join(PROJECT, 'environments');
-  const roomFiles: Array<{
+export async function envEnvironmentsList(): Promise<HttpResponse> {
+  const environmentsDir = join(PROJECT, 'environments');
+  const environmentFiles: Array<{
     name: string;
     recipe: Record<string, unknown>;
     workspace?: unknown;
     network?: unknown;
   }> = [];
-  if (existsSync(roomsDir)) {
-    for (const f of readdirSync(roomsDir)) {
+  if (existsSync(environmentsDir)) {
+    for (const f of readdirSync(environmentsDir)) {
       if (!f.endsWith('.environment.json') || f.startsWith('.')) continue;
       const name = f.replace(/\.environment\.json$/, '');
-      const abs = safeUnder(roomsDir, f);
+      const abs = safeUnder(environmentsDir, f);
       if (!abs) continue;
       try {
         const text = readFileSync(abs, 'utf8');
@@ -67,7 +67,7 @@ export async function envRoomsList(): Promise<HttpResponse> {
         // workspace/network 从 recipe 还原（isolation_profile→workspace、network_policy→network）。
         const workspace = recipe.isolation_profile === 'isolated' ? 'isolated' : 'project';
         const network = recipe.network_policy === 'allow';
-        roomFiles.push({
+        environmentFiles.push({
           name,
           recipe,
           ...(workspace !== undefined ? { workspace } : {}),
@@ -78,26 +78,26 @@ export async function envRoomsList(): Promise<HttpResponse> {
       }
     }
   }
-  return { status: 200, body: { rooms: roomFiles } };
+  return { status: 200, body: { environments: environmentFiles } };
 }
 
-export async function envRoomsUpdate(
-  roomName: string,
+export async function envEnvironmentsUpdate(
+  environmentName: string,
   body: { recipe?: Record<string, unknown>; workspace?: unknown; network?: unknown },
 ): Promise<HttpResponse> {
-  const roomsDir = join(PROJECT, 'environments');
-  const fileName = `${roomName}.environment.json`;
-  const abs = safeUnder(roomsDir, fileName);
+  const environmentsDir = join(PROJECT, 'environments');
+  const fileName = `${environmentName}.environment.json`;
+  const abs = safeUnder(environmentsDir, fileName);
   if (!abs || !existsSync(abs)) {
-    return { status: 404, body: { error: 'room not found' } };
+    return { status: 404, body: { error: 'environment not found' } };
   }
   try {
     const readMtime = statSync(abs).mtimeMs;
     const existingText = readFileSync(abs, 'utf8');
     const existing = JSON.parse(existingText) as Record<string, unknown>;
-    const update = sanitizeRoomUpdate(body);
+    const update = sanitizeEnvironmentUpdate(body);
     for (const w of update.warnings) {
-      console.warn(`PUT /api/env/rooms/${roomName}: ${w}`);
+      console.warn(`PUT /api/env/environments/${environmentName}: ${w}`);
     }
     const recipe =
       typeof existing.recipe === 'object' &&
@@ -122,7 +122,7 @@ export async function envRoomsUpdate(
     }
     const wrote = writeJsonAtomicCas(abs, existing, readMtime);
     if (!wrote) {
-      return { status: 409, body: { error: '房间配置已被并发修改，请重新读取后重试' } };
+      return { status: 409, body: { error: '环境配置已被并发修改，请重新读取后重试' } };
     }
     const resultRecipe =
       typeof existing.recipe === 'object' &&
@@ -135,7 +135,7 @@ export async function envRoomsUpdate(
     return {
       status: 200,
       body: {
-        name: roomName,
+        name: environmentName,
         recipe: resultRecipe,
         ...(workspace !== undefined ? { workspace } : {}),
         ...(network !== undefined ? { network } : {}),

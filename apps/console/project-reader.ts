@@ -45,12 +45,12 @@ export function projectSummary() {
     errors.push(`exam.json：读取失败（${(e as Error).message}）`);
   }
 
-  const roomsDir = join(PROJECT, 'environments');
-  const rooms = readdirSync(roomsDir)
+  const environmentsDir = join(PROJECT, 'environments');
+  const environments = readdirSync(environmentsDir)
     .filter((f) => f.endsWith('.environment.json'))
     .map((f) => {
       try {
-        const text = readFileSync(join(roomsDir, f), 'utf8');
+        const text = readFileSync(join(environmentsDir, f), 'utf8');
         const parsed = parseJsonObject(text, `environments/${f}`);
         if (!parsed.ok) {
           errors.push(parsed.error);
@@ -86,7 +86,7 @@ export function projectSummary() {
     exam: examName,
     description: examDescription,
     testSets: listTestSets(PROJECT),
-    rooms,
+    environments,
     tasks: materials,
     defaults: {
       sutRoot: process.env.SUT_ROOT ?? '',

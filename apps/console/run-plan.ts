@@ -1,6 +1,6 @@
 /**
  * 测试任务：题目勾选 +（仅测万象术）有无插件 → 实际要跑的组卷/引擎条目。
- * 不写回 papersets/。
+ * 不写回 dataset-releases/。
  */
 
 export type ExamMode = 'off' | 'on' | 'both';
