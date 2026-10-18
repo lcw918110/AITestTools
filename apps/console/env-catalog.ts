@@ -17,7 +17,7 @@ export type EnvKind = 'model' | 'agent';
 export type EnvEntry = {
   id: string;
   verifiedAt?: string;
-  source: 'room' | 'console';
+  source: 'environment' | 'console';
 };
 
 export type EnvCatalog = {
@@ -102,17 +102,17 @@ function unique(ids: string[]): string[] {
 export function loadEnvCatalog(project: string): EnvCatalog {
   const environments = listEnvironmentFiles(project);
   const file = readCatalogFile(project);
-  const roomModels: string[] = [];
-  const roomAgents: string[] = [];
+  const environmentModels: string[] = [];
+  const environmentAgents: string[] = [];
   for (const r of environments) {
     const recipe = r.doc.recipe;
     if (typeof recipe?.host_model === 'string' && recipe.host_model.trim())
-      roomModels.push(recipe.host_model.trim());
+      environmentModels.push(recipe.host_model.trim());
     if (typeof recipe?.host_agent === 'string' && recipe.host_agent.trim())
-      roomAgents.push(recipe.host_agent.trim());
+      environmentAgents.push(recipe.host_agent.trim());
     if (Array.isArray(recipe?.managed_agents)) {
       for (const a of recipe.managed_agents) {
-        if (typeof a === 'string' && a.trim()) roomAgents.push(a.trim());
+        if (typeof a === 'string' && a.trim()) environmentAgents.push(a.trim());
       }
     }
   }
@@ -120,15 +120,15 @@ export function loadEnvCatalog(project: string): EnvCatalog {
   const extraAgents = file.extras?.agents ?? [];
   const verifiedModels = file.verified?.models ?? {};
   const verifiedAgents = file.verified?.agents ?? {};
-  const roomModelSet = new Set(unique(roomModels));
-  const roomAgentSet = new Set(unique(roomAgents));
-  const models = unique([...roomModels, ...extraModels]).map((id) => {
-    const row: EnvEntry = { id, source: roomModelSet.has(id) ? 'room' : 'console' };
+  const environmentModelSet = new Set(unique(environmentModels));
+  const environmentAgentSet = new Set(unique(environmentAgents));
+  const models = unique([...environmentModels, ...extraModels]).map((id) => {
+    const row: EnvEntry = { id, source: environmentModelSet.has(id) ? 'environment' : 'console' };
     if (verifiedModels[id]) row.verifiedAt = verifiedModels[id];
     return row;
   });
-  const agents = unique([...roomAgents, ...extraAgents]).map((id) => {
-    const row: EnvEntry = { id, source: roomAgentSet.has(id) ? 'room' : 'console' };
+  const agents = unique([...environmentAgents, ...extraAgents]).map((id) => {
+    const row: EnvEntry = { id, source: environmentAgentSet.has(id) ? 'environment' : 'console' };
     if (verifiedAgents[id]) row.verifiedAt = verifiedAgents[id];
     return row;
   });

@@ -74,9 +74,9 @@ export async function runHostedSmokeItem(opts: {
   const hostModel = envModel ?? roomModel;
   const modelSource =
     envModel === undefined
-      ? 'room'
+      ? 'environment'
       : roomModel !== undefined && roomModel !== envModel
-        ? 'env-override-room'
+        ? 'env-override-environment'
         : 'env';
   // A 轴 freeze 无 model_id；B/C 轴才冻结模型
   const frozenModel =
@@ -245,7 +245,7 @@ export async function runHostedSmokeItem(opts: {
       args: runArgs,
       model: hostModel ?? null,
       model_source: modelSource,
-      model_room: roomModel ?? null,
+      model_environment: roomModel ?? null,
       model_env: envModel ?? null,
       model_frozen: frozenModel ?? null,
       model_matches_freeze: frozenModel === undefined ? null : hostModel === frozenModel,

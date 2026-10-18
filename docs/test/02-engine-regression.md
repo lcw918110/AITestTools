@@ -1,11 +1,11 @@
 # 任务类型操作级测试手册（引擎工程回归）
 
-| 字段     | 值                                                   |
-| :------- | :--------------------------------------------------- |
-| 状态     | **工程回归用**（非产品评测主视角）                   |
-| 日期     | 2026-10-18（cases-v1 口径）                          |
-| 依据     | PRD 终稿 v2；cases-v1；本仓 CLI / 样例考卷           |
-| 测试对象 | **行为/事件/控制流** · **模型** · **工具 CLI**       |
+| 字段     | 值                                             |
+| :------- | :--------------------------------------------- |
+| 状态     | **工程回归用**（非产品评测主视角）             |
+| 日期     | 2026-10-18（cases-v1 口径）                    |
+| 依据     | PRD 终稿 v2；cases-v1；本仓 CLI / 样例考卷     |
+| 测试对象 | **行为/事件/控制流** · **模型** · **工具 CLI** |
 
 > **测万象术 / 三对象请先看**：[wanxiangshu-ops](01-wanxiangshu-ops.md)  
 > **本文**只描述引擎内部三类测试对象如何自测/回归。
@@ -18,11 +18,11 @@
 
 ### 0.1 一次 run 只变一个主因子
 
-| 测试对象 | 主变化因子                       | 禁止混入（除非显式标注）           |
-| :------- | :------------------------------- | :--------------------------------- |
-| 行为/事件 | 事件/Fold/假宿主/契约/cassette   | 换模型、换真工具实现               |
-| 模型     | 模型 id / 通道（direct\|hosted） | 改 Fold 投影、改工具壳逻辑         |
-| 工具 CLI | 工具入参 / 壳实现                | 经 Agent 自由发挥答题              |
+| 测试对象  | 主变化因子                       | 禁止混入（除非显式标注）   |
+| :-------- | :------------------------------- | :------------------------- |
+| 行为/事件 | 事件/Fold/假宿主/契约/cassette   | 换模型、换真工具实现       |
+| 模型      | 模型 id / 通道（direct\|hosted） | 改 Fold 投影、改工具壳逻辑 |
+| 工具 CLI  | 工具入参 / 壳实现                | 经 Agent 自由发挥答题      |
 
 ### 0.2 环境准备（操作前必做）
 
@@ -85,9 +85,9 @@ npm run proctor -- report trend --project "$PROJECT"   # 多 run 指标时间线
 
 ### 1.1 对象定义
 
-| 层级   | 测什么                                                                   | 不测什么                                                                       | task_type |
-| :----- | :----------------------------------------------------------------------- | :----------------------------------------------------------------------------- | :-------- |
-| **L1** | 领域投影：`Fold(events)` → 状态是否满足 `event_fold` / `state_predicate` | 真宿主 hook、真模型、真 git                                                    | `fold`    |
+| 层级   | 测什么                                                                   | 不测什么                                                                       | task_type  |
+| :----- | :----------------------------------------------------------------------- | :----------------------------------------------------------------------------- | :--------- |
+| **L1** | 领域投影：`Fold(events)` → 状态是否满足 `event_fold` / `state_predicate` | 真宿主 hook、真模型、真 git                                                    | `fold`     |
 | **L2** | 契约假宿主上的控制流（nudge / review 时序、`event_subsequence`）         | MCP/真 session SDK 全真；可用 stubbed-ctx 加载真 Plugin（`smoke-a-l2-plugin`） | `scripted` |
 | **L3** | cassette 对拍：录制带 vs 当前宿主边界行为                                | 当作主体覆盖（≤约 10% 题量）                                                   | `cassette` |
 
@@ -97,45 +97,45 @@ npm run proctor -- report trend --project "$PROJECT"   # 多 run 指标时间线
 
 #### 情况 1.1：L1 事件直测（主体）
 
-| 步  | 操作                                                                                         | 期望                                                   |
-| :-- | :------------------------------------------------------------------------------------------- | :----------------------------------------------------- |
-| 1   | 确认 `environments/*.json` 中 `fold_entry` 指向可 `import` 的 JS 产物；万象术需先在 `SUT_ROOT` 构建 | 路径存在且与 `execution_profile.fold_entry` / `event_schema` 一致 |
-| 2   | 准备 `materials/<CASE_ID>/stimulus.ndjson`（事件序）与 `expected-fold.json`（或 state 谓词） | `item validate` 通过                                   |
-| 3   | 试题 `execution_profile.layer=L1`，`stimulus.kind=event_sequence`，`mode=fold`               | 无网络、`requires_network=false`                       |
-| 4   | 执行：`npm run proctor -- run --dataset st-import-l1 --environment fold-wanxiangshu-v1 --project "$PROJECT"` | 进程 exit 0；gates 过                                  |
-| 5   | 打开 `runs/.../results.ndjson`：每题 `pass=true`；失败则看 `PROTOCOL`/`CONTEXT` 与 fold diff | 无 `MODEL_*` 归因（L1 不应怪模型）                     |
-| 6   | 同配置再跑一次，`compare` 归一化结果                                                         | `a_flaky_rerun_delta` 贡献为 0                         |
+| 步  | 操作                                                                                                         | 期望                                                              |
+| :-- | :----------------------------------------------------------------------------------------------------------- | :---------------------------------------------------------------- |
+| 1   | 确认 `environments/*.json` 中 `fold_entry` 指向可 `import` 的 JS 产物；万象术需先在 `SUT_ROOT` 构建          | 路径存在且与 `execution_profile.fold_entry` / `event_schema` 一致 |
+| 2   | 准备 `materials/<CASE_ID>/stimulus.ndjson`（事件序）与 `expected-fold.json`（或 state 谓词）                 | `item validate` 通过                                              |
+| 3   | 试题 `execution_profile.layer=L1`，`stimulus.kind=event_sequence`，`mode=fold`                               | 无网络、`requires_network=false`                                  |
+| 4   | 执行：`npm run proctor -- run --dataset st-import-l1 --environment fold-wanxiangshu-v1 --project "$PROJECT"` | 进程 exit 0；gates 过                                             |
+| 5   | 打开 `runs/.../results.ndjson`：每题 `pass=true`；失败则看 `PROTOCOL`/`CONTEXT` 与 fold diff                 | 无 `MODEL_*` 归因（L1 不应怪模型）                                |
+| 6   | 同配置再跑一次，`compare` 归一化结果                                                                         | `a_flaky_rerun_delta` 贡献为 0                                    |
 
 **万象术一键冒烟**：`npm run smoke:wanxiangshu` 现为 **工具 CLI 真 git only**（需 `SUT_ROOT`）。L1 最小面见 `smoke:wanxiangshu:l1`（`foldEnvelope` + `RuntimeStarted`）。
 
 #### 情况 1.2：L2 契约假宿主（控制流）
 
-| 步  | 操作                                                                                          | 期望                                                               |
-| :-- | :-------------------------------------------------------------------------------------------- | :----------------------------------------------------------------- |
-| 1   | `contracts/*.json` 与 environment 的 fake-host 对齐；剧本在 `scripts/*.json`                  | `contract verify --host <id>` 相关 probe 绿（若适用）              |
-| 2   | 试题 `execution_profile.layer=L2`，`mode=scripted`，引用 `script` + `stimulus.kind=hook_script` | 剧本驱动轮次，无真 API                                             |
-| 3   | Oracle 用 `event_subsequence` / `state_predicate` / `no_event` 钉时序，而非「某事件最终出现」 | 如 nudge 必须夹在两轮之间（见 demo `demo-a-nudge-timing-01` rev2） |
+| 步  | 操作                                                                                                  | 期望                                                               |
+| :-- | :---------------------------------------------------------------------------------------------------- | :----------------------------------------------------------------- |
+| 1   | `contracts/*.json` 与 environment 的 fake-host 对齐；剧本在 `scripts/*.json`                          | `contract verify --host <id>` 相关 probe 绿（若适用）              |
+| 2   | 试题 `execution_profile.layer=L2`，`mode=scripted`，引用 `script` + `stimulus.kind=hook_script`       | 剧本驱动轮次，无真 API                                             |
+| 3   | Oracle 用 `event_subsequence` / `state_predicate` / `no_event` 钉时序，而非「某事件最终出现」         | 如 nudge 必须夹在两轮之间（见 demo `demo-a-nudge-timing-01` rev2） |
 | 4   | `npm run proctor -- run --dataset smoke-a --environment fake-host-v1 --project examples/demo-project` | 全绿；artifacts 含 durable 会话痕迹（若 `requires_durable_log`）   |
-| 5   | 改契约或剧本后：先 `item bump-rev`，再跑；旧 baseline 用 `compare` 看回归                     | 故意变严应导致旧 baseline 失败分类清晰                             |
+| 5   | 改契约或剧本后：先 `item bump-rev`，再跑；旧 baseline 用 `compare` 看回归                             | 故意变严应导致旧 baseline 失败分类清晰                             |
 
 #### 情况 1.3：L3 cassette 对拍
 
-| 步  | 操作                                                                                                      | 期望                                 |
-| :-- | :-------------------------------------------------------------------------------------------------------- | :----------------------------------- |
+| 步  | 操作                                                                                                         | 期望                                 |
+| :-- | :----------------------------------------------------------------------------------------------------------- | :----------------------------------- |
 | 1   | 录制：`PROCTOR_RECORD_CASSETTE=<id> npm run proctor -- cassette record ...`（或专用录制入口，见 process/25） | `cassettes/<id>/manifest.json` 更新  |
-| 2   | 试题 `execution_profile.layer=L3`，stimulus 指向 cassette                                                  | 回放不依赖外网（除非录制带本身要求） |
-| 3   | `npm run proctor -- run --dataset smoke-a-l3 --environment fake-host-v1 --project examples/demo-project`   | 对拍 pass                            |
-| 4   | 宿主大版本升级：优先改契约/L2；仅宿主边界漂移才重录 L3                                                    | 重录成本 O(边界题)，非整库           |
+| 2   | 试题 `execution_profile.layer=L3`，stimulus 指向 cassette                                                    | 回放不依赖外网（除非录制带本身要求） |
+| 3   | `npm run proctor -- run --dataset smoke-a-l3 --environment fake-host-v1 --project examples/demo-project`     | 对拍 pass                            |
+| 4   | 宿主大版本升级：优先改契约/L2；仅宿主边界漂移才重录 L3                                                       | 重录成本 O(边界题)，非整库           |
 
 ### 1.3 关注指标（行为 / 事件）
 
-| 指标                      | 含义                    | 门禁建议               | 操作时怎么看                      |
-| :------------------------ | :---------------------- | :--------------------- | :-------------------------------- |
-| `a_case_pass_rate`        | active 题通过率         | smoke =1.0；full ≥0.98 | `metrics.json` + dataset `gates`  |
-| `a_invariant_violations`  | PROTOCOL/CONTEXT 归因数 | =0                     | 非 0 先修协议/夹具，再谈业务      |
-| `a_recovery_pass_rate`    | 重启/重放类             | =1.0                   | 仅带 recovery 标签的子集          |
-| `a_concurrency_pass_rate` | 竞争类                  | =1.0                   | 如 ST-05                          |
-| `a_flaky_rerun_delta`     | 同配置重跑不一致        | =0                     | 连续两次 run + compare            |
+| 指标                      | 含义                    | 门禁建议               | 操作时怎么看                     |
+| :------------------------ | :---------------------- | :--------------------- | :------------------------------- |
+| `a_case_pass_rate`        | active 题通过率         | smoke =1.0；full ≥0.98 | `metrics.json` + dataset `gates` |
+| `a_invariant_violations`  | PROTOCOL/CONTEXT 归因数 | =0                     | 非 0 先修协议/夹具，再谈业务     |
+| `a_recovery_pass_rate`    | 重启/重放类             | =1.0                   | 仅带 recovery 标签的子集         |
+| `a_concurrency_pass_rate` | 竞争类                  | =1.0                   | 如 ST-05                         |
+| `a_flaky_rerun_delta`     | 同配置重跑不一致        | =0                     | 连续两次 run + compare           |
 
 单题可用 `metric_threshold` oracle 锁局部数值。
 
@@ -187,32 +187,32 @@ npm run proctor -- run --dataset st-import-l1 --environment fold-wanxiangshu-v1 
 
 #### 情况 2.1：direct（矩阵 / 服从率）
 
-| 步  | 操作                                                                                                                        | 期望                                           |
-| :-- | :-------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------- |
-| 1   | 确认 environment `model-direct-*`；工具用 **recorded fixture** 隔离工具实现                                                 | 失败归因可落在 `MODEL_SCHEMA` 等，而非工具 bug |
-| 2   | 试题 `execution_profile.mode=direct_tool`，真模型（live）或 fixture 模式；`stimulus.kind=task_prompt`                  | `repeats` 默认 ≥3（减偶然）                    |
-| 3   | Oracle：`tool_trace`（必调）+ `schema_obedience`（必填字段）；可选 `workspace_assert`                                       | 与 intent 的 `attribution_focus` 一致          |
+| 步  | 操作                                                                                                                                | 期望                                           |
+| :-- | :---------------------------------------------------------------------------------------------------------------------------------- | :--------------------------------------------- |
+| 1   | 确认 environment `model-direct-*`；工具用 **recorded fixture** 隔离工具实现                                                         | 失败归因可落在 `MODEL_SCHEMA` 等，而非工具 bug |
+| 2   | 试题 `execution_profile.mode=direct_tool`，真模型（live）或 fixture 模式；`stimulus.kind=task_prompt`                               | `repeats` 默认 ≥3（减偶然）                    |
+| 3   | Oracle：`tool_trace`（必调）+ `schema_obedience`（必填字段）；可选 `workspace_assert`                                               | 与 intent 的 `attribution_focus` 一致          |
 | 4   | **离线 CI**：`npm run proctor -- run --dataset model-core --environment model-direct-v1 --project examples/demo-project`（fixture） | gates 过；无外网                               |
-| 5   | **真模型**：配置 `.env` 后设 live（如 `PROCTOR_PROMPTFOO_LIVE=1` 或项目约定环境变量），换模型走 environment 的 `recipe.host_model` | 看 `b_*` 率；选型用，慎设绝对门禁              |
-| 6   | 读 `metrics.json`：`b_schema_obedience_rate`、`b_required_tool_call_rate`、`b_invalid_args_rate`、`b_refusal_or_empty_rate` | 对比模型只比同一 dataset + 同一 fixture        |
+| 5   | **真模型**：配置 `.env` 后设 live（如 `PROCTOR_PROMPTFOO_LIVE=1` 或项目约定环境变量），换模型走 environment 的 `recipe.host_model`  | 看 `b_*` 率；选型用，慎设绝对门禁              |
+| 6   | 读 `metrics.json`：`b_schema_obedience_rate`、`b_required_tool_call_rate`、`b_invalid_args_rate`、`b_refusal_or_empty_rate`         | 对比模型只比同一 dataset + 同一 fixture        |
 
 #### 情况 2.2：hosted（真宿主轨迹）
 
 | 步  | 操作                                                                                                                                                                                                    | 期望                                                                                                                            |
 | :-- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :------------------------------------------------------------------------------------------------------------------------------ |
 | 1   | `SUT_ROOT` 指向被测仓；environment `hosted-*` 能拉起真宿主 + 插件                                                                                                                                       | 宿主二进制可用                                                                                                                  |
-| 2   | 试题 `execution_profile.mode=hosted`，`requires_network=true`，`requires_durable_log=true`                                                                                                                             | 不进默认离线 CI                                                                                                                 |
-| 3   | `npm run proctor -- run --dataset hosted-smoke --environment hosted-wanxiangshu-v1 --project examples/wanxiangshu-papers`（demo 用 `hosted-opencode-v1`）                                                          | exit 与 oracle（常为进程/`exit_code`）一致                                                                                      |
+| 2   | 试题 `execution_profile.mode=hosted`，`requires_network=true`，`requires_durable_log=true`                                                                                                              | 不进默认离线 CI                                                                                                                 |
+| 3   | `npm run proctor -- run --dataset hosted-smoke --environment hosted-wanxiangshu-v1 --project examples/wanxiangshu-papers`（demo 用 `hosted-opencode-v1`）                                               | exit 与 oracle（常为进程/`exit_code`）一致                                                                                      |
 | 4   | 检查 `hosted-run.json` 的 `event_store_present` / `event_store_source` + `event_store_kinds`；确认含探针 `RuntimeStarted` / `JournalEnvelope`（EventStore 读 `refs/wanxiang/store` + `pending` events） | 无 EventStore → 归因 **CONTEXT**（插件可能未挂或未触发 git）；有 EventStore 但缺探针 → **PROTOCOL**；探针正常仍错 → **MODEL_*** |
-| 5   | 按设计 `12-hosted-attribution-tree` 分诊；**不得**把 hosted 聚合率写进 dataset 硬 gates                                                                                                                | `b_hosted_attribution_share` 仅报告                                                                                             |
+| 5   | 按设计 `12-hosted-attribution-tree` 分诊；**不得**把 hosted 聚合率写进 dataset 硬 gates                                                                                                                 | `b_hosted_attribution_share` 仅报告                                                                                             |
 
 #### 情况 2.3：模型对比实验（操作约定）
 
-| 步  | 操作                                                     | 期望                                  |
-| :-- | :------------------------------------------------------- | :------------------------------------ |
+| 步  | 操作                                                                            | 期望                                  |
+| :-- | :------------------------------------------------------------------------------ | :------------------------------------ |
 | 1   | 固定 dataset、fixture、prompt、repeats；只换 environment（`recipe.host_model`） | 单一主因子 = 模型                     |
-| 2   | 两次 run `baseline pin` + `compare`                      | 报告只解释模型差，不混入工具/宿主变更 |
-| 3   | 记录 token/步数等次要指标                                | 信息性，不作发布门禁                  |
+| 2   | 两次 run `baseline pin` + `compare`                                             | 报告只解释模型差，不混入工具/宿主变更 |
+| 3   | 记录 token/步数等次要指标                                                       | 信息性，不作发布门禁                  |
 
 ### 2.3 关注指标（模型）
 
@@ -265,11 +265,11 @@ npm run proctor -- item new --id demo-b-tool-06 --mode direct_tool \
 
 #### 情况 3.1：契约正常路径
 
-| 步  | 操作                                                                                      | 期望                              |
-| :-- | :---------------------------------------------------------------------------------------- | :-------------------------------- |
-| 1   | environment 声明壳命令（如 `shells/*.mjs`）；`tool_profile` 对应工具名                    | 壳可独立 `node shells/….mjs` 试跑 |
-| 2   | `stimulus.kind=tool_args`，`materials/.../stimulus.json` 给出合法入参                     |                                   |
-| 3   | Oracle：`exit_code` + `tool_result_equals`（和/或 stdout JSON 约定）                      | 深度相等或文档约定 JSONPath       |
+| 步  | 操作                                                                                                        | 期望                              |
+| :-- | :---------------------------------------------------------------------------------------------------------- | :-------------------------------- |
+| 1   | environment 声明壳命令（如 `shells/*.mjs`）；`tool_profile` 对应工具名                                      | 壳可独立 `node shells/….mjs` 试跑 |
+| 2   | `stimulus.kind=tool_args`，`materials/.../stimulus.json` 给出合法入参                                       |                                   |
+| 3   | Oracle：`exit_code` + `tool_result_equals`（和/或 stdout JSON 约定）                                        | 深度相等或文档约定 JSONPath       |
 | 4   | `npm run proctor -- run --dataset smoke-c-echo --environment shell-echo-v1 --project examples/demo-project` | `c_contract_pass_rate` 门禁过     |
 
 #### 情况 3.2：边界 / 非法输入 / 幂等
@@ -282,21 +282,21 @@ npm run proctor -- item new --id demo-b-tool-06 --mode direct_tool \
 
 #### 情况 3.3：副作用与工作区（含真 git）
 
-| 步  | 操作                                                                                                                                        | 期望                                          |
-| :-- | :------------------------------------------------------------------------------------------------------------------------------------------ | :-------------------------------------------- |
-| 1   | 壳在临时 workspace 执行；stimulus 描述初始 git/文件布局                                                                                     | 不污染用户实仓                                |
-| 2   | Oracle：`workspace_assert`（文件存在/内容）+ `tool_side_effect` + 可选 `tool_result_equals`                                                 | 如 ST-06：`rebaseNeeded` + `rebasedAndMerged` |
+| 步  | 操作                                                                                                                                                               | 期望                                          |
+| :-- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------- | :-------------------------------------------- |
+| 1   | 壳在临时 workspace 执行；stimulus 描述初始 git/文件布局                                                                                                            | 不污染用户实仓                                |
+| 2   | Oracle：`workspace_assert`（文件存在/内容）+ `tool_side_effect` + 可选 `tool_result_equals`                                                                        | 如 ST-06：`rebaseNeeded` + `rebasedAndMerged` |
 | 3   | `export SUT_ROOT=...`（若壳依赖被测脚本）后：`npm run proctor -- run --dataset st-real-git --environment git-coordinator-v1 --project examples/wanxiangshu-papers` | 6/6 类结果全绿                                |
-| 4   | 超时/截断类：断言壳正确标记，而非「卡住算过」                                                                                               | `c_timeout_truncate_correct`                  |
+| 4   | 超时/截断类：断言壳正确标记，而非「卡住算过」                                                                                                                      | `c_timeout_truncate_correct`                  |
 
 ### 3.3 关注指标（工具）
 
-| 指标                         | 含义                    | 门禁建议                   |
-| :--------------------------- | :---------------------- | :------------------------- |
-| `c_contract_pass_rate`       | 直调契约通过率          | =1.0                       |
-| `c_boundary_pass_rate`       | 边界/非法输入           | =1.0                       |
-| `c_idempotent_pass_rate`     | 幂等类                  | =1.0                       |
-| `c_timeout_truncate_correct` | 超时/截断标记           | =1.0                       |
+| 指标                         | 含义                    | 门禁建议                         |
+| :--------------------------- | :---------------------- | :------------------------------- |
+| `c_contract_pass_rate`       | 直调契约通过率          | =1.0                             |
+| `c_boundary_pass_rate`       | 边界/非法输入           | =1.0                             |
+| `c_idempotent_pass_rate`     | 幂等类                  | =1.0                             |
+| `c_timeout_truncate_correct` | 超时/截断标记           | =1.0                             |
 | `c_via_agent_discover_rate`  | 经 Agent 发现并正确调用 | 可选；属交叉测试对象，须显式标注 |
 
 ### 3.4 测试用例（工具）形态与样例
@@ -328,13 +328,13 @@ npm run proctor -- item new --id wx-c-st-99 --mode direct_tool \
 
 ## 4. 三对象对照速查
 
-|             | 行为 / 事件                       | 模型                                    | 工具 CLI                       |
-| :---------- | :-------------------------------- | :-------------------------------------- | :----------------------------- |
+|             | 行为 / 事件                       | 模型                                    | 工具 CLI                          |
+| :---------- | :-------------------------------- | :-------------------------------------- | :-------------------------------- |
 | 主命令      | `run --dataset … --environment …` | `run --dataset … --environment …`       | `run --dataset … --environment …` |
-| 默认网络    | 否（L1/L2）                       | direct fixture 否；live/hosted 是       | 否                             |
-| 主门禁      | `a_case_pass_rate` 等             | direct 的 `b_schema_*`；hosted 无硬门禁 | `c_*_pass_rate` =1.0           |
-| 升 rev 时机 | 期望/时序/事件序变                | prompt/必调/schema 变                   | 壳协议/断言变                  |
-| 权威样例库  | `st-import-l1`、`smoke-a*`        | `model-core`、`hosted-smoke`            | `smoke-c-*`、`st-real-git`     |
+| 默认网络    | 否（L1/L2）                       | direct fixture 否；live/hosted 是       | 否                                |
+| 主门禁      | `a_case_pass_rate` 等             | direct 的 `b_schema_*`；hosted 无硬门禁 | `c_*_pass_rate` =1.0              |
+| 升 rev 时机 | 期望/时序/事件序变                | prompt/必调/schema 变                   | 壳协议/断言变                     |
+| 权威样例库  | `st-import-l1`、`smoke-a*`        | `model-core`、`hosted-smoke`            | `smoke-c-*`、`st-real-git`        |
 
 ### 推荐日常回归
 

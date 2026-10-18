@@ -393,7 +393,7 @@ function renderDashboard(d) {
   else if (c.plugin === 'off') pills.push(['插件 关', 'off']);
   if (c.model) pills.push(['模型 ' + c.model, '']);
   if (c.model_source) {
-    pills.push(['模型来源 ' + c.model_source, c.model_source === 'room' ? 'on' : 'warn']);
+    pills.push(['模型来源 ' + c.model_source, c.model_source === 'environment' ? 'on' : 'warn']);
   }
   if (c.model_matches_freeze === true) pills.push(['与冻结一致', 'on']);
   if (c.model_matches_freeze === false) pills.push(['与冻结不一致', 'warn']);

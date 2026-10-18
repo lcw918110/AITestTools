@@ -93,7 +93,7 @@ describe('测试看板 dashboard', () => {
         {
           item_id: 'EVAL-B-PAIRED-TASK-157-ON',
           model: 'wave-ai/gpt-5.4-mini',
-          model_source: 'room',
+          model_source: 'environment',
           model_matches_freeze: true,
           workspace_isolated: true,
           plugin: '/x/Plugin.js',
@@ -134,7 +134,7 @@ describe('测试看板 dashboard', () => {
       },
     });
     expect(dash.config.plugin).toBe('on');
-    expect(dash.config.model_source).toBe('room');
+    expect(dash.config.model_source).toBe('environment');
     expect(dash.config.event_store_present).toBe(true);
     expect(dash.matrix).toHaveLength(3);
     expect(dash.matrix.find((m) => m.pair === 'PAIRED-TASK-157')?.exclude_from_effect).toBe(true);

@@ -209,7 +209,7 @@ npm run proctor -- compare --baseline "$OFF" --candidate "$ON"
 
 **工作区隔离**：`room.workspace: "isolated"` 让每题跑在临时空 git 仓。挂插件的考场天然隔离，**无插件的对照侧必须显式声明**——否则 OFF 侧会落在项目根目录（能看到题库与引擎源码），ON 侧落在空仓，工作区内容与插件两个因子同时变。四个 hosted 考场均已声明；`hosted-run.json` 的 `workspace_isolated` 可核。隔离仓初始化后，会把本题 `stimulus.ref` 所在材料目录里除 `prompt.txt` 外的文件按相对路径拷进 workDir；空目录或只有 prompt 则仍是空仓（另有 README / opencode.json）。
 
-**模型一致性**：`.env` 的 `PROCTOR_HOSTED_MODEL` 会静默盖掉 `room.host.model`，已注掉。产物记 `model_source`（`room` / `env`）、`model_frozen`、`model_matches_freeze`，跑完必须确认 `model_source: room` 且 `model_matches_freeze: true`。
+**模型一致性**：`.env` 的 `PROCTOR_HOSTED_MODEL` 会静默盖掉 `room.host.model`，已注掉。产物记 `model_source`（`environment` / `env`）、`model_frozen`、`model_matches_freeze`，跑完必须确认 `model_source: environment` 且 `model_matches_freeze: true`。
 
 **诊断**：真跑固定带 `--print-logs`，宿主日志全文落 `artifacts/<item>/hosted-stderr.log`。归因中 `HARNESS` / `CONTEXT` 不被题目 `attribution_focus` 改写——额度不足必须记成 `CONTEXT`，不得记成 `MODEL_TASK`。
 

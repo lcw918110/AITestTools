@@ -643,6 +643,7 @@
 **1. 组织框架**：废弃「轴 A/B/C」术语，改用「测试对象」三分类（行为/事件/控制流、模型、工具 CLI）作为叙述框架；每个分类内标注对应 `task_type`（fold/scripted/cassette/hosted/direct_tool）。
 
 **2. 命令迁移**：
+
 - `run --axis X --paperset Y` → `run --dataset y --environment z`（映射：`st-import-l1`×`fold-wanxiangshu-v1`、`smoke-a-l1`×`fold-v1`、`smoke-a`×`fake-host-v1`、`smoke-a-l3`×`fake-host-v1`、`model-core`×`model-direct-v1`、`hosted-smoke`×`hosted-wanxiangshu-v1`/`hosted-opencode-v1`、`smoke-c-echo`/`smoke-c-write`×`shell-echo-v1`、`st-real-git`×`git-coordinator-v1`）。
 - `item new --axis X --layer L` → `item new --mode fold|scripted|cassette|hosted|direct_tool --layer L`。
 - 删除已不存在的 `--models` CLI 参数引用（换模型改走 environment 的 `recipe.host_model`）。
@@ -652,6 +653,7 @@
 **4. 样例题 id 对齐实际资产**：`DEMO-A-NUDGE-TIMING-01`→`demo-a-nudge-timing-01`、`WX-A-ST-01-MAIN`→`wx-a-st-01-main`、`DEMO-B-TOOL-SCHEMA-01`→`demo-b-tool-schema-01`、`WX-B-HOSTED-PLUGIN-01`→`wx-b-hosted-plugin-01`、`DEMO-C-ECHO-01`→`demo-c-echo-01`、`WX-C-ST-06-REBASE`→`wx-c-st-06-rebase` 等（对齐 examples 里已小写连字符化的 case_id）。
 
 **验证（实测，2026-10-18）**：
+
 - `grep` 全文无 `--axis`/`--paperset`/`papersets`/`items[]`/`freeze.`/`rooms/`/`model_driver`/`轴` 残留。
 - dataset/environment 名称与 examples 下 `dataset-releases/`、`environments/` 实际文件名逐一核对一致。
 - 文档内链接（`01-wanxiangshu-ops.md`、`archive/v1-design/*`、`architecture/adr/0008`、`archive/v1-requirements/01-prd.md`、`process/`）全部可解析。
@@ -671,7 +673,7 @@
 
 **2. 前端命名统一（房间 → 环境）**
 
-- `apps/console/public/index.html`：DOM id `roomPanel`/`roomList`/`roomModelOptions`/`roomAgentOptions`→`environmentPanel`/`environmentList`/`environmentModelOptions`/`environmentAgentOptions`；文案「房间配置」→「环境配置」、「rooms/*.json」→「environments/*.environment.json」、「共用一间房间」→「共用一套环境」。
+- `apps/console/public/index.html`：DOM id `roomPanel`/`roomList`/`roomModelOptions`/`roomAgentOptions`→`environmentPanel`/`environmentList`/`environmentModelOptions`/`environmentAgentOptions`；文案「房间配置」→「环境配置」、「rooms/_.json」→「environments/_.environment.json」、「共用一间房间」→「共用一套环境」。
 - `apps/console/public/env.js`：变量 `rooms`→`environments`、函数 `loadRooms`/`renderRooms`/`saveRoomField`→`loadEnvironments`/`renderEnvironments`/`saveEnvironmentField`、`pendingRoomChanges`/`roomTimers`→`pendingEnvironmentChanges`/`environmentTimers`、循环变量 `room`→`environment`、API 路径 `/api/env/rooms`→`/api/env/environments`、响应 `data.rooms`→`data.environments`、文案「没有房间文件」→「没有环境文件」。
 - `apps/console/public/styles.css`：CSS class `.room-panel`/`.room-list`/`.room-card`→`.environment-panel`/`.environment-list`/`.environment-card`；注释「房间配置面板」→「环境配置面板」。
 
@@ -694,7 +696,38 @@
 - `docs/09-轴路由cases-v1表达设计.md` 状态仍为「草案（待评审）」，按 §17 决策「按当前口径迁移、不先定稿」，定稿另立任务。
 
 **验证（实测，2026-10-18）**：
+
 - `npm run typecheck`：0 错误
 - `npm run lint`：通过
 - `npx vitest run tests/console/server-http.test.ts tests/console/environment-host-sanitize.test.ts`：25 测试全绿
 - `npm test`：59 文件 335 测试通过（`event-store.test.ts` 的 4 个 git init 用例为沙箱权限问题，非沙箱重跑全绿，非本次改动引入）
+
+## §19 遗留项收尾：room 枚举值/字段名统一 + docs/09 定稿（2026-10-18）
+
+收口 §18「遗留项」三条 + 引擎层 `model_source` 枚举值统一，把「房间（room）」语义的最后一个残留清干净。
+
+**1. 引擎层 `model_source` 枚举值统一（`src/run/hosted-runner.ts`）**
+
+- `modelSource` 取值 `'room'`→`'environment'`、`'env-override-room'`→`'env-override-environment'`（`'env'` 保留，语义「来自环境变量」准确）。
+- run 产物字段 `model_room`→`model_environment`（诊断字段，无代码消费方，改名安全）。
+- `model_frozen`/`model_env` 字段名保留（「冻结模型」/「环境变量模型」语义仍准确，非 room 残留）。
+
+**2. console 层 `source` 枚举值统一（`apps/console/env-catalog.ts`）**
+
+- `EnvEntry.source` 类型 `'room' | 'console'`→`'environment' | 'console'`；赋值 `'room'`→`'environment'`（2 处）。
+- 局部变量 `roomModels`/`roomAgents`/`roomModelSet`/`roomAgentSet`→`environmentModels`/`environmentAgents`/`environmentModelSet`/`environmentAgentSet`（与已改的 Set 变量名保持一致）。
+- `apps/console/public/app.js`：`c.model_source === 'room'`→`'environment'`。
+- `tests/console/dashboard.test.ts`：`model_source: 'room'`→`'environment'`（2 处）。
+
+**3. 历史注释清理 + 文档定稿**
+
+- `apps/console/test-sets.ts`：删除「阶段 5：数据源从 papersets/ 切换到 dataset-releases/」历史阶段注释。
+- `docs/test/01-wanxiangshu-ops.md`：`model_source`（`room` / `env`）→（`environment` / `env`），`model_source: room`→`model_source: environment`。
+- `docs/09-轴路由cases-v1表达设计.md`：状态「草案（待评审）」→「现行」（字段已全量落地 engine/adapters/CLI/console/docs，事实定稿）。
+
+**验证（实测，2026-10-18）**：
+
+- `npm run typecheck`：0 错误
+- `npm run lint`：通过
+- `npm test`：59 文件 335 测试通过（`event-store.test.ts` 的 4 个 git init 用例为沙箱权限问题，非沙箱重跑 5/5 全绿，非本次改动引入）
+- `format:check`：本轮修复 3 个前几轮遗留的格式问题（`apps/console/public/env.js`、`docs/process/01-changelog.md`、`docs/test/02-engine-regression.md`），现全仓干净

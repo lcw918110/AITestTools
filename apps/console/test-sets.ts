@@ -1,7 +1,6 @@
 /**
  * 测试集：对人一份人题名单；磁盘成对 dataset-release（无插件 / 有插件）。
  * eval-model / eval-agent 等不进测试集列表。
- * 阶段 5：数据源从 papersets/ 切换到 dataset-releases/（cases-v1）。
  */
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { writeJsonAtomic } from './json-io.ts';

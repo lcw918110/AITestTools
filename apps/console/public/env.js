@@ -224,7 +224,9 @@ function renderEnvironments() {
       if (environment.workspace === v) o.selected = true;
       wsSel.appendChild(o);
     }
-    wsSel.addEventListener('change', () => saveEnvironmentField(environment.name, { workspace: wsSel.value }));
+    wsSel.addEventListener('change', () =>
+      saveEnvironmentField(environment.name, { workspace: wsSel.value }),
+    );
     wsLabel.appendChild(wsSel);
     card.appendChild(wsLabel);
 
