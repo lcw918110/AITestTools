@@ -133,7 +133,7 @@ describe('HTTP 层集成测试', () => {
     const res = await request('/api/env/rooms/not-exists-room', {
       method: 'PUT',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ host: {} }),
+      body: JSON.stringify({ recipe: {} }),
     });
     expect(res.status).toBe(404);
     const body = (await res.json()) as { error: string };

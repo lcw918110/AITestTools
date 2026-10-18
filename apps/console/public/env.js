@@ -74,8 +74,8 @@ const roomTimers = new Map();
 
 function saveRoomField(name, partial) {
   const pending = pendingRoomChanges.get(name) || {};
-  if (partial.host) {
-    pending.host = { ...(pending.host || {}), ...partial.host };
+  if (partial.recipe) {
+    pending.recipe = { ...(pending.recipe || {}), ...partial.recipe };
   }
   if ('workspace' in partial) pending.workspace = partial.workspace;
   if ('network' in partial) pending.network = partial.network;
@@ -149,54 +149,54 @@ function renderRooms() {
     title.textContent = room.name;
     card.appendChild(title);
 
-    // host.model
+    // recipe.host_model
     const modelLabel = document.createElement('label');
     modelLabel.textContent = '模型';
     const modelInput = document.createElement('input');
     modelInput.type = 'text';
     modelInput.setAttribute('list', 'roomModelOptions');
-    modelInput.value = room.host?.model || '';
+    modelInput.value = room.recipe?.host_model || '';
     modelInput.placeholder = '模型标识';
     modelInput.addEventListener('change', () =>
-      saveRoomField(room.name, { host: { model: modelInput.value } }),
+      saveRoomField(room.name, { recipe: { host_model: modelInput.value } }),
     );
     modelLabel.appendChild(modelInput);
     card.appendChild(modelLabel);
 
-    // host.agent
+    // recipe.host_agent
     const agentLabel = document.createElement('label');
     agentLabel.textContent = 'Agent';
     const agentInput = document.createElement('input');
     agentInput.type = 'text';
     agentInput.setAttribute('list', 'roomAgentOptions');
-    agentInput.value = room.host?.agent || '';
+    agentInput.value = room.recipe?.host_agent || '';
     agentInput.placeholder = 'Agent 标识';
     agentInput.addEventListener('change', () =>
-      saveRoomField(room.name, { host: { agent: agentInput.value } }),
+      saveRoomField(room.name, { recipe: { host_agent: agentInput.value } }),
     );
     agentLabel.appendChild(agentInput);
     card.appendChild(agentLabel);
 
-    // host.plugin
+    // recipe.host_plugin
     const plugLabel = document.createElement('label');
     plugLabel.textContent = '插件';
     const plugInput = document.createElement('input');
     plugInput.type = 'text';
-    plugInput.value = room.host?.plugin || '';
+    plugInput.value = room.recipe?.host_plugin || '';
     plugInput.placeholder = '插件路径';
     plugInput.addEventListener('change', () =>
-      saveRoomField(room.name, { host: { plugin: plugInput.value } }),
+      saveRoomField(room.name, { recipe: { host_plugin: plugInput.value } }),
     );
     plugLabel.appendChild(plugInput);
     card.appendChild(plugLabel);
 
-    // host.managed_agents
+    // recipe.managed_agents
     const maLabel = document.createElement('label');
     maLabel.textContent = '托管 Agent';
     const maInput = document.createElement('input');
     maInput.type = 'text';
-    maInput.value = Array.isArray(room.host?.managed_agents)
-      ? room.host.managed_agents.join(', ')
+    maInput.value = Array.isArray(room.recipe?.managed_agents)
+      ? room.recipe.managed_agents.join(', ')
       : '';
     maInput.placeholder = '逗号分隔';
     maInput.addEventListener('change', () => {
@@ -207,7 +207,7 @@ function renderRooms() {
             .map((s) => s.trim())
             .filter(Boolean)
         : [];
-      saveRoomField(room.name, { host: { managed_agents: agents } });
+      saveRoomField(room.name, { recipe: { managed_agents: agents } });
     });
     maLabel.appendChild(maInput);
     card.appendChild(maLabel);

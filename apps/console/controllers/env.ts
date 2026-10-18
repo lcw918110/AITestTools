@@ -42,33 +42,37 @@ export async function envVerify(body: { kind?: string; id?: string }): Promise<H
 }
 
 export async function envRoomsList(): Promise<HttpResponse> {
-  const roomsDir = join(PROJECT, 'rooms');
+  const roomsDir = join(PROJECT, 'environments');
   const roomFiles: Array<{
     name: string;
-    host: Record<string, unknown>;
+    recipe: Record<string, unknown>;
     workspace?: unknown;
     network?: unknown;
   }> = [];
   if (existsSync(roomsDir)) {
     for (const f of readdirSync(roomsDir)) {
-      if (!f.endsWith('.json') || f.startsWith('.')) continue;
-      const name = f.replace(/\.json$/, '');
+      if (!f.endsWith('.environment.json') || f.startsWith('.')) continue;
+      const name = f.replace(/\.environment\.json$/, '');
       const abs = safeUnder(roomsDir, f);
       if (!abs) continue;
       try {
         const text = readFileSync(abs, 'utf8');
-        const parsed = parseJsonObject(text, `rooms/${f}`);
+        const parsed = parseJsonObject(text, `environments/${f}`);
         if (!parsed.ok) continue;
         const doc = parsed.value;
-        const host =
-          typeof doc.host === 'object' && doc.host !== null && !Array.isArray(doc.host)
-            ? (doc.host as Record<string, unknown>)
+        const recipe =
+          typeof doc.recipe === 'object' && doc.recipe !== null && !Array.isArray(doc.recipe)
+            ? (doc.recipe as Record<string, unknown>)
             : {};
+        // workspace/network 从 recipe 还原（isolation_profile→workspace、network_policy→network）。
+        const workspace =
+          recipe.isolation_profile === 'isolated' ? 'isolated' : 'project';
+        const network = recipe.network_policy === 'allow';
         roomFiles.push({
           name,
-          host,
-          ...(doc.workspace !== undefined ? { workspace: doc.workspace } : {}),
-          ...(doc.network !== undefined ? { network: doc.network } : {}),
+          recipe,
+          ...(workspace !== undefined ? { workspace } : {}),
+          ...(network !== undefined ? { network } : {}),
         });
       } catch {
         continue;
@@ -80,10 +84,10 @@ export async function envRoomsList(): Promise<HttpResponse> {
 
 export async function envRoomsUpdate(
   roomName: string,
-  body: { host?: Record<string, unknown>; workspace?: unknown; network?: unknown },
+  body: { recipe?: Record<string, unknown>; workspace?: unknown; network?: unknown },
 ): Promise<HttpResponse> {
-  const roomsDir = join(PROJECT, 'rooms');
-  const fileName = `${roomName}.json`;
+  const roomsDir = join(PROJECT, 'environments');
+  const fileName = `${roomName}.environment.json`;
   const abs = safeUnder(roomsDir, fileName);
   if (!abs || !existsSync(abs)) {
     return { status: 404, body: { error: 'room not found' } };
@@ -96,30 +100,42 @@ export async function envRoomsUpdate(
     for (const w of update.warnings) {
       console.warn(`PUT /api/env/rooms/${roomName}: ${w}`);
     }
-    if (update.host !== undefined) {
-      existing.host = { ...((existing.host as Record<string, unknown>) ?? {}), ...update.host };
+    const recipe =
+      typeof existing.recipe === 'object' && existing.recipe !== null && !Array.isArray(existing.recipe)
+        ? (existing.recipe as Record<string, unknown>)
+        : {};
+    if (update.recipe !== undefined) {
+      existing.recipe = { ...recipe, ...update.recipe };
     }
     if (update.workspace !== undefined) {
-      existing.workspace = update.workspace;
+      existing.recipe = {
+        ...(existing.recipe as Record<string, unknown>),
+        isolation_profile: update.workspace === 'isolated' ? 'isolated' : 'shared',
+      };
     }
     if (update.network !== undefined) {
-      existing.network = update.network;
+      existing.recipe = {
+        ...(existing.recipe as Record<string, unknown>),
+        network_policy: update.network ? 'allow' : 'deny',
+      };
     }
     const wrote = writeJsonAtomicCas(abs, existing, readMtime);
     if (!wrote) {
       return { status: 409, body: { error: '房间配置已被并发修改，请重新读取后重试' } };
     }
-    const resultHost =
-      typeof existing.host === 'object' && existing.host !== null && !Array.isArray(existing.host)
-        ? (existing.host as Record<string, unknown>)
+    const resultRecipe =
+      typeof existing.recipe === 'object' && existing.recipe !== null && !Array.isArray(existing.recipe)
+        ? (existing.recipe as Record<string, unknown>)
         : {};
+    const workspace = resultRecipe.isolation_profile === 'isolated' ? 'isolated' : 'project';
+    const network = resultRecipe.network_policy === 'allow';
     return {
       status: 200,
       body: {
         name: roomName,
-        host: resultHost,
-        ...(existing.workspace !== undefined ? { workspace: existing.workspace } : {}),
-        ...(existing.network !== undefined ? { network: existing.network } : {}),
+        recipe: resultRecipe,
+        ...(workspace !== undefined ? { workspace } : {}),
+        ...(network !== undefined ? { network } : {}),
       },
     };
   } catch (e) {

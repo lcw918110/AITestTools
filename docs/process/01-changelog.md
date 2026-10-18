@@ -506,3 +506,15 @@
 - **关键发现（阶段 6 待办）**：`legacy==='paired'` 分支仍走 `npm run eval:paired`（`scripts/eval-paired.sh`），脚本内用 `--paperset paired-off/paired-on`（V1 路径）；`package.json` 的 `eval:model` 脚本也用 `--paperset eval-model`。这些是引擎层 npm 脚本，依赖 papers-v1 资产（`papersets/`+`rooms/`），阶段 6 删除 papers-v1 资产前需切 cases-v1（`--dataset`+`--environment`）
 - **决策（明日复核）**：run meta 字段名 `paperset`/`room`（引擎 `runCommandV2` 写产物）暂不改，`dashboard.ts` 读 `meta.paperset`/`meta.room` 仍正确；字段名统一属阶段 6
 - 测试：`test-sets.test.ts` 移除 papersets 兼容文件断言；320 个测试全绿（含 83 console），typecheck 通过
+
+**阶段 5 切片 C2（env 房间 CRUD 写路径切 cases-v1，2026-10-18，已提交）：**
+
+- `parse.ts`：`SanitizedHost`（`model`/`agent`/`plugin`）→`SanitizedRecipe`（`host_model`/`host_agent`/`host_plugin`）；`sanitizeHostFields`→`sanitizeRecipeFields`；`sanitizeRoomUpdate` 的 `host`→`recipe`
+- `controllers/env.ts` `envRoomsList`/`envRoomsUpdate`：读/写 `rooms/*.json`→`environments/*.environment.json`；`doc.host`→`doc.recipe`；`workspace`（`isolated`/`project`）↔`recipe.isolation_profile`（`isolated`/`shared`）；`network`（bool）↔`recipe.network_policy`（`allow`/`deny`）
+- `public/env.js`：`room.host.model`→`room.recipe.host_model`、`host.agent`→`host_agent`、`host.plugin`→`host_plugin`、`host.managed_agents`→`managed_agents`；`saveRoomField` 的 `{ host: {...} }`→`{ recipe: {...} }`
+- 测试：`room-host-sanitize.test.ts` 断言切 `recipe.host_model` 等；`server-http.test.ts` PUT body `{ host: {} }`→`{ recipe: {} }`；320 个测试全绿，typecheck 通过
+
+**阶段 5 完成（console 全量重写，2026-10-18）：**
+
+- 读路径（`test-sets.ts`/`project-reader.ts`/`run-plan.ts`/`bank.ts`）、写路径（`bank.ts` create/update/delete）、环境管理（`env-catalog.ts`/`controllers/env.ts`/`parse.ts`）、运行（`job-queue.ts`）、前端（`app.js`/`env.js`）全部切 cases-v1
+- 遗留（阶段 6）：`scripts/eval-paired.sh` 与 `package.json` 的 `eval:model` 脚本仍用 `--paperset`；run meta 字段名 `paperset`/`room` 未统一

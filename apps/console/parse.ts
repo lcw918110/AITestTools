@@ -58,51 +58,51 @@ export function optStr(obj: Record<string, unknown>, key: string): string | unde
   return str(obj[key]);
 }
 
-/** rooms/*.json host 字段白名单：字符串类型字段。 */
-const HOST_STRING_FIELDS = ['model', 'agent', 'plugin'] as const;
+/** environments/*.environment.json recipe 字段白名单：字符串类型字段。 */
+const RECIPE_STRING_FIELDS = ['host_model', 'host_agent', 'host_plugin'] as const;
 
-export type SanitizedHost = {
-  model?: string;
-  agent?: string;
-  plugin?: string;
+export type SanitizedRecipe = {
+  host_model?: string;
+  host_agent?: string;
+  host_plugin?: string;
   managed_agents?: string[];
 };
 
 /**
- * 对 body.host 做白名单过滤 + 类型校验。
+ * 对 body.recipe 做白名单过滤 + 类型校验。
  * 白名单外的字段被忽略并记入 rejected；类型不符的白名单字段同样被忽略并记入 rejected。
  * 只返回通过校验的字段。
  */
-export function sanitizeHostFields(raw: Record<string, unknown>): {
-  host: SanitizedHost;
+export function sanitizeRecipeFields(raw: Record<string, unknown>): {
+  recipe: SanitizedRecipe;
   rejected: string[];
 } {
-  const host: SanitizedHost = {};
+  const recipe: SanitizedRecipe = {};
   const rejected: string[] = [];
   for (const [key, value] of Object.entries(raw)) {
     if (key === 'managed_agents') {
       if (Array.isArray(value) && value.every((x) => typeof x === 'string')) {
-        host.managed_agents = value;
+        recipe.managed_agents = value;
       } else {
-        rejected.push('host.managed_agents 应为字符串数组，已忽略');
+        rejected.push('recipe.managed_agents 应为字符串数组，已忽略');
       }
       continue;
     }
-    if ((HOST_STRING_FIELDS as readonly string[]).includes(key)) {
+    if ((RECIPE_STRING_FIELDS as readonly string[]).includes(key)) {
       if (typeof value === 'string') {
-        host[key as 'model' | 'agent' | 'plugin'] = value;
+        recipe[key as 'host_model' | 'host_agent' | 'host_plugin'] = value;
       } else {
-        rejected.push(`host.${key} 应为字符串，已忽略`);
+        rejected.push(`recipe.${key} 应为字符串，已忽略`);
       }
       continue;
     }
-    rejected.push(`host.${key} 不是合法字段，已忽略`);
+    rejected.push(`recipe.${key} 不是合法字段，已忽略`);
   }
-  return { host, rejected };
+  return { recipe, rejected };
 }
 
 export type SanitizedRoomUpdate = {
-  host?: SanitizedHost;
+  recipe?: SanitizedRecipe;
   workspace?: string;
   network?: boolean;
   warnings: string[];
@@ -110,26 +110,26 @@ export type SanitizedRoomUpdate = {
 
 /**
  * 对 PUT /api/env/rooms/:name 的请求体做整体校验：
- * - host：白名单过滤 + 类型校验（model/agent/plugin 为字符串，managed_agents 为字符串数组）
+ * - recipe：白名单过滤 + 类型校验（host_model/host_agent/host_plugin 为字符串，managed_agents 为字符串数组）
  * - workspace：应为字符串
  * - network：应为布尔
  * 校验失败或白名单外的值被忽略，并记入 warnings；不会抛出异常。
  */
 export function sanitizeRoomUpdate(body: {
-  host?: unknown;
+  recipe?: unknown;
   workspace?: unknown;
   network?: unknown;
 }): SanitizedRoomUpdate {
   const warnings: string[] = [];
   const out: SanitizedRoomUpdate = { warnings };
 
-  if (body.host !== undefined) {
-    if (typeof body.host === 'object' && body.host !== null && !Array.isArray(body.host)) {
-      const { host, rejected } = sanitizeHostFields(body.host as Record<string, unknown>);
-      out.host = host;
+  if (body.recipe !== undefined) {
+    if (typeof body.recipe === 'object' && body.recipe !== null && !Array.isArray(body.recipe)) {
+      const { recipe, rejected } = sanitizeRecipeFields(body.recipe as Record<string, unknown>);
+      out.recipe = recipe;
       warnings.push(...rejected);
     } else {
-      warnings.push('host 应为对象，已忽略');
+      warnings.push('recipe 应为对象，已忽略');
     }
   }
 
