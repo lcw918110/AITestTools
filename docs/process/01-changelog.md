@@ -1262,3 +1262,29 @@ env 切片收口后，按「不留技术债」维度清理既有缺陷，使 `co
 **4. Bugbot 审查（S4）**
 
 - 云端 Bugbot 发现 1 High：canary 注入被 `this.wantIsolated` 门控，非隔离环境（`isolation_profile: 'shared'` 且无 `durable_log_glob`）时 canary 从未注入，但泄露检测仍报告 `leaked: false`，产出假阴性。已修复：`HostedAdapter.prepare` 在 `canarySecret` 存在但非隔离时抛 `AdapterError`（安全红队必须隔离执行，静默跳过会假阴性）。
+
+## §38 自主工作阶段收口（待办全清，2026-10-20）
+
+系统性梳理全部待办后的最终状态核对，确认无遗漏。
+
+**1. 分期界面化（ADR-0009）全部落地**
+
+- 第 0 期：模型配置池 `models.json` + 裁判体系三类来源（§29）。
+- 第 1 期：录题（§31）、运行环境 Profile（§32）、数据集管理（§33）。
+- 第 2 期：指标趋势页 + 综合健康检查页（§36）。
+- **console 退役已基本完成**：`apps/console/` 已无终端脚本残留（`grep console.log/process.argv/readline` 仅命中 `server.ts` 启动日志），完全迁移到 HTTP API + SPA 形态。CLI 引擎命令（`proctor run/compare/baseline` 等）是引擎独立测试入口，且被 console 内部调用（`validateBank` spawn `item validate`），属合理保留，非「待退役的 console 脚本」。
+
+**2. 五个优化项（docs/11）全部落地或明确后置**
+
+- ① 裁判模型（LLM-as-judge）执行落地 + inter-judge agreement 校验基准（§29 + §34）。
+- ② 一致性量化（repeats 上移 + pass^k，§30）。
+- ③ 安全红队执行器（IPI 注入 + canary 泄露检测，§37）。
+- ④ 持续评测闭环（失败 → 回归题沉淀，§35）。
+- ⑤ OTel 导出：明确后置（价值最低、成本最高，docs/11 已记录）。
+
+**3. 全量验证（实测，2026-10-20）**
+
+- `npm run format:check` 全绿；`npm run lint` 通过；`npm run typecheck` 0 错误。
+- `npm test` 381 通过（非沙箱全绿；沙箱下 4 例 `git init` 拦截属环境限制）。
+- `scripts/console-l0.sh` 完整冒烟通过（含 C-A-57~60 断言）。
+- 全仓 TODO/占位仅 `item-new.ts` 骨架约定（有意设计，§25 已记录），无技术债尾巴。
