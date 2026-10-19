@@ -1,5 +1,6 @@
 import { api, initBank, openWizardWithDraft } from './bank.js';
 import { initEnv, verifiedAgents, verifiedModels } from './env.js';
+import { initModelPool } from './model-pool.js';
 
 const runBtn = document.getElementById('runBtn');
 const jobStatus = document.getElementById('jobStatus');
@@ -16,6 +17,22 @@ const attrSummary = document.getElementById('attrSummary');
 const effectSummary = document.getElementById('effectSummary');
 const infoMetrics = document.getElementById('infoMetrics');
 const refScores = document.getElementById('refScores');
+const judgeModelBtn = document.getElementById('judgeModelBtn');
+const judgeHumanBtn = document.getElementById('judgeHumanBtn');
+const judgeStatus = document.getElementById('judgeStatus');
+const judgeScores = document.getElementById('judgeScores');
+const judgeDialog = document.getElementById('judgeDialog');
+const judgeDialogTitle = document.getElementById('judgeDialogTitle');
+const judgeItemId = document.getElementById('judgeItemId');
+const judgeTaskPrompt = document.getElementById('judgeTaskPrompt');
+const judgeFinalOutput = document.getElementById('judgeFinalOutput');
+const judgeHumanHint = document.getElementById('judgeHumanHint');
+const judgeVerdictsBox = document.getElementById('judgeVerdictsBox');
+const judgeReviewerLabel = document.getElementById('judgeReviewerLabel');
+const judgeReviewer = document.getElementById('judgeReviewer');
+const judgeError = document.getElementById('judgeError');
+const judgeForm = document.getElementById('judgeForm');
+const judgeCancel = document.getElementById('judgeCancel');
 const failDrafts = document.getElementById('failDrafts');
 const tokenSummary = document.getElementById('tokenSummary');
 const dashConfig = document.getElementById('dashConfig');
@@ -593,6 +610,86 @@ function renderRef(summary) {
   refScores.textContent = `平均参考分 ${r.avg?.toFixed?.(2) ?? r.avg}${scale} · n=${r.n}`;
 }
 
+function renderJudge(scores) {
+  if (!Array.isArray(scores) || scores.length === 0) {
+    judgeScores.textContent = '（尚未触发裁判 — 模型判断 / 人工判断需手动触发）';
+    return;
+  }
+  const lines = [];
+  for (const s of scores) {
+    const src =
+      s.source === 'model_judge' ? '模型判断' : s.source === 'human' ? '人工判断' : s.source;
+    const item = s.item_id ? ` [${s.item_id}]` : '';
+    const mark = s.reason?.startsWith('judge_error') ? '⚠️' : s.pass ? '✅' : '❌';
+    lines.push(`${mark} ${src}${item} · ${s.dimension || '—'} · ${s.reason || ''}`);
+  }
+  judgeScores.textContent = lines.join('\n');
+}
+
+function judgeItemIds() {
+  // 从当前 run 详情的 pass_tokens / failures 提取 item_id 列表，供用户选择。
+  const ids = new Set();
+  const summary = window.__runSummary ?? {};
+  for (const r of summary.pass_tokens ?? []) ids.add(r.item_id);
+  for (const r of summary.failures ?? []) ids.add(r.item_id);
+  return [...ids];
+}
+
+function openJudgeDialog(kind) {
+  judgeDialogTitle.textContent = kind === 'human' ? '人工复核' : '触发模型判断';
+  judgeHumanHint.hidden = kind !== 'human';
+  judgeVerdictsBox.hidden = kind !== 'human';
+  judgeReviewerLabel.hidden = kind !== 'human';
+  judgeError.hidden = true;
+  judgeItemId.value = '';
+  judgeTaskPrompt.value = '';
+  judgeFinalOutput.value = '';
+  judgeDialog.dataset.kind = kind;
+  // 若只有一个 item，预填。
+  const ids = judgeItemIds();
+  if (ids.length === 1) judgeItemId.value = ids[0];
+  judgeDialog.showModal();
+}
+
+async function submitJudge() {
+  const kind = judgeDialog.dataset.kind;
+  const itemId = judgeItemId.value.trim();
+  const body = {
+    runPath: currentRunPath,
+    kind,
+    ...(itemId ? { itemId } : {}),
+    task_prompt: judgeTaskPrompt.value.trim(),
+    final_output: judgeFinalOutput.value.trim(),
+  };
+  if (kind === 'human') {
+    body.reviewer = judgeReviewer.value.trim();
+  }
+  try {
+    const r = await api('/api/judge', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    judgeDialog.close();
+    judgeStatus.textContent = r.judge_error ? '裁判完成（有降级）' : '裁判完成';
+    judgeStatus.className = 'status ok';
+    renderJudge(r.scores);
+  } catch (e) {
+    judgeError.hidden = false;
+    judgeError.textContent = String(e.message || e);
+  }
+}
+
+function initJudge() {
+  judgeModelBtn.addEventListener('click', () => openJudgeDialog('model'));
+  judgeHumanBtn.addEventListener('click', () => openJudgeDialog('human'));
+  judgeCancel.addEventListener('click', () => judgeDialog.close());
+  judgeForm.addEventListener('submit', (ev) => {
+    ev.preventDefault();
+    void submitJudge();
+  });
+}
+
 function renderPassTokens(summary) {
   const rows = summary?.pass_tokens ?? [];
   if (!rows.length) {
@@ -651,6 +748,7 @@ async function showRun(path) {
   resultEmpty.hidden = true;
   runView.hidden = false;
   runMeta.textContent = data.dir;
+  window.__runSummary = data.summary;
   renderDashboard(data.dashboard);
   runMetrics.textContent = formatMetrics(data.metrics);
   renderAttr(data.summary);
@@ -659,10 +757,21 @@ async function showRun(path) {
   renderRef(data.summary);
   renderPassTokens(data.summary);
   renderFailDrafts(data.summary);
+  renderJudge(parseJudgeScores(data.judge_scores));
   effectMd.textContent =
     data.effect_compare || '（无 effect_compare.md — 单次 run 或尚未 compare）';
   resultsNd.textContent = (data.results_preview || []).join('\n') || '（无 results）';
   await refreshBaselines();
+}
+
+function parseJudgeScores(raw) {
+  if (!raw) return [];
+  try {
+    const doc = JSON.parse(raw);
+    return Array.isArray(doc?.scores) ? doc.scores : [];
+  } catch {
+    return [];
+  }
 }
 
 async function refreshBaselines(preferred) {
@@ -819,6 +928,8 @@ await refreshEvalTasks();
 await refreshBaselines();
 await initEnv();
 await initBank(testSets);
+initModelPool();
+initJudge();
 
 if (evalTasks.length) {
   await selectEvalTask(evalTasks[0].id);
@@ -930,13 +1041,22 @@ document.getElementById('deleteEvalTask').addEventListener('click', async () => 
 });
 
 function applyPage() {
-  const hash = location.hash === '#bank' ? 'bank' : location.hash === '#env' ? 'env' : 'test';
+  const hash =
+    location.hash === '#bank'
+      ? 'bank'
+      : location.hash === '#env'
+        ? 'env'
+        : location.hash === '#models'
+          ? 'models'
+          : 'test';
   document.getElementById('pageTest').hidden = hash !== 'test';
   document.getElementById('pageBank').hidden = hash !== 'bank';
   document.getElementById('pageEnv').hidden = hash !== 'env';
+  document.getElementById('pageModels').hidden = hash !== 'models';
   document.getElementById('navTest').classList.toggle('active', hash === 'test');
   document.getElementById('navBank').classList.toggle('active', hash === 'bank');
   document.getElementById('navEnv').classList.toggle('active', hash === 'env');
+  document.getElementById('navModels').classList.toggle('active', hash === 'models');
 }
 
 window.addEventListener('hashchange', applyPage);

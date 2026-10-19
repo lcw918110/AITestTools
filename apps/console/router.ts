@@ -38,6 +38,13 @@ import {
   bankValidate,
 } from './controllers/bank.ts';
 import type { CreateTaskBody, UpdateTaskBody } from './bank.ts';
+import {
+  modelPoolDelete,
+  modelPoolList,
+  modelPoolUpsert,
+  type ModelEntryBody,
+} from './controllers/model-pool.ts';
+import { triggerJudge, type TriggerJudgeBody } from './controllers/judge.ts';
 
 export async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const url = new URL(req.url ?? '/', `http://${HOST}:${PORT}`);
@@ -278,6 +285,38 @@ export async function handleRequest(req: IncomingMessage, res: ServerResponse): 
   }
   if (req.method === 'POST' && pathname === '/api/bank/validate') {
     const r = await bankValidate();
+    json(res, r.status, r.body);
+    return;
+  }
+
+  if (req.method === 'GET' && pathname === '/api/model-pool') {
+    const r = await modelPoolList();
+    json(res, r.status, r.body);
+    return;
+  }
+  if (req.method === 'POST' && pathname === '/api/model-pool') {
+    const parsed = parseJsonBody<ModelEntryBody>(await readBody(req));
+    if (!parsed.ok) {
+      json(res, 400, { error: parsed.error });
+      return;
+    }
+    const r = await modelPoolUpsert(parsed.value);
+    json(res, r.status, r.body);
+    return;
+  }
+  if (req.method === 'DELETE' && pathname.startsWith('/api/model-pool/')) {
+    const modelId = decodeURIComponent(pathname.slice('/api/model-pool/'.length));
+    const r = await modelPoolDelete(modelId);
+    json(res, r.status, r.body);
+    return;
+  }
+  if (req.method === 'POST' && pathname === '/api/judge') {
+    const parsed = parseJsonBody<TriggerJudgeBody>(await readBody(req));
+    if (!parsed.ok) {
+      json(res, 400, { error: parsed.error });
+      return;
+    }
+    const r = await triggerJudge(parsed.value);
     json(res, r.status, r.body);
     return;
   }

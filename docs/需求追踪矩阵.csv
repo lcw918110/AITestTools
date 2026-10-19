@@ -1,4 +1,4 @@
-﻿requirement_id,source_or_decision,requirement,acceptance_criteria,design_reference,verification_approach,design_notes_or_open_items
+requirement_id,source_or_decision,requirement,acceptance_criteria,design_reference,verification_approach,design_notes_or_open_items
 REQ-BASE-001,source/人工巡检.md + AITestTools/vibe-fs 参考源码快照,源材料与目标 SUT commit 必须分离固定,设计基线能分别标识 AITestTools 与被测插件的参考仓库及完整 commit；source/人工巡检.md 保留原文与 SHA-256；不得将参考 commit 假定为实际执行工作树当前版本。,00 §7；01 §4 FR-03；04 §4,检查两个仓库、commit 与只读来源文件分别记录，且巡检条目不会自动转成需求或 Case。,
 REQ-ASSET-001,01 §4 FR-01/FR-03；02 §3.2,正式运行使用的题集是不可变 Release,修改源 Item/Material/Room/Paperset 后旧 Release 内容可取回并 hash 校验,01 §4 FR-01/FR-03；02 §3.2,以修改内容后旧 Release 仍可恢复/校验的设计场景审查验收。,
 REQ-SAFE-001,01 §4 FR-12；02 §7.1,真实 Agent 执行前必须满足声明的安全边界,安全负例中的越权动作应被隔离层拒绝且留有证据，对应安全 Case 评测为 pass；实际越权成功、秘密泄漏或超限未被阻止判为失败并触发阻断/问题记录。,01 §4 FR-12；02 §7,设计安全边界与负例类别；实际执行验证在后续实施阶段进行。,真实平台验证必须提供实际隔离边界与负例证据；设计说明不是安全测试通过记录。

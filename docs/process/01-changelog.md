@@ -951,3 +951,74 @@
 - `npm run lint`：通过
 - `npm test`：61 文件 322 测试通过（沙箱内 `event-store.test.ts` 4 例因 `git init` 被沙箱拦截而红，非沙箱环境 5/5 通过，属环境限制非代码缺陷）
 - `format:check`：全仓干净
+
+## §27 技术债收口核查 + Agent 评测方法调研（2026-10-19）
+
+**1. 技术债/功能尾巴核查（结论：无未完成事项）**
+
+- 工作区干净，无未提交改动；唯一未推送提交为 §26 的 `45e4e8a`（单远端 origin，属正常待推送）。
+- 全仓 TODO/占位 grep 命中的均为**有意设计**（`item new` 骨架 TODO 占位、各 runner「暂不支持 oracle 类型」的显式拒绝、测试 fixture 的 placeholder），非技术债尾巴。
+- 此前 todo 列表标记「未完成」的 A 类（health.ts PRESETS 死字段）与 B 类（绞杀者迁移）经 git 历史核实**已分别在 `d9eac45`（§20）完成**，仅状态标记滞后，已同步。
+- `legacy_item_id`、`defaultRelease` 等为**有意保留的活代码/迁移字段**，非待删死代码。
+
+**2. Agent/LLM 评测方法调研（六路联网检索，四维度）**
+
+- 产出：`docs/10-Agent评测方法调研与优化项.md`（结论+优化项清单）+ `docs/archive/process/agent-eval-survey-2026-10_推演过程.md`（过程记录）。
+- 结论：本项目在**可执行验证、轨迹+结果双轨、快好省三维、不可变版本、归因树**五维度已对齐甚至领先业界（SWE-bench/LangSmith/OpenHands）；差距在五个执行层缺口——**裁判模型、一致性量化、安全红队、持续评测闭环、标准化 trace**，其中前四个领域类型层已预留骨架未落地。
+- 优化项清单（未实施，待另行对齐）：① 裁判模型执行落地；② 一致性量化（pass^k/多次 trial 范围）；③ 安全红队执行器（IPI 注入+canary）；④ 持续评测闭环；⑤ OTel 导出（后置）。
+- 建议执行顺序：② → ① → ③ → ④ → ⑤。
+
+**验证（实测，2026-10-19）**：
+
+- 文档链接可解析；`docs/README.md` 索引已挂新调研文档；术语与现有文档一致。
+
+## §28 优化项需求分析与排序（2026-10-19）
+
+对 §27 调研产出的 5 个优化项，逐项结合本项目现状做完整需求分析并排序。
+
+- 产出：`docs/11-优化项需求分析与排序.md`（逐项需求分析 + 排序结论）。
+- 现状基线：裁判模型/一致性/安全红队/持续评测/OTel 五项的**类型层骨架与执行层缺口**已逐一核实（`RubricSpec`/`Score.source`/`repeats`/`SecurityBoundary.canary_secret`/`FaultInjectionProfile` 均已定义但无执行实现；`baseline pin`/`compare`/`score-write` 已存在但无「失败→回归题沉淀」命令；全仓无 OTel）。
+- 排序结论：② 一致性量化 → ① 裁判模型 → ④ 持续评测闭环 → ③ 安全红队 → ⑤ OTel（后置）。
+- 排序理由：② 成本最低无前置依赖先做；① 需先建人类标注校验基准；③ 成本最高需先明确最小范围；⑤ 明确后置。
+- 下一步：按 grill-me 规范，先就「优化项 ② 一致性量化」发起对齐（未实施，待确认）。
+
+**验证（实测，2026-10-19）**：
+
+- 文档链接可解析；`docs/README.md` 索引已挂新需求分析文档；现状基线经代码核实。
+
+## §29 全面界面化 + 全局模型配置池 + 裁判体系（2026-10-19）
+
+grill-me 对齐后落盘设计（S2）并实现第 0 期（S3）。
+
+**1. 方向升格：全面界面化（宽口径）**
+
+- 界面形态从「终端 console」升级为「现代化 Web 界面」，复用 `src/` 领域层 + run 引擎，外包 HTTP API + SPA 前端，`apps/console/` 逐步退役。
+- 新增 ADR-0009（`docs/architecture/adr/0009-web-ui-and-model-pool.md`），登记技术底座 + 分期。
+
+**2. 全局模型配置池 `models.json`（已实现）**
+
+- 复用 `Provider` / `ModelCatalogEntry`，扩展 `category`（单值主分类）、`tags`（多值）、`params`（参数档）、`api_key_env`（密钥引用，不存明文）。
+- 实现：`src/model-pool/model-catalog.ts`（纯逻辑：加载/查询/回写/裁判选型兜底链）+ `apps/console/controllers/model-pool.ts`（HTTP API）+ `public/model-pool.js`（前端增删改查 + category/tag 筛选）。
+- 使用处（环境 `host_model` / 题目 `model_id` / 裁判模型点）未命中自动登记回写；裁判选型兜底链：显式 → `judge` → `general` → 报错。
+
+**3. 裁判体系三类来源（已实现）**
+
+- 题目对比（确定性 oracle）必现；模型判断（LLM-as-judge）与人工判断（human）人为触发；三类 `Score` 分列、不进硬门禁。
+- 实现：`src/judge/judge.ts`（裁判 prompt 模板 + 严格 JSON 解析 + Score 构造）+ `src/judge/resolve-rubric.ts`（从 case-revisions 自动读 `expect.rubric`）+ `apps/console/controllers/judge.ts`（触发裁判 API，rubric 缺失时自动读题目配置）+ `public/app.js`（触发裁判 UI + 结果展示）。
+- 裁判结果落盘 `judge_scores.json`（`Score[]`，含 `item_id` 关联），与硬门禁 `pass` 分列；模型判断失败降级 `judge_error`，不阻断。
+
+**4. 分期（第 1/2 期仅立待办，未实施）**
+
+- 第 0 期（本次）：模型配置池 + 裁判体系（在现有 `apps/console/` HTTP 服务上扩展）。
+- 第 1 期：录题 / 环境 / 数据集界面化。
+- 第 2 期：跑批 / 报告 / 健康检查界面化 + console 退役。
+
+**5. Bugbot 审查（S4）**
+
+- 云端 Bugbot 两次连接中断，按规范降级为**本地自审**，发现并修复 4 项：`Score` 缺 `item_id` 关联（docs/02 要求 item 级 scores）、`itemId` 声明未用、`mergeScores` 缺 item 维度致多题互相覆盖、`baseUrl` 硬编码 deepseek。
+
+**验证（实测，2026-10-19）**：
+
+- `npm run typecheck`：0 错误；`npm run lint`：通过；`npm test`：336 通过（新增 21 例；4 例沙箱 `git init` 拦截属环境限制）。
+- 端到端实测：模型配置池增删改查、触发裁判（model/human）、rubric 自动读、judge_scores 落盘均正常。
+- ADR-0009 已挂 `docs/architecture/README.md` 索引；`docs/02` §4.3.1 + §5.1、`docs/03` §5.1 + §7、`docs/11` 已补。

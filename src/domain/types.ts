@@ -129,6 +129,8 @@ export interface OracleResult {
 export interface Score {
   score_id: string;
   source: 'deterministic_oracle' | 'model_judge' | 'human';
+  /** 关联的题目（item / case 标识）。 */
+  item_id?: string;
   dimension?: string;
   scale?: string;
   weight?: number;
@@ -138,6 +140,8 @@ export interface Score {
   judge_prompt_version?: string;
   reason?: string;
   evidence_refs?: string[];
+  /** 人工判断者标识（source=human 时）。 */
+  human_reviewer?: string;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -1146,7 +1150,20 @@ export interface AgentRoleRequirement {
   optional_capabilities?: string[];
 }
 
-/** 模型目录条目（§6）。 */
+/** 模型主分类（§4.3.1 全局模型配置池）。单值枚举。 */
+export const MODEL_CATEGORIES = [
+  'general',
+  'reasoning',
+  'code',
+  'judge',
+  'embedding',
+  'vision',
+  'tool_use',
+  'fast',
+] as const;
+export type ModelCategory = (typeof MODEL_CATEGORIES)[number];
+
+/** 模型目录条目（§6 / §4.3.1 全局模型配置池）。 */
 export interface ModelCatalogEntry {
   model_id: string;
   provider_id: string;
@@ -1156,6 +1173,14 @@ export interface ModelCatalogEntry {
   price_source?: string;
   price_version?: string;
   status: 'active' | 'inactive' | 'deprecated';
+  /** 主分类（单值）。 */
+  category?: ModelCategory;
+  /** 补充属性（多值自由筛选）。 */
+  tags?: string[];
+  /** 参数档默认值（使用处可局部覆盖）。 */
+  params?: Record<string, unknown>;
+  /** 密钥引用（环境变量名，不存明文）。 */
+  api_key_env?: string;
 }
 
 /** 能力匹配结果（§4.3）。 */

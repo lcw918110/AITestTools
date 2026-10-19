@@ -14,6 +14,7 @@
           <a href="#test" id="navTest" class="top-nav-link">测试</a>
           <a href="#bank" id="navBank" class="top-nav-link">题库</a>
           <a href="#env" id="navEnv" class="top-nav-link">运行环境</a>
+          <a href="#models" id="navModels" class="top-nav-link">模型配置</a>
         </nav>
       </div>
     </header>
@@ -165,6 +166,20 @@
           <h3>参考分（不进硬门禁）</h3>
           <div id="refScores" class="summary-block"></div>
 
+          <h3>裁判（题目对比必现 · 模型判断/人工判断人为触发）</h3>
+          <div class="judge-block">
+            <p class="hint tiny">
+              题目对比（确定性 oracle）随本次 run 自动判定；模型判断与人工判断需手动触发， 结果写
+              judge_scores.json，与硬门禁分列。
+            </p>
+            <div class="actions">
+              <button type="button" id="judgeModelBtn" class="ghost">触发模型判断</button>
+              <button type="button" id="judgeHumanBtn" class="ghost">人工复核</button>
+              <span id="judgeStatus" class="status"></span>
+            </div>
+            <div id="judgeScores" class="summary-block"></div>
+          </div>
+
           <details class="bank-advanced">
             <summary>原文（effect_compare / results）</summary>
             <pre id="effectMd" class="md"></pre>
@@ -288,6 +303,152 @@
         <pre id="envLog" class="log" hidden></pre>
       </section>
     </main>
+
+    <main class="layout layout-bank" id="pageModels" hidden>
+      <section class="panel">
+        <h1>模型配置</h1>
+        <p class="hint">
+          全局模型配置池（models.json）。模型参数、分类、基本信息供各模块（含裁判模型）使用；
+          密钥只填环境变量引用名，明文密钥在本机 .env。
+        </p>
+        <p id="modelPoolStatus" class="status"></p>
+        <div class="actions">
+          <select id="modelPoolCategoryFilter">
+            <option value="">全部分类</option>
+            <option value="general">general</option>
+            <option value="reasoning">reasoning</option>
+            <option value="code">code</option>
+            <option value="judge">judge</option>
+            <option value="embedding">embedding</option>
+            <option value="vision">vision</option>
+            <option value="tool_use">tool_use</option>
+            <option value="fast">fast</option>
+          </select>
+          <input id="modelPoolTagFilter" type="text" placeholder="按 tag 筛选（可选）" />
+          <button type="button" id="modelPoolNew" class="primary">新增模型</button>
+        </div>
+        <table class="model-pool-table" id="modelPoolTable">
+          <thead>
+            <tr>
+              <th>模型标识</th>
+              <th>Provider</th>
+              <th>分类</th>
+              <th>标签</th>
+              <th>密钥引用</th>
+              <th>状态</th>
+              <th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="modelPoolBody"></tbody>
+        </table>
+      </section>
+    </main>
+
+    <dialog id="modelPoolDialog" class="wizard">
+      <form method="dialog" id="modelPoolForm">
+        <h2 id="modelPoolDialogTitle">新增模型</h2>
+        <label>
+          模型标识（model_id）
+          <input
+            id="mpModelId"
+            type="text"
+            placeholder="例如 wave-ai/gpt-5.4-mini"
+            autocomplete="off"
+          />
+        </label>
+        <label>
+          Provider（provider_id）
+          <input id="mpProviderId" type="text" placeholder="例如 wave-ai" autocomplete="off" />
+        </label>
+        <label>
+          分类（category）
+          <select id="mpCategory">
+            <option value="">（未分类）</option>
+            <option value="general">general</option>
+            <option value="reasoning">reasoning</option>
+            <option value="code">code</option>
+            <option value="judge">judge</option>
+            <option value="embedding">embedding</option>
+            <option value="vision">vision</option>
+            <option value="tool_use">tool_use</option>
+            <option value="fast">fast</option>
+          </select>
+        </label>
+        <label>
+          标签（tags，逗号分隔）
+          <input id="mpTags" type="text" placeholder="例如 cheap,long-context" autocomplete="off" />
+        </label>
+        <label>
+          密钥引用（api_key_env，只填环境变量名）
+          <input
+            id="mpApiKeyEnv"
+            type="text"
+            placeholder="例如 DEEPSEEK_API_KEY"
+            autocomplete="off"
+          />
+        </label>
+        <label>
+          参数档（params，JSON）
+          <textarea
+            id="mpParams"
+            rows="3"
+            placeholder='例如 {"temperature":0.2,"max_tokens":2048}'
+          ></textarea>
+        </label>
+        <label>
+          状态
+          <select id="mpStatus">
+            <option value="active">active</option>
+            <option value="inactive">inactive</option>
+            <option value="deprecated">deprecated</option>
+          </select>
+        </label>
+        <p id="modelPoolError" class="status err" hidden></p>
+        <div class="actions">
+          <button type="button" id="modelPoolCancel" class="ghost">取消</button>
+          <button type="submit" id="modelPoolSubmit" class="primary">保存</button>
+        </div>
+      </form>
+    </dialog>
+
+    <dialog id="judgeDialog" class="wizard">
+      <form method="dialog" id="judgeForm">
+        <h2 id="judgeDialogTitle">触发裁判</h2>
+        <p class="hint tiny">
+          rubric 维度从题目配置（expect.rubric）自动读取；未声明 rubric 的题无法触发。
+        </p>
+        <label>
+          题目（item_id / case_revision_id）
+          <input
+            id="judgeItemId"
+            type="text"
+            placeholder="例如 paired-task-159.r1.on"
+            autocomplete="off"
+          />
+        </label>
+        <label>
+          任务要求（task_prompt，可空则后端从题目材料读）
+          <textarea id="judgeTaskPrompt" rows="3" placeholder="可空"></textarea>
+        </label>
+        <label>
+          最终输出（final_output）
+          <textarea id="judgeFinalOutput" rows="4" placeholder="可空"></textarea>
+        </label>
+        <p class="hint tiny" id="judgeHumanHint" hidden>
+          人工复核：逐维度勾选 pass/fail 并填理由。
+        </p>
+        <div id="judgeVerdictsBox" hidden></div>
+        <label id="judgeReviewerLabel" hidden>
+          复核人
+          <input id="judgeReviewer" type="text" placeholder="例如 张三" autocomplete="off" />
+        </label>
+        <p id="judgeError" class="status err" hidden></p>
+        <div class="actions">
+          <button type="button" id="judgeCancel" class="ghost">取消</button>
+          <button type="submit" id="judgeSubmit" class="primary">触发</button>
+        </div>
+      </form>
+    </dialog>
 
     <dialog id="newEvalDialog" class="wizard">
       <form method="dialog" id="newEvalForm">

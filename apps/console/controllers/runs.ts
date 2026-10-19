@@ -33,6 +33,7 @@ export async function runsView(rawPath: string): Promise<HttpResponse> {
   const metrics = readMaybe('metrics.json');
   const resultsRaw = readMaybe('results.ndjson');
   const scores = readMaybe('scores.json');
+  const judgeScoresRaw = readMaybe('judge_scores.json');
   const effectMd = readMaybe('effect_compare.md');
   const summary = buildRunSummary({
     resultsText: resultsRaw,
@@ -76,6 +77,7 @@ export async function runsView(rawPath: string): Promise<HttpResponse> {
       dashboard,
       summary,
       scores,
+      judge_scores: judgeScoresRaw,
       results_preview: (resultsRaw ?? '').split(/\n/).filter(Boolean).slice(0, 50),
     },
   };
