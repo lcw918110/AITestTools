@@ -34,6 +34,7 @@ import {
   bankTaskDelete,
   bankTaskGet,
   bankTasksList,
+  bankTaskTransition,
   bankTaskUpdate,
   bankValidate,
 } from './controllers/bank.ts';
@@ -285,6 +286,17 @@ export async function handleRequest(req: IncomingMessage, res: ServerResponse): 
   }
   if (req.method === 'POST' && pathname === '/api/bank/validate') {
     const r = await bankValidate();
+    json(res, r.status, r.body);
+    return;
+  }
+  if (req.method === 'POST' && pathname.endsWith('/lifecycle')) {
+    const taskId = decodeURIComponent(pathname.slice('/api/bank/tasks/'.length, -'/lifecycle'.length));
+    const parsed = parseJsonBody<{ to?: string; reason?: string }>(await readBody(req));
+    if (!parsed.ok) {
+      json(res, 400, { error: parsed.error });
+      return;
+    }
+    const r = await bankTaskTransition(taskId, parsed.value);
     json(res, r.status, r.body);
     return;
   }

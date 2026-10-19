@@ -22,7 +22,7 @@ import {
 } from './test-sets.ts';
 import { writeJsonAtomic, writeTextAtomic } from './json-io.ts';
 import { revisionDigest } from '../../src/exam-engine/digest.ts';
-import type { CaseRevision } from '../../src/exam-engine/types.ts';
+import type { CaseRevision, RubricSpec, TaskStrata } from '../../src/exam-engine/types.ts';
 
 /** 路径安全：已有任务（含历史特例） */
 const TASK_ID_SAFE_RE = /^[A-Z][A-Z0-9-]*$/;
@@ -46,6 +46,8 @@ export type ItemSide = {
   tags: string[];
   contains?: string[] | undefined;
   notContains?: string[] | undefined;
+  rubric?: RubricSpec | undefined;
+  strata?: TaskStrata | undefined;
 };
 
 export type TaskSummary = {
@@ -63,6 +65,8 @@ export type TaskSummary = {
   complete: boolean;
   tags: string[];
   testSetIds: string[];
+  lifecycle?: string;
+  automationReadiness?: string;
 };
 
 export type TaskDetail = {
@@ -81,6 +85,11 @@ export type TaskDetail = {
   tags: string[];
   contains?: string[] | undefined;
   notContains?: string[] | undefined;
+  lifecycle?: string;
+  automationReadiness?: string;
+  lifecycleHistory?: Array<{ from: string; to: string; reason: string; at: string }>;
+  rubric?: RubricSpec | undefined;
+  strata?: TaskStrata | undefined;
 };
 
 export type CreateTaskBody = {
@@ -101,6 +110,14 @@ export type CreateTaskBody = {
   allowSmokeTextOnly?: boolean;
   /** 挂入哪套测试集 */
   testSetId?: string;
+  /** Rubric 声明（expect.rubric.dimensions，可选 judge） */
+  rubric?: RubricSpec;
+  /** 分层（task_type / difficulty_level） */
+  strata?: TaskStrata;
+  /** 生命周期（默认 draft） */
+  lifecycle?: string;
+  /** 自动化准备度（默认 not_assessed） */
+  automationReadiness?: string;
 };
 
 export type UpdateTaskBody = {
@@ -115,6 +132,12 @@ export type UpdateTaskBody = {
   /** 回复禁止出现（stdout_assert.not_contains） */
   notContains?: string | string[];
   not_contains?: string | string[];
+  /** Rubric 声明（expect.rubric.dimensions，可选 judge） */
+  rubric?: RubricSpec;
+  /** 分层（task_type / difficulty_level） */
+  strata?: TaskStrata;
+  /** 自动化准备度（正交可编辑，不升版本） */
+  automationReadiness?: string;
 };
 
 type CreateSnapshot = {
@@ -259,6 +282,18 @@ export function assertChangeName(name: string | undefined): string | undefined {
   return undefined;
 }
 
+/** 校验 strata 字段完整性：task_type 与 difficulty_level 均须为非空字符串。 */
+export function assertStrata(strata: unknown): string | undefined {
+  if (strata === undefined || strata === null) return undefined;
+  if (typeof strata !== 'object' || Array.isArray(strata)) return '分层（strata）须为对象';
+  const s = strata as Record<string, unknown>;
+  const taskType = typeof s.task_type === 'string' ? s.task_type.trim() : '';
+  const difficulty = typeof s.difficulty_level === 'string' ? s.difficulty_level.trim() : '';
+  if (!taskType) return '分层缺少 task_type（任务类型）';
+  if (!difficulty) return '分层缺少 difficulty_level（难度）';
+  return undefined;
+}
+
 export function resolvePassToken(body: {
   passToken?: string | undefined;
   hosted_pass_token?: string | undefined;
@@ -278,6 +313,9 @@ type CaseV1Doc = {
   tags?: string[];
   pair_key?: string;
   head_revision_id?: string;
+  lifecycle?: string;
+  automation_readiness?: string;
+  lifecycle_history?: Array<{ from: string; to: string; reason: string; at: string }>;
 };
 
 /** cases-v1：CaseRevision 文档（轻量读字段）。 */
@@ -291,9 +329,10 @@ type CaseRevisionV1Doc = {
     notes?: string;
     hosted_pass_token?: string;
   };
-  expect?: { oracles?: unknown };
+  expect?: { oracles?: unknown; rubric?: RubricSpec };
   attribution_focus?: string;
   protocol_probes?: string[];
+  strata?: TaskStrata;
 };
 
 function casesV1Dir(project: string): string {
@@ -346,6 +385,8 @@ function sideFromRevision(
     tags: Array.isArray(caseDoc.tags) ? caseDoc.tags.filter((t) => typeof t === 'string') : [],
     contains,
     notContains,
+    rubric: rev.expect?.rubric,
+    strata: rev.strata,
   };
 }
 
@@ -403,6 +444,22 @@ function loadPairedItems(project: string): Map<string, { off?: ItemSide; on?: It
   return loadPairedItemsV1(project);
 }
 
+/** 按 pair_key（= taskId）查 Case 文档，读 lifecycle / automation_readiness / lifecycle_history。 */
+function caseDocByPairKey(project: string, pairKey: string): CaseV1Doc | undefined {
+  const casesDir = casesV1Dir(project);
+  if (!existsSync(casesDir)) return undefined;
+  for (const name of readdirSync(casesDir)) {
+    if (!name.endsWith('.case.json')) continue;
+    try {
+      const doc = JSON.parse(readFileSync(join(casesDir, name), 'utf8')) as CaseV1Doc;
+      if ((doc.pair_key ?? (doc.case_id ? doc.case_id.toUpperCase() : '')) === pairKey) return doc;
+    } catch {
+      continue;
+    }
+  }
+  return undefined;
+}
+
 function clipPreview(text: string, max = 220): string {
   const one = text.replace(/\s+/g, ' ').trim();
   if (!one) return '';
@@ -429,6 +486,7 @@ export function listTasks(project: string): TaskSummary[] {
     const notes = (slot.off?.notes || slot.on?.notes || '').trim();
     const passToken = slot.off?.passToken ?? slot.on?.passToken ?? 'ok';
     const complete = Boolean(hasMat && slot.off && slot.on);
+    const caseDoc = caseDocByPairKey(project, taskId);
     out.push({
       taskId,
       passToken,
@@ -444,6 +502,10 @@ export function listTasks(project: string): TaskSummary[] {
       ...(slot.off?.rev !== undefined ? { offRev: slot.off.rev } : {}),
       ...(slot.on?.rev !== undefined ? { onRev: slot.on.rev } : {}),
       testSetIds: testSetIdsForTask(project, taskId),
+      ...(caseDoc?.lifecycle ? { lifecycle: caseDoc.lifecycle } : {}),
+      ...(caseDoc?.automation_readiness
+        ? { automationReadiness: caseDoc.automation_readiness }
+        : {}),
     });
   }
   return out;
@@ -466,6 +528,7 @@ export function getTask(
   const token = paired.off?.passToken ?? paired.on?.passToken ?? 'ok';
   const notes = paired.off?.notes ?? paired.on?.notes ?? '';
   const complete = Boolean(existsSync(promptFile) && paired.off && paired.on);
+  const caseDoc = caseDocByPairKey(project, taskId);
   const detail: TaskDetail = {
     taskId,
     prompt,
@@ -478,6 +541,17 @@ export function getTask(
     tags: paired.off?.tags ?? paired.on?.tags ?? [],
     contains: paired.off?.contains ?? paired.on?.contains,
     notContains: paired.off?.notContains ?? paired.on?.notContains,
+    ...(caseDoc?.lifecycle ? { lifecycle: caseDoc.lifecycle } : {}),
+    ...(caseDoc?.automation_readiness
+      ? { automationReadiness: caseDoc.automation_readiness }
+      : {}),
+    ...(caseDoc?.lifecycle_history ? { lifecycleHistory: caseDoc.lifecycle_history } : {}),
+    ...(paired.off?.rubric ?? paired.on?.rubric
+      ? { rubric: paired.off?.rubric ?? paired.on?.rubric }
+      : {}),
+    ...(paired.off?.strata ?? paired.on?.strata
+      ? { strata: paired.off?.strata ?? paired.on?.strata }
+      : {}),
   };
   if (paired.off !== undefined) {
     detail.off = paired.off;
@@ -528,6 +602,12 @@ export async function updateTask(
   if (tagsResult && !tagsResult.ok) return { error: tagsResult.error, code: 400 };
   const nextTags = tagsResult?.ok ? tagsResult.tags : undefined;
 
+  // 落盘前校验 strata 字段完整性（避免半填落盘 undefined）。
+  if (body.strata !== undefined) {
+    const strataErr = assertStrata(body.strata);
+    if (strataErr) return { error: strataErr, code: 400 };
+  }
+
   const stimPatch: { hosted_pass_token?: string; notes?: string } = {};
   if (tokenProvided) stimPatch.hosted_pass_token = nextToken;
   if (body.notes !== undefined) stimPatch.notes = body.notes;
@@ -535,10 +615,17 @@ export async function updateTask(
 
   const containsProvided = body.contains !== undefined;
   const notContainsProvided = body.notContains !== undefined || body.not_contains !== undefined;
+  const rubricProvided = body.rubric !== undefined;
+  const strataProvided = body.strata !== undefined;
 
   // 需要更新 OFF/ON item 却一个都没有：结构错误，落盘前即失败，避免先写 prompt.txt 才发现。
   const needsItems =
-    changedStim || body.tags !== undefined || containsProvided || notContainsProvided;
+    changedStim ||
+    body.tags !== undefined ||
+    containsProvided ||
+    notContainsProvided ||
+    rubricProvided ||
+    strataProvided;
   if (needsItems && !existing.off && !existing.on) {
     return { error: '无可更新的 OFF/ON item', code: 400 };
   }
@@ -570,6 +657,10 @@ export async function updateTask(
   const onNextNotContains = notContainsProvided
     ? asTrimmedList(body.notContains ?? body.not_contains)
     : (existing.on?.notContains ?? []);
+  const offNextRubric = rubricProvided ? body.rubric : (existing.off?.rubric ?? undefined);
+  const onNextRubric = rubricProvided ? body.rubric : (existing.on?.rubric ?? undefined);
+  const offNextStrata = strataProvided ? body.strata : (existing.off?.strata ?? undefined);
+  const onNextStrata = strataProvided ? body.strata : (existing.on?.strata ?? undefined);
 
   const offRevDoc = buildCaseRevisionDoc({
     taskId,
@@ -580,6 +671,8 @@ export async function updateTask(
     contains: offNextContains,
     notContains: offNextNotContains,
     changeName,
+    ...(offNextRubric ? { rubric: offNextRubric } : {}),
+    ...(offNextStrata ? { strata: offNextStrata } : {}),
   });
   const onRevDoc = buildCaseRevisionDoc({
     taskId,
@@ -590,6 +683,8 @@ export async function updateTask(
     contains: onNextContains,
     notContains: onNextNotContains,
     changeName,
+    ...(onNextRubric ? { rubric: onNextRubric } : {}),
+    ...(onNextStrata ? { strata: onNextStrata } : {}),
   });
   const offNextRevisionId = caseRevisionIdOf(caseId, offNextRev, 'off');
   const onNextRevisionId = caseRevisionIdOf(caseId, onNextRev, 'on');
@@ -618,6 +713,10 @@ export async function updateTask(
     if (nextTags !== undefined) {
       if (nextTags.length > 0) caseDoc.tags = nextTags;
       else delete caseDoc.tags;
+    }
+    // automation_readiness 属 Case 层元数据，变更不升版本，直接写 case.json。
+    if (body.automationReadiness !== undefined) {
+      caseDoc.automation_readiness = body.automationReadiness;
     }
     writeJson(caseFile, caseDoc);
 
@@ -712,17 +811,29 @@ function buildCaseDoc(opts: {
   title: string;
   tags: string[];
   headRevisionId: string;
+  lifecycle?: string;
+  automationReadiness?: string;
 }): Record<string, unknown> {
+  const lifecycle = opts.lifecycle ?? 'draft';
+  const readiness = opts.automationReadiness ?? 'not_assessed';
   return {
     $schema: '../../../schemas/case.schema.json',
     case_id: caseIdOfTask(opts.taskId),
     title: opts.title,
     owner: 'product-eval',
     tags: opts.tags,
-    lifecycle: 'released',
-    automation_readiness: 'design_ready',
+    lifecycle,
+    automation_readiness: readiness,
     head_revision_id: opts.headRevisionId,
     pair_key: opts.taskId,
+    lifecycle_history: [
+      {
+        from: lifecycle,
+        to: lifecycle,
+        reason: '控制台录题（初始状态）',
+        at: new Date().toISOString(),
+      },
+    ],
   };
 }
 
@@ -736,8 +847,21 @@ function buildCaseRevisionDoc(opts: {
   contains: string[];
   notContains: string[];
   changeName: string;
+  rubric?: RubricSpec;
+  strata?: TaskStrata;
 }): Record<string, unknown> {
-  const { taskId, side, revisionNumber, token, notes, contains, notContains, changeName } = opts;
+  const {
+    taskId,
+    side,
+    revisionNumber,
+    token,
+    notes,
+    contains,
+    notContains,
+    changeName,
+    rubric,
+    strata,
+  } = opts;
   const caseId = caseIdOfTask(taskId);
   const caseRevisionId = caseRevisionIdOf(caseId, revisionNumber, side);
   const ref = `bank/materials/${taskId}/prompt.txt`;
@@ -750,7 +874,7 @@ function buildCaseRevisionDoc(opts: {
     notes: notes || `Seal with ${token}. Use the repo and tools when the task requires it.`,
     hosted_pass_token: token,
   };
-  const expect = { oracles };
+  const expect = rubric ? { oracles, rubric } : { oracles };
   const execution = {
     deadline_ms: 180000,
     requires_network: true,
@@ -770,6 +894,7 @@ function buildCaseRevisionDoc(opts: {
     permissions_side_effects: [],
     expect,
     evidence_requirements: [],
+    ...(strata ? { strata } : {}),
     attribution_focus: isOn ? 'PROTOCOL' : 'MODEL_TASK',
     ...(isOn
       ? { protocol_probes: ['RuntimeStarted', 'JournalEnvelope'] }
@@ -794,6 +919,7 @@ function buildCaseRevisionDoc(opts: {
     permissions_side_effects: [],
     expect,
     evidence_requirements: [],
+    ...(strata ? { strata } : {}),
     attribution_focus: isOn ? 'PROTOCOL' : 'MODEL_TASK',
     ...(isOn
       ? { protocol_probes: ['RuntimeStarted', 'JournalEnvelope'] }
@@ -966,6 +1092,9 @@ export async function createTask(
   const parsedTags = parseTags(body.tags);
   if (!parsedTags.ok) return { error: parsedTags.error, code: 400 };
 
+  const strataErr = assertStrata(body.strata);
+  if (strataErr) return { error: strataErr, code: 400 };
+
   const testSetId = (body.testSetId ?? '').trim();
   if (!testSetId) return { error: '请选择测试集', code: 400 };
   const testSet = getTestSet(project, testSetId);
@@ -993,6 +1122,8 @@ export async function createTask(
     contains,
     notContains,
     changeName,
+    ...(body.rubric ? { rubric: body.rubric } : {}),
+    ...(body.strata ? { strata: body.strata } : {}),
   });
   const onRevDoc = buildCaseRevisionDoc({
     taskId,
@@ -1003,12 +1134,16 @@ export async function createTask(
     contains,
     notContains,
     changeName,
+    ...(body.rubric ? { rubric: body.rubric } : {}),
+    ...(body.strata ? { strata: body.strata } : {}),
   });
   const caseDoc = buildCaseDoc({
     taskId,
     title: `配对任务 ${taskId}（有插件）：终态须含 ${token}`,
     tags: parsedTags.tags,
     headRevisionId: onRevisionId,
+    ...(body.lifecycle ? { lifecycle: body.lifecycle } : {}),
+    ...(body.automationReadiness ? { automationReadiness: body.automationReadiness } : {}),
   });
 
   const snap: CreateSnapshot = {
@@ -1115,6 +1250,97 @@ export function deleteTask(
     rmSync(mat, { recursive: true, force: true });
   }
   return { ok: true, taskId };
+}
+
+// ── 生命周期状态机（第 1 期录题界面化）──
+
+/** 生命周期枚举（与 src/domain/types.ts CASE_LIFECYCLE 一致）。 */
+const LIFECYCLE_ORDER = ['draft', 'candidate', 'reviewed', 'validated', 'released', 'deprecated'] as const;
+type LifecycleState = (typeof LIFECYCLE_ORDER)[number];
+
+function isLifecycleState(v: string): v is LifecycleState {
+  return (LIFECYCLE_ORDER as readonly string[]).includes(v);
+}
+
+/**
+ * 校验生命周期流转：线性前进 + candidate/reviewed/validated 可回退 draft +
+ * released 后仅可 deprecated；deprecated 终态。返回 undefined 表示合法，否则返回错误说明。
+ */
+export function assertLifecycleTransition(from: string, to: string): string | undefined {
+  if (!isLifecycleState(from)) return `非法起始状态：${from}`;
+  if (!isLifecycleState(to)) return `非法目标状态：${to}`;
+  if (from === to) return undefined;
+
+  const fromIdx = LIFECYCLE_ORDER.indexOf(from);
+  const toIdx = LIFECYCLE_ORDER.indexOf(to);
+
+  // released 保护：仅可前进到 deprecated，其余一律拒绝（先于前进判断，保证文案精确）。
+  if (from === 'released') {
+    if (to === 'deprecated') return undefined;
+    return 'released 后不可回退，仅可弃用（deprecated）';
+  }
+  if (from === 'deprecated') {
+    return 'deprecated 为终态，不可再流转';
+  }
+
+  // 前进：只能 +1（线性，禁止跳步）
+  if (toIdx === fromIdx + 1) return undefined;
+
+  // 回退：仅 candidate/reviewed/validated → draft
+  if (
+    to === 'draft' &&
+    (from === 'candidate' || from === 'reviewed' || from === 'validated')
+  ) {
+    return undefined;
+  }
+
+  if (toIdx > fromIdx) {
+    return `不可跳步：${from} → ${to}（须逐级前进）`;
+  }
+  return `非法流转：${from} → ${to}`;
+}
+
+/**
+ * 生命周期推进/回退：校验 → 写 case.json 的 lifecycle + lifecycle_history。
+ * 元数据变更不升版本。
+ */
+export async function transitionLifecycle(
+  project: string,
+  taskId: string,
+  to: string,
+  reason: string,
+): Promise<{ ok: true; taskId: string; lifecycle: string } | { error: string; code: number }> {
+  const existing = getTask(project, taskId);
+  if ('error' in existing) return existing;
+
+  const caseDoc = caseDocByPairKey(project, taskId);
+  if (!caseDoc) return { error: '缺少 case 文档', code: 404 };
+
+  const from = caseDoc.lifecycle ?? 'draft';
+  if (from === to) return { error: `已是 ${to}，无需流转`, code: 400 };
+  const bad = assertLifecycleTransition(from, to);
+  if (bad) return { error: bad, code: 400 };
+
+  const caseFile = join(casesV1Dir(project), caseFileName(caseIdOfTask(taskId)));
+  const history = Array.isArray(caseDoc.lifecycle_history) ? caseDoc.lifecycle_history : [];
+  const nextHistory = [
+    ...history,
+    { from, to, reason: reason.trim() || '（未说明）', at: new Date().toISOString() },
+  ];
+
+  const nextDoc = {
+    ...caseDoc,
+    lifecycle: to,
+    lifecycle_history: nextHistory,
+  };
+
+  try {
+    writeJson(caseFile, nextDoc);
+  } catch (e) {
+    return { error: (e as Error).message, code: 500 };
+  }
+
+  return { ok: true, taskId, lifecycle: to };
 }
 
 export function summarizeValidateLog(log: string, exitCode: number): string {

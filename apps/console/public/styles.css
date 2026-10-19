@@ -648,6 +648,47 @@ button:disabled {
   font-size: 0.85rem;
 }
 
+.bank-rubric {
+  margin-top: 0.5rem;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  padding: 0.5rem;
+}
+
+.bank-rubric legend {
+  padding: 0 0.35rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+
+.rubric-dim {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+  margin-bottom: 0.35rem;
+}
+
+.rubric-dim input {
+  flex: 1;
+  min-width: 0;
+}
+
+.rubric-dim .rubric-dim-weight {
+  flex: 0 0 5rem;
+}
+
+.bank-lifecycle {
+  margin-top: 0.5rem;
+  border-top: 1px solid var(--line);
+  padding-top: 0.5rem;
+}
+
+.bank-lifecycle .actions {
+  display: flex;
+  gap: 0.35rem;
+  align-items: center;
+}
+
 .run-list button.warn {
   color: var(--err);
 }

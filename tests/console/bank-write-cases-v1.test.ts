@@ -71,10 +71,12 @@ describe('bank 写路径（cases-v1）', () => {
       pair_key: string;
       head_revision_id: string;
       lifecycle: string;
+      automation_readiness: string;
     };
     expect(caseDoc.case_id).toBe('paired-task-99');
     expect(caseDoc.pair_key).toBe('PAIRED-TASK-99');
-    expect(caseDoc.lifecycle).toBe('released');
+    expect(caseDoc.lifecycle).toBe('draft');
+    expect(caseDoc.automation_readiness).toBe('not_assessed');
 
     // case-revision.json 已写（OFF r1 + ON r1，含 content_hash）
     const offRevPath = join(root, 'case-revisions', 'paired-task-99.r1.off.case-revision.json');

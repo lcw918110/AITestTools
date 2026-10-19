@@ -1059,3 +1059,23 @@ grill-me 对齐后落盘设计（S2，ADR-0010）并实现（S3）。
 - 优化项 ④ 持续评测闭环（失败 → 回归题沉淀）。
 - 第 1 期界面化（录题 / 环境 / 数据集）；第 2 期（跑批 / 报告 / 健康检查 + console 退役）。
 - 优化项 ③ 安全红队（成本最高，最后）；⑤ OTel（明确后置）。
+
+## §31 第 1 期录题界面化（生命周期状态机 + rubric 声明，2026-10-19）
+
+grill-me 对齐后落盘设计（S2，ADR-0011），实现见后续提交。
+
+**1. 对齐结论（grill-me）**
+
+- 范围：核心录题/改题界面（题干 + 预期合同含 Oracle/Rubric + 生命周期 + 准备度 + 分层）；版本差异 UI 与失败 Run 回流 UI 后置。
+- 保持配对题 OFF/ON 模式（`pair_key` 关联，首轮 ON/OFF 对照根基，不动）。
+- 补 rubric 声明：写入 `CaseRevision.expect.rubric`（`dimensions: [{ name, scale, weight }]` + 可选 `judge`），打通第 0 期裁判体系「题目自动读 rubric」。
+- 生命周期完整状态机：`draft → candidate → reviewed → validated → released → deprecated` 线性前进；`candidate/reviewed/validated` 可回退 `draft`；`released` 后不可回退、不可原地改（升版本）、仅可 `deprecated`；`deprecated` 终态。
+- 准备度正交可编辑：`automation_readiness`（`not_assessed/manual_only/spec_incomplete/design_ready/blocked`）。
+- 分层暴露：`strata.task_type` / `difficulty_level`。
+- 元数据不升版本：`lifecycle`/`automation_readiness`/`tags`/`lifecycle_history` 属 Case 层，变更只改 `case.json`；题干/预期/Rubric/分层属修订正文，变更升版本。
+- 本机单用户信任模型：流转记录流程声明（操作者/时间/说明），不宣称双人审批。
+
+**2. 设计落盘（S2）**
+
+- ADR-0011 已挂 `docs/architecture/README.md` 索引。
+- `docs/02` §3.2 补生命周期流转规则；`docs/03` §4.1 补录题/改题表单字段。

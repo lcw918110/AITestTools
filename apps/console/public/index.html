@@ -230,6 +230,19 @@
                 <input id="taskTags" type="text" list="taskTypeList" placeholder="可空，例如编码" />
               </label>
               <label>
+                任务类型（分层）
+                <input id="taskStrataType" type="text" placeholder="可空，例如 coding" autocomplete="off" />
+              </label>
+              <label>
+                难度分层
+                <select id="taskStrataDifficulty">
+                  <option value="">（未设）</option>
+                  <option value="L1">L1</option>
+                  <option value="L2">L2</option>
+                  <option value="L3">L3</option>
+                </select>
+              </label>
+              <label>
                 回复必须出现
                 <input
                   id="taskContains"
@@ -246,6 +259,38 @@
                 变更说明
                 <input id="changeName" type="text" placeholder="为何改（至少 4 字）" />
               </label>
+              <fieldset class="bank-rubric">
+                <legend>Rubric 声明（裁判维度，可空）</legend>
+                <div id="rubricDims"></div>
+                <button type="button" id="addRubricDim" class="ghost">+ 添加维度</button>
+                <p class="hint tiny">维度名 + 评分标尺 + 权重；触发裁判时自动带出。</p>
+              </fieldset>
+              <label>
+                自动化准备度
+                <select id="taskReadiness">
+                  <option value="not_assessed">未评估</option>
+                  <option value="manual_only">仅人工</option>
+                  <option value="spec_incomplete">规格不全</option>
+                  <option value="design_ready">设计就绪</option>
+                  <option value="blocked">受阻</option>
+                </select>
+              </label>
+              <div class="bank-lifecycle">
+                <p class="meta">生命周期：<span id="taskLifecycle">—</span></p>
+                <div class="actions">
+                  <select id="lifecycleTarget">
+                    <option value="draft">draft</option>
+                    <option value="candidate">candidate</option>
+                    <option value="reviewed">reviewed</option>
+                    <option value="validated">validated</option>
+                    <option value="released">released</option>
+                    <option value="deprecated">deprecated</option>
+                  </select>
+                  <input id="lifecycleReason" type="text" placeholder="流转说明" autocomplete="off" />
+                  <button type="button" id="transitionLifecycle" class="ghost">推进/回退</button>
+                </div>
+                <pre id="lifecycleHistory" class="log" hidden></pre>
+              </div>
               <p class="hint tiny">保存会自动升版本；建议随后「检查题库」。</p>
               <div class="actions">
                 <button type="button" id="saveTask" class="primary">保存并升版本</button>
@@ -527,6 +572,25 @@
             任务类型（可选）
             <input id="wizTags" type="text" list="taskTypeList" placeholder="可空，例如编码" />
           </label>
+          <label>
+            任务类型（分层，可选）
+            <input id="wizStrataType" type="text" placeholder="可空，例如 coding" autocomplete="off" />
+          </label>
+          <label>
+            难度分层（可选）
+            <select id="wizStrataDifficulty">
+              <option value="">（未设）</option>
+              <option value="L1">L1</option>
+              <option value="L2">L2</option>
+              <option value="L3">L3</option>
+            </select>
+          </label>
+          <fieldset class="bank-rubric">
+            <legend>Rubric 声明（裁判维度，可空）</legend>
+            <div id="wizRubricDims"></div>
+            <button type="button" id="addWizRubricDim" class="ghost">+ 添加维度</button>
+            <p class="hint tiny">维度名 + 评分标尺 + 权重；触发裁判时自动带出。</p>
+          </fieldset>
         </div>
 
         <div class="wizard-step" data-step="4" hidden>

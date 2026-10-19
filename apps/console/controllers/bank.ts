@@ -9,6 +9,7 @@ import {
   getTask,
   listTasks,
   nextCreateTaskId,
+  transitionLifecycle,
   updateTask,
   validateBank,
   type CreateTaskBody,
@@ -67,5 +68,20 @@ export async function bankTaskDelete(
 /** POST /api/bank/validate */
 export async function bankValidate(): Promise<HttpResponse> {
   const result = await validateBank(REPO_ROOT);
+  return { status: 200, body: result };
+}
+
+/** POST /api/bank/tasks/:taskId/lifecycle */
+export async function bankTaskTransition(
+  taskId: string,
+  body: { to?: string; reason?: string },
+): Promise<HttpResponse> {
+  const to = (body.to ?? '').trim();
+  const reason = (body.reason ?? '').trim();
+  if (!to) return { status: 400, body: { error: '缺少目标状态 to' } };
+  const result = await transitionLifecycle(PROJECT, taskId, to, reason);
+  if ('error' in result) {
+    return { status: result.code, body: { error: result.error } };
+  }
   return { status: 200, body: result };
 }

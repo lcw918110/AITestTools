@@ -129,6 +129,16 @@ async function loadTask(taskId) {
   document.getElementById('taskContains').value = d.contains || '';
   document.getElementById('taskNotContains').value = d.notContains || '';
   document.getElementById('changeName').value = '';
+  // 分层
+  document.getElementById('taskStrataType').value = d.strata?.task_type || '';
+  document.getElementById('taskStrataDifficulty').value = d.strata?.difficulty_level || '';
+  // 准备度
+  document.getElementById('taskReadiness').value = d.automationReadiness || 'not_assessed';
+  // 生命周期
+  document.getElementById('taskLifecycle').textContent = d.lifecycle || 'draft';
+  renderLifecycleHistory(d.lifecycleHistory || []);
+  // rubric 维度
+  renderRubricDims('rubricDims', d.rubric?.dimensions || []);
   const offId = d.offId || d.off?.id || '—';
   const onId = d.onId || d.on?.id || '—';
   document.getElementById('taskIdsReadonly').textContent =
@@ -242,6 +252,76 @@ function wizardGate() {
   return true;
 }
 
+function renderLifecycleHistory(history) {
+  const el = document.getElementById('lifecycleHistory');
+  if (!history || history.length === 0) {
+    el.hidden = true;
+    el.textContent = '';
+    return;
+  }
+  el.hidden = false;
+  el.textContent = history
+    .map((h) => `${h.from} → ${h.to}（${h.reason}）${h.at ? ` @ ${h.at}` : ''}`)
+    .join('\n');
+}
+
+/** 渲染 rubric 维度行（name / scale / weight + 删除按钮）。 */
+function renderRubricDims(containerId, dims) {
+  const host = document.getElementById(containerId);
+  host.innerHTML = '';
+  for (const d of dims) {
+    addRubricDimRow(containerId, d);
+  }
+}
+
+/** 添加一个 rubric 维度行；d 为空对象时是空行。 */
+function addRubricDimRow(containerId, d = {}) {
+  const host = document.getElementById(containerId);
+  const row = document.createElement('div');
+  row.className = 'rubric-dim';
+  const name = document.createElement('input');
+  name.type = 'text';
+  name.className = 'rubric-dim-name';
+  name.placeholder = '维度名';
+  name.value = d.name || '';
+  const scale = document.createElement('input');
+  scale.type = 'text';
+  scale.className = 'rubric-dim-scale';
+  scale.placeholder = '标尺';
+  scale.value = d.scale || '';
+  const weight = document.createElement('input');
+  weight.type = 'number';
+  weight.className = 'rubric-dim-weight';
+  weight.placeholder = '权重';
+  weight.min = '0';
+  weight.step = '0.1';
+  weight.value = d.weight ?? '';
+  const del = document.createElement('button');
+  del.type = 'button';
+  del.className = 'ghost danger';
+  del.textContent = '×';
+  del.addEventListener('click', () => row.remove());
+  row.append(name, scale, weight, del);
+  host.appendChild(row);
+}
+
+/** 收集 rubric 维度；半填返回 null（调用方须报错），无维度返回 undefined。 */
+function collectRubricDims(containerId) {
+  const host = document.getElementById(containerId);
+  const dims = [];
+  for (const row of host.querySelectorAll('.rubric-dim')) {
+    const name = row.querySelector('.rubric-dim-name').value.trim();
+    const scale = row.querySelector('.rubric-dim-scale').value.trim();
+    const weightRaw = row.querySelector('.rubric-dim-weight').value.trim();
+    if (!name && !scale && !weightRaw) continue;
+    if (!name || !scale || !weightRaw) return null; // 半填视为非法
+    const weight = Number(weightRaw);
+    if (!Number.isFinite(weight)) return null;
+    dims.push({ name, scale, weight });
+  }
+  return dims.length > 0 ? { dimensions: dims } : undefined;
+}
+
 function wireBank() {
   document.getElementById('openCreateWizard').addEventListener('click', openWizard);
   document.getElementById('bankTestSetFilter').addEventListener('change', () => {
@@ -301,6 +381,19 @@ function wireBank() {
       const contains = document.getElementById('wizContains').value.trim();
       const notContains = document.getElementById('wizNotContains').value.trim();
       const tags = document.getElementById('wizTags').value.trim();
+      const strataType = document.getElementById('wizStrataType').value.trim();
+      const strataDifficulty = document.getElementById('wizStrataDifficulty').value;
+      const rubric = collectRubricDims('wizRubricDims');
+      if (rubric === null) {
+        errEl.textContent = 'Rubric 维度须三项都填（维度名 + 标尺 + 权重）';
+        errEl.hidden = false;
+        return;
+      }
+      if ((strataType && !strataDifficulty) || (!strataType && strataDifficulty)) {
+        errEl.textContent = '分层须同时填任务类型与难度';
+        errEl.hidden = false;
+        return;
+      }
       const body = {
         taskId: document.getElementById('wizTaskId').value.trim(),
         prompt: document.getElementById('wizPrompt').value,
@@ -309,6 +402,10 @@ function wireBank() {
         ...(notContains ? { notContains } : {}),
         ...(tags ? { tags } : {}),
         testSetId: document.getElementById('wizTestSet').value,
+        ...(rubric ? { rubric } : {}),
+        ...(strataType && strataDifficulty
+          ? { strata: { task_type: strataType, difficulty_level: strataDifficulty } }
+          : {}),
       };
       const d = await api('/api/bank/tasks', {
         method: 'POST',
@@ -331,6 +428,17 @@ function wireBank() {
       return;
     }
     try {
+      const strataType = document.getElementById('taskStrataType').value.trim();
+      const strataDifficulty = document.getElementById('taskStrataDifficulty').value;
+      const rubric = collectRubricDims('rubricDims');
+      if (rubric === null) {
+        setBankStatus('Rubric 维度须三项都填（维度名 + 标尺 + 权重）', 'err');
+        return;
+      }
+      if ((strataType && !strataDifficulty) || (!strataType && strataDifficulty)) {
+        setBankStatus('分层须同时填任务类型与难度', 'err');
+        return;
+      }
       const body = {
         prompt: document.getElementById('taskPrompt').value,
         passToken: document.getElementById('taskToken').value.trim(),
@@ -339,6 +447,11 @@ function wireBank() {
         tags: document.getElementById('taskTags').value.trim(),
         notes: document.getElementById('taskNotes').value,
         changeName: document.getElementById('changeName').value.trim(),
+        automationReadiness: document.getElementById('taskReadiness').value,
+        ...(rubric ? { rubric } : {}),
+        ...(strataType && strataDifficulty
+          ? { strata: { task_type: strataType, difficulty_level: strataDifficulty } }
+          : {}),
       };
       await api(`/api/bank/tasks/${encodeURIComponent(selectedTask)}`, {
         method: 'PUT',
@@ -413,6 +526,34 @@ function wireBank() {
         r.ok ? LABELS.validate + '通过' : `检查失败 exit=${r.exitCode}`,
         r.ok ? 'ok' : 'err',
       );
+    } catch (e) {
+      setBankStatus(String(e.message || e), 'err');
+    }
+  });
+
+  document.getElementById('addRubricDim').addEventListener('click', () => {
+    addRubricDimRow('rubricDims');
+  });
+  document.getElementById('addWizRubricDim').addEventListener('click', () => {
+    addRubricDimRow('wizRubricDims');
+  });
+
+  document.getElementById('transitionLifecycle').addEventListener('click', async () => {
+    if (!selectedTask) {
+      setBankStatus('请先选择题目', 'err');
+      return;
+    }
+    const to = document.getElementById('lifecycleTarget').value;
+    const reason = document.getElementById('lifecycleReason').value.trim();
+    try {
+      await api(`/api/bank/tasks/${encodeURIComponent(selectedTask)}/lifecycle`, {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ to, reason }),
+      });
+      document.getElementById('lifecycleReason').value = '';
+      setBankStatus(`已流转到 ${to}`, 'ok');
+      await loadTask(selectedTask);
     } catch (e) {
       setBankStatus(String(e.message || e), 'err');
     }
