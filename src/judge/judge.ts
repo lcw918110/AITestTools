@@ -164,3 +164,14 @@ export function judgeErrorScores(rubric: RubricSpec, error: string, itemId?: str
     return score;
   });
 }
+
+/** 合并裁判分：同 item_id + source + dimension 覆盖（同一题同维度同来源只留最新）。 */
+export function mergeScores(existing: Score[], incoming: Score[]): Score[] {
+  const keep = existing.filter(
+    (e) =>
+      !incoming.some(
+        (i) => i.item_id === e.item_id && i.source === e.source && i.dimension === e.dimension,
+      ),
+  );
+  return [...keep, ...incoming];
+}

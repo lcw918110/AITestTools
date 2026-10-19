@@ -3,10 +3,11 @@ import {
   buildJudgePrompt,
   humanScores,
   judgeErrorScores,
+  mergeScores,
   parseJudgeVerdicts,
   verdictsToScores,
 } from '../../src/judge/judge.ts';
-import type { RubricSpec } from '../../src/domain/types.ts';
+import type { RubricSpec, Score } from '../../src/domain/types.ts';
 
 const rubric: RubricSpec = {
   dimensions: [
@@ -92,5 +93,38 @@ describe('judge', () => {
     const scores = judgeErrorScores(rubric, '超时');
     expect(scores).toHaveLength(2);
     expect(scores[0]?.reason).toContain('judge_error');
+  });
+
+  it('mergeScores 同 item+source+dimension 覆盖（新判定胜出）', () => {
+    const mk = (id: string, source: Score['source'], dimension: string): Score => ({
+      score_id: id,
+      source,
+      dimension,
+      scale: 'pass/fail',
+      weight: 1,
+      reason: id,
+    });
+    const existing = [mk('old-a', 'model_judge', '代码可读性'), mk('old-b', 'human', '代码可读性')];
+    const incoming = [mk('new-a', 'model_judge', '代码可读性')];
+    const merged = mergeScores(existing, incoming);
+    // 同 item+source+dimension 的旧分被覆盖，不同 source 的保留。
+    expect(merged).toHaveLength(2);
+    expect(merged.map((s) => s.score_id)).toEqual(['old-b', 'new-a']);
+  });
+
+  it('mergeScores 不同维度/来源不互相覆盖', () => {
+    const mk = (id: string, source: Score['source'], dimension: string): Score => ({
+      score_id: id,
+      source,
+      dimension,
+      scale: 'pass/fail',
+      weight: 1,
+      reason: id,
+    });
+    const existing = [mk('a', 'model_judge', '代码可读性')];
+    const incoming = [mk('b', 'model_judge', '方案合理性')];
+    const merged = mergeScores(existing, incoming);
+    expect(merged).toHaveLength(2);
+    expect(merged.map((s) => s.score_id)).toEqual(['a', 'b']);
   });
 });

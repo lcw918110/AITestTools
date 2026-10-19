@@ -13,6 +13,7 @@ import {
   buildJudgePrompt,
   humanScores,
   judgeErrorScores,
+  mergeScores,
   parseJudgeVerdicts,
   verdictsToScores,
 } from '../../../src/judge/judge.ts';
@@ -174,17 +175,6 @@ export async function triggerJudge(body: TriggerJudgeBody): Promise<HttpResponse
     writeJudgeScores(runDir, merged);
     return { status: 200, body: { ok: true, judge_error: true, scores } };
   }
-}
-
-function mergeScores(existing: Score[], incoming: Score[]): Score[] {
-  // 同 item_id + source + dimension 覆盖（同一题同维度只留最新）。
-  const keep = existing.filter(
-    (e) =>
-      !incoming.some(
-        (i) => i.item_id === e.item_id && i.source === e.source && i.dimension === e.dimension,
-      ),
-  );
-  return [...keep, ...incoming];
 }
 
 /** 人工标注校验基准：读取 run 的 judge_scores.json，计算 model_judge vs human 一致性。 */

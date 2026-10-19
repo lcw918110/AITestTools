@@ -75,12 +75,13 @@ export async function healthCheck(): Promise<HttpResponse> {
   const datasetErrors = datasetIntegrity.filter(
     (d) => 'error' in d || d.missing.length > 0 || d.unreadable.length > 0,
   );
-  const ok =
-    bank.ok &&
-    summary.errors.length === 0 &&
-    unverifiedModels.length === 0 &&
-    unverifiedAgents.length === 0 &&
-    datasetErrors.length === 0;
+  const ok = computeHealthOk({
+    bankOk: bank.ok,
+    projectErrorCount: summary.errors.length,
+    unverifiedModelCount: unverifiedModels.length,
+    unverifiedAgentCount: unverifiedAgents.length,
+    datasetErrorCount: datasetErrors.length,
+  });
   return {
     status: 200,
     body: {
@@ -98,4 +99,23 @@ export async function healthCheck(): Promise<HttpResponse> {
       manifest,
     },
   };
+}
+
+/** 综合健康检查「是否健康」的聚合判定（纯函数，供单测覆盖）。 */
+export interface HealthOkInput {
+  bankOk: boolean;
+  projectErrorCount: number;
+  unverifiedModelCount: number;
+  unverifiedAgentCount: number;
+  datasetErrorCount: number;
+}
+
+export function computeHealthOk(input: HealthOkInput): boolean {
+  return (
+    input.bankOk &&
+    input.projectErrorCount === 0 &&
+    input.unverifiedModelCount === 0 &&
+    input.unverifiedAgentCount === 0 &&
+    input.datasetErrorCount === 0
+  );
 }
