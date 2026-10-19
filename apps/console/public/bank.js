@@ -376,9 +376,7 @@ function wireBank() {
       await refreshTestSets();
       document.getElementById('wizTestSet').value = created.id;
       document.getElementById('newTestSetDialog').close();
-      document.dispatchEvent(
-        new CustomEvent('test-sets-changed', { detail: { id: created.id } }),
-      );
+      document.dispatchEvent(new CustomEvent('test-sets-changed', { detail: { id: created.id } }));
     } catch (e) {
       err.textContent = String(e.message || e);
       err.hidden = false;

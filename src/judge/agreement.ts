@@ -68,10 +68,7 @@ export function collectPairs(
  * 退化边界：若 a、b 均无变异（全 true 或全 false），期望一致 pe=1，Kappa 无定义返回 undefined
  * （此时一致率仍可报告，但 Kappa 不产出，避免「全一致但无区分度」被误读为高一致性）。
  */
-export function cohensKappa(
-  a: boolean[],
-  b: boolean[],
-): number | undefined {
+export function cohensKappa(a: boolean[], b: boolean[]): number | undefined {
   if (a.length !== b.length || a.length < 2) return undefined;
   const n = a.length;
   let agree = 0;
@@ -83,8 +80,7 @@ export function cohensKappa(
     if (b[i]) bTrue += 1;
   }
   const p0 = agree / n;
-  const pe =
-    (aTrue / n) * (bTrue / n) + ((n - aTrue) / n) * ((n - bTrue) / n);
+  const pe = (aTrue / n) * (bTrue / n) + ((n - aTrue) / n) * ((n - bTrue) / n);
   if (pe >= 1) return undefined;
   return (p0 - pe) / (1 - pe);
 }

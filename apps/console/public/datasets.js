@@ -113,8 +113,7 @@ async function loadDetail(id) {
     `短名 ${d.id} · 无插件 ${d.offRelease} · 有插件 ${d.onRelease}\n${d.description || ''}`;
   renderMatrix(d.coverage?.matrix ?? {});
   const counts = document.getElementById('datasetCounts');
-  counts.textContent =
-    `无插件侧（OFF）${d.coverage?.offCount ?? 0} 题 · 有插件侧（ON）${d.coverage?.onCount ?? 0} 题 · 共 ${d.tasks?.length ?? 0} 题`;
+  counts.textContent = `无插件侧（OFF）${d.coverage?.offCount ?? 0} 题 · 有插件侧（ON）${d.coverage?.onCount ?? 0} 题 · 共 ${d.tasks?.length ?? 0} 题`;
   const missing = d.coverage?.missing ?? [];
   const unreadable = d.coverage?.unreadable ?? [];
   const missingEl = document.getElementById('datasetMissing');

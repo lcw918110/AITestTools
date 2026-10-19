@@ -1262,7 +1262,3 @@ env 切片收口后，按「不留技术债」维度清理既有缺陷，使 `co
 **4. Bugbot 审查（S4）**
 
 - 云端 Bugbot 发现 1 High：canary 注入被 `this.wantIsolated` 门控，非隔离环境（`isolation_profile: 'shared'` 且无 `durable_log_glob`）时 canary 从未注入，但泄露检测仍报告 `leaked: false`，产出假阴性。已修复：`HostedAdapter.prepare` 在 `canarySecret` 存在但非隔离时抛 `AdapterError`（安全红队必须隔离执行，静默跳过会假阴性）。
-
-
-
-

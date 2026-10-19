@@ -2,12 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { cohensKappa, collectPairs, computeAgreement } from '../../src/judge/agreement.ts';
 import type { Score } from '../../src/domain/types.ts';
 
-function score(
-  source: Score['source'],
-  itemId: string,
-  dimension: string,
-  pass: boolean,
-): Score {
+function score(source: Score['source'], itemId: string, dimension: string, pass: boolean): Score {
   return {
     score_id: `${source}-${itemId}-${dimension}`,
     source,
@@ -38,7 +33,13 @@ describe('agreement', () => {
   it('collectPairs 跳过无 pass 的 judge_error 记录', () => {
     const scores: Score[] = [
       score('model_judge', 'T1', '可读性', true),
-      { score_id: 'e1', source: 'model_judge', item_id: 'T1', dimension: '可读性', reason: 'judge_error: x' },
+      {
+        score_id: 'e1',
+        source: 'model_judge',
+        item_id: 'T1',
+        dimension: '可读性',
+        reason: 'judge_error: x',
+      },
       score('human', 'T1', '可读性', true),
     ];
     const pairs = collectPairs(scores);
