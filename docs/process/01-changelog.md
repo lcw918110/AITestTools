@@ -837,3 +837,33 @@
 - `npm run typecheck`：0 错误
 - `npm run lint`：通过
 - `format:check`：全仓干净
+
+## §23 全盘审视收口：仓库卫生 + @deprecated 清理 + 根 CHANGELOG 同步（2026-10-19）
+
+客观视角全盘审视，处理仓库卫生、残留类型别名与文档双轨问题。
+
+**1. 仓库卫生（.diagnostics / .gitignore）**
+
+- `.diagnostics/`（8MB 一次性 incident 诊断产物）从 git 移除并加入 `.gitignore`。其中 `opencode-config.json` 的 apiKey 为 opencode 客户端导出的**脱敏形式**（`sk-7...96e6`），非完整明文，git 历史中亦无完整密钥；但仍暴露第三方中转站服务商与模型名，故一并移出仓库。
+- `.gitignore` 删除过时规则（`examples/product-eval/legacy/rooms/.console-catalog.json`、`loadRooms` 注释），新增 `.diagnostics/`。
+
+**2. @deprecated 类型别名清理**
+
+- 删除 `ProviderDefinition`/`DeploymentDefinition`（`src/domain/types.ts`）与 `HarnessProject`（`src/exam-engine/project.ts`），并清理 `exam-engine/types.ts`/`index.ts` 的 re-export 链。三者均无生产/测试消费者，纯 re-export 别名。
+- 顺带修正 `ModelRoutingProfile.routes` 一处缩进。
+
+**3. 根 CHANGELOG.md 同步**
+
+- 根 `CHANGELOG.md` 从过时内容（papers-v1、`bump-rev`/`retire`/`migrate`、`rooms`）重写为 cases-v1 现状：资产模型、CLI 命令表（含已删命令与新口径）、执行驱动分派、12 类 Oracle，并指向 `docs/process/01-changelog.md` 作权威过程日志。
+
+**4. 遗留（单独立项，未在本轮处理）**
+
+- **RunOrchestrator / ExecutionAdapter 状态机未接线**：`run-orchestrator.ts` + `execution-adapter.ts` 只被彼此引用，CLI `run.ts` 实际走旧 `runOneItem` dispatch。属 Phase 2 目标架构，需单独立项完成 7 个 runner 的 adapter 改造。
+- `AssetKind` 仍含 `'items' | 'papersets' | 'rooms'` 旧枚举值（`src/exam-engine/types.ts`），与 cases-v1 并存。
+
+**验证（实测，2026-10-19）**：
+
+- `npm run typecheck`：0 错误
+- `npm run lint`：通过
+- `npm test`：57 文件 315 测试通过
+- `format:check`：全仓干净

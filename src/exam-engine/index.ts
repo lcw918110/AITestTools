@@ -23,7 +23,6 @@ export {
   findManifest,
   loadProject,
   type ExamProject,
-  type HarnessProject,
 } from './project.ts';
 export { ASSET_PROTOCOL_VERSION, validateAgainstSchema, type SchemaName } from './schema.ts';
 export {

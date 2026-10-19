@@ -14,9 +14,8 @@ baselines/
 # 控制台本地任务缓存
 apps/console/.jobs/
 
-# 操作台运行环境清单（点文件，引擎 loadRooms 会跳过）
-examples/product-eval/rooms/.console-catalog.json
-examples/product-eval/legacy/rooms/.console-catalog.json
+# 事件诊断产物（一次性 incident 排查，不入库）
+.diagnostics/
 
 # 环境与密钥（profile 中的模型密钥只走环境变量）
 .env

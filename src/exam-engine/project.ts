@@ -29,9 +29,6 @@ export interface ExamProject {
   dirs: Record<AssetKind, string>;
 }
 
-/** @deprecated */
-export type HarnessProject = ExamProject;
-
 export class ProjectError extends Error {
   constructor(message: string) {
     super(message);

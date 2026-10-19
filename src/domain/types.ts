@@ -1176,8 +1176,3 @@ export interface ModelRoutingProfile {
     route_policy_version: string;
   }>;
 }
-
-/** @deprecated 使用 Provider。 */
-export type ProviderDefinition = Provider;
-/** @deprecated 使用 Deployment。 */
-export type DeploymentDefinition = Deployment;
