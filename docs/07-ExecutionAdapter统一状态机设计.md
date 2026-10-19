@@ -150,7 +150,11 @@ export class RunOrchestrator {
   transitionRun(status: RunLifecycleStatus): void; // 校验 RUN_TRANSITIONS，非法转换抛错
 
   /** 为单个 case-revision 创建 CaseExecution + Attempt，执行 adapter，落终态。 */
-  executeCase(revision: CaseRevision, environment: EnvironmentProfile, adapter: ExecutionAdapter): Promise<CaseExecution>;
+  executeCase(
+    revision: CaseRevision,
+    environment: EnvironmentProfile,
+    adapter: ExecutionAdapter,
+  ): Promise<CaseExecution>;
 
   /** 封存 Run 终态（completed / failed / cancelled），写 RunFinalManifest。 */
   sealRun(status: RunLifecycleStatus): RunFinalManifest;
@@ -230,6 +234,6 @@ export class RunOrchestrator {
 | :-- | :------------------------------------------------------------ | :--- | :------------------------------------------------------- |
 | 1   | ExecutionAdapter 8 阶段接口形状                               | §3.1 | 是否接受「相邻阶段可合并」的宽松约定                     |
 | 2   | 三值记录用 `ObservedFactsRecorder` 而非直接改 AgentInvocation | §3.2 | 是否接受先落内存事实、Phase 2 再持久化                   |
-| 3   | 原 `*-runner.ts` 直接改造为 adapter（删旧函数）            | §5   | 是否接受「不留薄封装、删旧 `runXxxItem`」的低冗余路线   |
+| 3   | 原 `*-runner.ts` 直接改造为 adapter（删旧函数）               | §5   | 是否接受「不留薄封装、删旧 `runXxxItem`」的低冗余路线    |
 | 4   | AxisItemResult → 状态机终态映射                               | §4.3 | `attribution=HARNESS` 映射到 `execution_failed` 是否合理 |
 | 5   | Phase 2 边界（持久化/续跑/取消推迟）                          | §6   | 是否接受本次只做内存状态机                               |

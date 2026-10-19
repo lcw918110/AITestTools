@@ -20,12 +20,12 @@
 
 ### 2.1 Agent 评测框架
 
-| 框架 | 核心方法 | 关键指标 | 对本项目的启示 |
-| :--- | :--- | :--- | :--- |
-| SWE-bench / Verified | 真实 GitHub issue + Docker 环境 + 自动化测试验证补丁 | resolve rate / Pass@1 | 用**可执行验证**而非文本比对；Verified 强调**人工筛选子集**保证质量 |
-| AgentBench | 8 个交互环境（OS/DB/知识图谱/游戏/网页） | 成功率、F1、奖励、步骤成功率 | 多环境覆盖；但本项目聚焦单插件，不适用全量 |
-| OpenHands Index | 5 类任务（issue/frontend/testing/检索）+ 成本/耗时维度 | ability/cost/runtime 三维 | **「快好省」三维与本项目高度一致** |
-| LangSmith | 轨迹评估 + 监控 + 人工标注 + A/B 对比 | — | 轨迹级评估 + 人工标注闭环 |
+| 框架                 | 核心方法                                               | 关键指标                     | 对本项目的启示                                                      |
+| :------------------- | :----------------------------------------------------- | :--------------------------- | :------------------------------------------------------------------ |
+| SWE-bench / Verified | 真实 GitHub issue + Docker 环境 + 自动化测试验证补丁   | resolve rate / Pass@1        | 用**可执行验证**而非文本比对；Verified 强调**人工筛选子集**保证质量 |
+| AgentBench           | 8 个交互环境（OS/DB/知识图谱/游戏/网页）               | 成功率、F1、奖励、步骤成功率 | 多环境覆盖；但本项目聚焦单插件，不适用全量                          |
+| OpenHands Index      | 5 类任务（issue/frontend/testing/检索）+ 成本/耗时维度 | ability/cost/runtime 三维    | **「快好省」三维与本项目高度一致**                                  |
+| LangSmith            | 轨迹评估 + 监控 + 人工标注 + A/B 对比                  | —                            | 轨迹级评估 + 人工标注闭环                                           |
 
 **共性结论**：优先验证**最终系统状态**（而非仅文本/工具调用）；基准需**人工筛选 + 程序化验证**双轨保证质量。
 
@@ -50,12 +50,12 @@ OpenAI eval best practices 的**五步闭环**：
 
 ### 2.3 Agent 插件/工具调用评测
 
-| 来源 | 核心方法 | 关键指标 |
-| :--- | :--- | :--- |
-| MCP-BENCH | 28 服务器 250 工具，多跳任务，规则 + LLM judge 双轨 | name validity / schema adherence / runtime success / 轨迹规划 / 任务完成 |
-| MCPMark | 127 任务，sandbox + 程序化验证脚本 | **pass@1 + pass^k 一致性**（最佳模型仅 52.56% pass@1、33.86% pass^4） |
-| NVIDIA | 双层评分：**step-level（过程）+ E2E（结果）**；trace 是唯一对象 | 成功率 + **一致性（3-5 次 trial 的范围而非点估计）** + 工具调用精度 + 参数精度 + steps/成本 per success |
-| Chrome WebMCP | 确定性测试（非模型路径）+ 概率性 evals（模型路径）分离 | 工具用途理解 / 选对工具 / 参数正确 / 信息联动 / 用户旅程 |
+| 来源          | 核心方法                                                        | 关键指标                                                                                                |
+| :------------ | :-------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------ |
+| MCP-BENCH     | 28 服务器 250 工具，多跳任务，规则 + LLM judge 双轨             | name validity / schema adherence / runtime success / 轨迹规划 / 任务完成                                |
+| MCPMark       | 127 任务，sandbox + 程序化验证脚本                              | **pass@1 + pass^k 一致性**（最佳模型仅 52.56% pass@1、33.86% pass^4）                                   |
+| NVIDIA        | 双层评分：**step-level（过程）+ E2E（结果）**；trace 是唯一对象 | 成功率 + **一致性（3-5 次 trial 的范围而非点估计）** + 工具调用精度 + 参数精度 + steps/成本 per success |
+| Chrome WebMCP | 确定性测试（非模型路径）+ 概率性 evals（模型路径）分离          | 工具用途理解 / 选对工具 / 参数正确 / 信息联动 / 用户旅程                                                |
 
 **共性结论**：
 
@@ -91,26 +91,26 @@ OpenAI eval best practices 的**五步闭环**：
 
 ### 3.1 本项目已具备（业界对齐良好）
 
-| 业界最佳实践 | 本项目现状 | 结论 |
-| :--- | :--- | :--- |
-| 可执行验证（executable evals） | L1/L2/L3 + direct/hosted，12 类 oracle 全部落到真实执行/文件/事件 | ✅ 已对齐，且比多数框架更细 |
-| 轨迹 + 结果双轨 | 归因树（PROTOCOL/CONTEXT/MODEL_*/TOOL/HARNESS）+ oracle 证据链 | ✅ 已对齐 |
-| 快好省三维 | 首轮实验「快/好/省」指标 | ✅ 已对齐（与 OpenHands Index 的 ability/cost/runtime 同构） |
-| 不可变版本 + 快照 | Case/CaseRevision/DatasetRelease + RunPlanSnapshot | ✅ 已对齐（业界少有） |
-| 归因标签八分类 | ATTRIBUTION_TAGS（含 flaky_or_nondeterministic） | ✅ 已对齐 |
-| golden dataset + 基线对比 | baseline pin / compare / gates | ✅ 已对齐 |
-| 故障注入 | FaultScenario / FaultInjectionProfile 类型已定义 | ⚠️ 类型层有，执行层待确认 |
-| 安全边界 | credentials.scoped_injection / canary_secret 类型已定义 | ⚠️ 类型层有，执行层待确认 |
+| 业界最佳实践                   | 本项目现状                                                        | 结论                                                         |
+| :----------------------------- | :---------------------------------------------------------------- | :----------------------------------------------------------- |
+| 可执行验证（executable evals） | L1/L2/L3 + direct/hosted，12 类 oracle 全部落到真实执行/文件/事件 | ✅ 已对齐，且比多数框架更细                                  |
+| 轨迹 + 结果双轨                | 归因树（PROTOCOL/CONTEXT/MODEL_*/TOOL/HARNESS）+ oracle 证据链    | ✅ 已对齐                                                    |
+| 快好省三维                     | 首轮实验「快/好/省」指标                                          | ✅ 已对齐（与 OpenHands Index 的 ability/cost/runtime 同构） |
+| 不可变版本 + 快照              | Case/CaseRevision/DatasetRelease + RunPlanSnapshot                | ✅ 已对齐（业界少有）                                        |
+| 归因标签八分类                 | ATTRIBUTION_TAGS（含 flaky_or_nondeterministic）                  | ✅ 已对齐                                                    |
+| golden dataset + 基线对比      | baseline pin / compare / gates                                    | ✅ 已对齐                                                    |
+| 故障注入                       | FaultScenario / FaultInjectionProfile 类型已定义                  | ⚠️ 类型层有，执行层待确认                                    |
+| 安全边界                       | credentials.scoped_injection / canary_secret 类型已定义           | ⚠️ 类型层有，执行层待确认                                    |
 
 ### 3.2 本项目缺口（对照业界）
 
-| 缺口 | 业界做法 | 本项目现状 | 影响 |
-| :--- | :--- | :--- | :--- |
-| **裁判模型未落地** | LLM-as-judge + rubric + 与人类校验 | `RubricSpec.judge`、`Score.source: model_judge` 类型已定义，**无执行实现** | 开放题（无确定性 oracle 的任务质量）无法自动化判定，只能人工 |
-| **一致性只记 0 不证明** | pass^k / 3-5 次 trial 范围报告 | `a_flaky_rerun_delta` 单次 run 记 0，代码注释明说「不等于已证明无 flaky」 | 模型题 flaky 无法量化，选型结论可能不稳 |
-| **安全红队未落地** | 可执行 IPI 注入 + 双 judge | `scoped_injection`/`canary_secret` 类型已定义，**无注入执行器** | 插件安全边界无法自动验证（本项目 4.6 安全能力必须可强制执行） |
-| **无标准化 trace** | OpenTelemetry 标准 trace | 自研 EventStore/NDJSON，无 OTel 导出 | 无法对接业界可视化/监控生态 |
-| **持续评测未闭环** | 生产流量采样 → 沉淀 golden dataset | 有 baseline/gates，但无「生产失败自动沉淀为回归题」的闭环 | 题库增长依赖人工，回归集易老化 |
+| 缺口                    | 业界做法                           | 本项目现状                                                                 | 影响                                                          |
+| :---------------------- | :--------------------------------- | :------------------------------------------------------------------------- | :------------------------------------------------------------ |
+| **裁判模型未落地**      | LLM-as-judge + rubric + 与人类校验 | `RubricSpec.judge`、`Score.source: model_judge` 类型已定义，**无执行实现** | 开放题（无确定性 oracle 的任务质量）无法自动化判定，只能人工  |
+| **一致性只记 0 不证明** | pass^k / 3-5 次 trial 范围报告     | `a_flaky_rerun_delta` 单次 run 记 0，代码注释明说「不等于已证明无 flaky」  | 模型题 flaky 无法量化，选型结论可能不稳                       |
+| **安全红队未落地**      | 可执行 IPI 注入 + 双 judge         | `scoped_injection`/`canary_secret` 类型已定义，**无注入执行器**            | 插件安全边界无法自动验证（本项目 4.6 安全能力必须可强制执行） |
+| **无标准化 trace**      | OpenTelemetry 标准 trace           | 自研 EventStore/NDJSON，无 OTel 导出                                       | 无法对接业界可视化/监控生态                                   |
+| **持续评测未闭环**      | 生产流量采样 → 沉淀 golden dataset | 有 baseline/gates，但无「生产失败自动沉淀为回归题」的闭环                  | 题库增长依赖人工，回归集易老化                                |
 
 ### 3.3 本项目独有的优势（业界少见，不应丢弃）
 

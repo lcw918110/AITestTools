@@ -542,14 +542,12 @@ export function getTask(
     contains: paired.off?.contains ?? paired.on?.contains,
     notContains: paired.off?.notContains ?? paired.on?.notContains,
     ...(caseDoc?.lifecycle ? { lifecycle: caseDoc.lifecycle } : {}),
-    ...(caseDoc?.automation_readiness
-      ? { automationReadiness: caseDoc.automation_readiness }
-      : {}),
+    ...(caseDoc?.automation_readiness ? { automationReadiness: caseDoc.automation_readiness } : {}),
     ...(caseDoc?.lifecycle_history ? { lifecycleHistory: caseDoc.lifecycle_history } : {}),
-    ...(paired.off?.rubric ?? paired.on?.rubric
+    ...((paired.off?.rubric ?? paired.on?.rubric)
       ? { rubric: paired.off?.rubric ?? paired.on?.rubric }
       : {}),
-    ...(paired.off?.strata ?? paired.on?.strata
+    ...((paired.off?.strata ?? paired.on?.strata)
       ? { strata: paired.off?.strata ?? paired.on?.strata }
       : {}),
   };
@@ -1255,7 +1253,14 @@ export function deleteTask(
 // ── 生命周期状态机（第 1 期录题界面化）──
 
 /** 生命周期枚举（与 src/domain/types.ts CASE_LIFECYCLE 一致）。 */
-const LIFECYCLE_ORDER = ['draft', 'candidate', 'reviewed', 'validated', 'released', 'deprecated'] as const;
+const LIFECYCLE_ORDER = [
+  'draft',
+  'candidate',
+  'reviewed',
+  'validated',
+  'released',
+  'deprecated',
+] as const;
 type LifecycleState = (typeof LIFECYCLE_ORDER)[number];
 
 function isLifecycleState(v: string): v is LifecycleState {
@@ -1287,10 +1292,7 @@ export function assertLifecycleTransition(from: string, to: string): string | un
   if (toIdx === fromIdx + 1) return undefined;
 
   // 回退：仅 candidate/reviewed/validated → draft
-  if (
-    to === 'draft' &&
-    (from === 'candidate' || from === 'reviewed' || from === 'validated')
-  ) {
+  if (to === 'draft' && (from === 'candidate' || from === 'reviewed' || from === 'validated')) {
     return undefined;
   }
 

@@ -158,11 +158,18 @@ describe('生命周期状态机（第 1 期录题界面化）', () => {
 
     const caseDoc = JSON.parse(
       readFileSync(join(root, 'cases', 'paired-task-99.case.json'), 'utf8'),
-    ) as { lifecycle: string; lifecycle_history: Array<{ from: string; to: string; reason: string }> };
+    ) as {
+      lifecycle: string;
+      lifecycle_history: Array<{ from: string; to: string; reason: string }>;
+    };
     expect(caseDoc.lifecycle).toBe('candidate');
     // 初始记录（draft→draft）+ 推进记录（draft→candidate）共 2 条
     expect(caseDoc.lifecycle_history).toHaveLength(2);
-    expect(caseDoc.lifecycle_history[1]).toMatchObject({ from: 'draft', to: 'candidate', reason: '提交审核' });
+    expect(caseDoc.lifecycle_history[1]).toMatchObject({
+      from: 'draft',
+      to: 'candidate',
+      reason: '提交审核',
+    });
 
     // 非法流转应报错
     const r2 = await transitionLifecycle(root, 'PAIRED-TASK-99', 'released', '跳过审核');
