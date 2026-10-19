@@ -1147,3 +1147,31 @@ env 切片收口后，按「不留技术债」维度清理既有缺陷，使 `co
 **4. Bugbot 审查（S4）**
 
 - 本地自审发现 4 项：1 High（正例/负例口径错误，已改为「无插件侧/有插件侧」）、1 Medium（导航页口径需同步 changelog §1，已更新顶栏）、2 Low（事件联动耦合、`missing` 语义混杂，已拆 `unreadable` 字段）。均已修复。
+
+## §34 优化项 ① 人工标注校验基准（inter-judge agreement，2026-10-19）
+
+自主工作阶段切片：裁判模型上线前的人工标注一致性校验（`docs/10` 优化项 1 前置条件）。
+
+**1. 范围与决策（自主选择，按不留技术债维度）**
+
+- **度量**：逐维度二值 `pass/fail` 的 **Cohen's Kappa**（剔除随机一致）+ 一致率 + 有效配对样本数；总体跨维度聚合。Kappa 是业界标准 inter-judge agreement 度量。
+- **配对口径**：同 `item_id` + `dimension` 下取 `model_judge` 与 `human` 各一条配对；`deterministic_oracle` 不参与（确定性判据非「判断者」）；无 `pass` 的 `judge_error` 记录不参与配对。
+- **门槛语义**：纯报告指标，不进硬门禁（与裁判体系「不进硬门禁」原则一致）；样本 < 2 标记「样本不足」，不产出 kappa 结论。
+- **既有缺陷修复（前置依赖）**：`Score` 类型缺 `pass` 字段，且 `verdictsToScores`/`humanScores` 把 `DimensionVerdict.pass` 丢弃、只存 `reason`，导致 `judge_scores.json` 从未落盘 pass/fail 判定（前端 `renderJudge` 读 `s.pass` 恒 undefined，✅/❌ 展示失效）。补 `Score.pass?: boolean` 并写回，属校验基准的前置依赖，非顺手重构。
+
+**2. 实现（S3）**
+
+- `src/judge/agreement.ts`（新增）：`collectPairs` / `cohensKappa` / `computeAgreement` 纯逻辑。
+- `src/domain/types.ts`：`Score` 补 `pass?: boolean`。
+- `src/judge/judge.ts`：`verdictsToScores`/`humanScores` 写回 `pass`。
+- `apps/console/controllers/judge.ts` + `router.ts`：新增 `GET /api/judge/agreement?runPath=...`。
+- `apps/console/public/app.js` + `index.html`：judge 面板展示一致性基准（总体 Kappa + 逐维度）。
+
+**3. 验证（实测，2026-10-19）**
+
+- `tests/judge/agreement.test.ts` 新增 8 例（配对/跳过 judge_error/kappa 边界/样本不足）；`npx vitest run` 362 通过（4 例 `git init` 沙箱拦截属环境限制，非沙箱下 event-store 5 例全过）。
+- `npm run typecheck` 0 错误；`npm run lint` 通过；`scripts/console-l0.sh` 完整冒烟通过（新增 C-A-58 校验接口断言）。
+
+**4. Bugbot 审查（S4）**
+
+- 云端 Bugbot 发现 4 项 Low/Info（无 High/Medium）：`app.js` 死代码三元表达式、样本不足文案措辞、`judgeAgreement` async 冗余、`cohensKappa` 无变异退化边界未文档化。均已修复。

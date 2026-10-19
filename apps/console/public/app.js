@@ -22,6 +22,7 @@ const judgeModelBtn = document.getElementById('judgeModelBtn');
 const judgeHumanBtn = document.getElementById('judgeHumanBtn');
 const judgeStatus = document.getElementById('judgeStatus');
 const judgeScores = document.getElementById('judgeScores');
+const judgeAgreementEl = document.getElementById('judgeAgreement');
 const judgeDialog = document.getElementById('judgeDialog');
 const judgeDialogTitle = document.getElementById('judgeDialogTitle');
 const judgeItemId = document.getElementById('judgeItemId');
@@ -627,6 +628,36 @@ function renderJudge(scores) {
   judgeScores.textContent = lines.join('\n');
 }
 
+async function renderAgreement(runDir) {
+  if (!runDir) {
+    judgeAgreementEl.textContent = '';
+    return;
+  }
+  try {
+    const r = await api(`/api/judge/agreement?runPath=${encodeURIComponent(runDir)}`);
+    if (r.insufficientSample) {
+      judgeAgreementEl.textContent =
+        '人工标注校验基准：样本不足（需同一题同维度同时有模型判断与人工判断，总体配对 ≥2 对才产出 Kappa）';
+      return;
+    }
+    const lines = [];
+    const k = r.overallKappa;
+    const kappaText = k === undefined ? '—' : k.toFixed(3);
+    lines.push(
+      `人工标注校验基准：总体 Kappa ${kappaText} · 一致率 ${((r.overallAgreementRate ?? 0) * 100).toFixed(1)}% · 配对 ${r.totalSampleCount}`,
+    );
+    for (const d of r.dimensions ?? []) {
+      const dk = d.kappa === undefined ? '—' : d.kappa.toFixed(3);
+      lines.push(
+        `  ${d.dimension}: Kappa ${dk} · ${d.agreeCount}/${d.sampleCount} 一致`,
+      );
+    }
+    judgeAgreementEl.textContent = lines.join('\n');
+  } catch {
+    judgeAgreementEl.textContent = '';
+  }
+}
+
 function judgeItemIds() {
   // 从当前 run 详情的 pass_tokens / failures 提取 item_id 列表，供用户选择。
   const ids = new Set();
@@ -759,6 +790,7 @@ async function showRun(path) {
   renderPassTokens(data.summary);
   renderFailDrafts(data.summary);
   renderJudge(parseJudgeScores(data.judge_scores));
+  await renderAgreement(data.dir);
   effectMd.textContent =
     data.effect_compare || '（无 effect_compare.md — 单次 run 或尚未 compare）';
   resultsNd.textContent = (data.results_preview || []).join('\n') || '（无 results）';

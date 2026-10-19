@@ -135,6 +135,8 @@ export interface Score {
   scale?: string;
   weight?: number;
   value?: number;
+  /** 二值判定结果（model_judge / human 逐维度 pass/fail；deterministic_oracle 不用）。 */
+  pass?: boolean;
   rule_version?: string;
   judge_model?: string;
   judge_prompt_version?: string;

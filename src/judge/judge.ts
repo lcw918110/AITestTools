@@ -109,6 +109,7 @@ export function verdictsToScores(
       score_id: nextScoreId(),
       source: 'model_judge',
       dimension: v.dimension,
+      pass: v.pass,
       reason: v.reason,
     };
     if (dim) {
@@ -135,6 +136,7 @@ export function humanScores(
       score_id: nextScoreId(),
       source: 'human',
       dimension: v.dimension,
+      pass: v.pass,
       reason: v.reason,
     };
     if (dim) {

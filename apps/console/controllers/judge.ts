@@ -17,6 +17,7 @@ import {
   verdictsToScores,
 } from '../../../src/judge/judge.ts';
 import { resolveRubricFromCaseRevision } from '../../../src/judge/resolve-rubric.ts';
+import { computeAgreement } from '../../../src/judge/agreement.ts';
 import type { RubricSpec, Score } from '../../../src/domain/types.ts';
 
 export interface TriggerJudgeBody {
@@ -184,4 +185,13 @@ function mergeScores(existing: Score[], incoming: Score[]): Score[] {
       ),
   );
   return [...keep, ...incoming];
+}
+
+/** 人工标注校验基准：读取 run 的 judge_scores.json，计算 model_judge vs human 一致性。 */
+export function judgeAgreement(runPath: string): HttpResponse {
+  const runDir = resolveRunDir(runPath);
+  if (!runDir) return { status: 400, body: { error: 'run 路径无效' } };
+  const scores = loadJudgeScores(runDir);
+  const report = computeAgreement(scores);
+  return { status: 200, body: report };
 }

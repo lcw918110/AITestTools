@@ -51,7 +51,7 @@ import {
   modelPoolUpsert,
   type ModelEntryBody,
 } from './controllers/model-pool.ts';
-import { triggerJudge, type TriggerJudgeBody } from './controllers/judge.ts';
+import { triggerJudge, judgeAgreement, type TriggerJudgeBody } from './controllers/judge.ts';
 
 export async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const url = new URL(req.url ?? '/', `http://${HOST}:${PORT}`);
@@ -348,6 +348,12 @@ export async function handleRequest(req: IncomingMessage, res: ServerResponse): 
       return;
     }
     const r = await triggerJudge(parsed.value);
+    json(res, r.status, r.body);
+    return;
+  }
+  if (req.method === 'GET' && pathname === '/api/judge/agreement') {
+    const raw = url.searchParams.get('runPath') ?? '';
+    const r = judgeAgreement(raw);
     json(res, r.status, r.body);
     return;
   }

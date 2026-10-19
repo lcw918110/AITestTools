@@ -43,6 +43,11 @@ CODE=$(curl -s -o /tmp/ca57.json -w '%{http_code}' "$BASE/api/test-sets/no-such-
 test "$CODE" = "400"
 grep -q '未知测试集' /tmp/ca57.json
 
+# C-A-58 人工标注校验基准接口（无效 run 路径 400；有效 run 返回报告结构）
+CODE=$(curl -s -o /tmp/ca58.json -w '%{http_code}' "$BASE/api/judge/agreement?runPath=/no/such/run")
+test "$CODE" = "400"
+grep -q 'run 路径无效' /tmp/ca58.json
+
 # C-A-51 catalog
 curl -sf "$BASE/api/env/catalog" | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d["models"] and d["agents"]'
 
