@@ -17,6 +17,7 @@ import type {
   ObservedFactsRecorder,
 } from './execution-adapter.ts';
 import { AdapterError } from './execution-adapter.ts';
+import { resolveRepeats } from './repeats.ts';
 import type { AxisItemResult } from './runner-types.ts';
 
 /** 生成唯一 ID（进程内单调 + 随机后缀，避免同毫秒冲突）。 */
@@ -129,7 +130,8 @@ export class RunOrchestrator {
   /**
    * 为单个 case-revision 创建 CaseExecution + Attempt，执行 adapter，落终态。
    * caseIdentity 缺省时从 revision.case_id / case_revision_id 取身份。
-   * 返回 CaseExecution（状态机实体）与 AxisItemResult（题级结果，供 write-artifacts 落盘）。
+   * repeats 上移（ADR-0010）：按 resolveRepeats 循环 N 次，每次 trial 一个独立
+   * CaseExecution（replicate_index 递增）+ Attempt，合并所有 AxisItemResult 返回。
    */
   async executeCase(
     revision: CaseRevision,
@@ -143,7 +145,7 @@ export class RunOrchestrator {
       pairKey?: string;
     },
     caseIdentity?: CaseIdentity,
-  ): Promise<{ caseExecution: CaseExecution; results: AxisItemResult[] }> {
+  ): Promise<{ caseExecutions: CaseExecution[]; results: AxisItemResult[] }> {
     if (this.run === null) {
       throw new AdapterError('preflight_failed', 'HARNESS', 'RunOrchestrator 未 beginRun');
     }
@@ -151,8 +153,56 @@ export class RunOrchestrator {
 
     const caseId = caseIdentity?.case_id ?? revision.case_id;
     const caseRevisionId = caseIdentity?.case_revision_id ?? revision.case_revision_id;
-    const replicateIndex = caseIdentity?.replicate_index ?? 0;
+    const baseReplicate = caseIdentity?.replicate_index ?? 0;
+    const repeats = resolveRepeats(revision, environment);
 
+    const caseExecutions: CaseExecution[] = [];
+    const allResults: AxisItemResult[] = [];
+
+    for (let i = 0; i < repeats; i += 1) {
+      const replicateIndex = baseReplicate + i;
+      const { caseExecution, results } = await this.executeOnce(
+        run,
+        revision,
+        environment,
+        adapter,
+        exec,
+        caseId,
+        caseRevisionId,
+        replicateIndex,
+      );
+      caseExecutions.push(caseExecution);
+      // 统一追加 trial 序号（ADR-0010）：仅 repeats>1 时 item_id 尾缀 `::r<N>`，
+      // 供一致性聚合分组；单 trial（行为/事件题）保持原 item_id 不变。
+      if (repeats > 1) {
+        for (const r of results) {
+          allResults.push({ ...r, item_id: `${r.item_id}::r${replicateIndex}` });
+        }
+      } else {
+        allResults.push(...results);
+      }
+    }
+
+    return { caseExecutions, results: allResults };
+  }
+
+  /** 单次 trial 的 8 阶段执行（repeats 循环体）。 */
+  private async executeOnce(
+    run: Run,
+    revision: CaseRevision,
+    environment: EnvironmentProfile,
+    adapter: ExecutionAdapter,
+    exec: {
+      projectRoot: string;
+      models: string[];
+      artifactDir?: string;
+      sutRoot?: string;
+      pairKey?: string;
+    },
+    caseId: string,
+    caseRevisionId: string,
+    replicateIndex: number,
+  ): Promise<{ caseExecution: CaseExecution; results: AxisItemResult[] }> {
     const pairKey: PairKey = { case_revision_id: caseRevisionId, replicate_index: replicateIndex };
     const caseExecution: CaseExecution = {
       case_execution_id: genId('ce'),

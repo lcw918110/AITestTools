@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import type { GateBound } from '../exam-engine/types.ts';
 import type { AxisItemResult } from './runner-types.ts';
 import { aggregateItemMetrics, evaluateGates, type GateEvaluation } from './gates.ts';
+import { aggregateConsistency, extractCaseId } from './consistency.ts';
 import { formatPassTokenCell } from './hosted-pass-token.ts';
 import { formatHostExitCell, formatTimedOutCell, formatWorkspaceCell } from './hosted-host-exit.ts';
 
@@ -29,7 +30,8 @@ export function writeRunArtifacts(opts: {
 }): WriteArtifactsResult {
   const dir = join(opts.runsRoot, opts.meta.run_id);
   mkdirSync(join(dir, 'artifacts'), { recursive: true });
-  const byId = new Map(opts.results.map((r) => [r.item_id, r]));
+  // repeats>1 时 item_id 带 `::r<N>` 后缀；用去后缀 key 建 map，使 meta.items 的 id 能匹配。
+  const byId = new Map(opts.results.map((r) => [extractCaseId(r.item_id), r]));
   const items = opts.meta.items.map((it) => {
     const r = byId.get(it.id);
     if (r === undefined) return it;
@@ -134,6 +136,8 @@ export function writeRunArtifacts(opts: {
   // 稳定性 / flaky 显式报告（单次跑常为 0，不等于已证明无 flaky）
   const flaky = aggregates.a_flaky_rerun_delta ?? 0;
   const repeatTagged = opts.results.filter((r) => /::r\d+$/.test(r.item_id)).length;
+  // 一致性量化（ADR-0010）：pass^k + 成功率范围，纯报告、不进硬门禁。
+  const consistency = aggregateConsistency(opts.results);
   lines.push(
     '## 稳定性（repeats / flaky）',
     '',
@@ -144,6 +148,23 @@ export function writeRunArtifacts(opts: {
       : '- 说明: 结果含 repeats 标记，请结合 flaky delta 解读',
     '',
   );
+  // 一致性量化报告（pass^k / 成功率范围）
+  if (repeatTagged > 0) {
+    const rateMin = (consistency.success_rate_min * 100).toFixed(0);
+    const rateMax = (consistency.success_rate_max * 100).toFixed(0);
+    const passK = (consistency.pass_k * 100).toFixed(0);
+    lines.push(
+      '## 一致性量化（pass^k / 成功率范围）',
+      '',
+      `- pass^k: ${passK}%（k 次全过的题占比）`,
+      `- 成功率范围: ${rateMin}%~${rateMax}%`,
+      consistency.flaky
+        ? '- flaky: 存在 trial 结果不一致的题（已识别，不进硬门禁）'
+        : '- flaky: 无',
+      '- 说明: 一致性指标为纯报告，不参与门禁判定',
+      '',
+    );
+  }
   // 信息性指标（不进硬门禁）：仅当 aggregates 已有才写入
   const infoNames = [
     'b_avg_steps_to_success',

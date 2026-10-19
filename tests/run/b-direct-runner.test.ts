@@ -30,11 +30,12 @@ describe('B-direct adapter（promptfoo fixture 模式）', () => {
       },
     );
 
-    // 2 model × 3 repeat = 6 行，全部 pass
+    // 2 model × 3 trial（环境 adapter.repeats=3）= 6 行，全部 pass
+    // repeats 上移（ADR-0010）：trial 序号来自编排层 replicate_index（0-based）。
     expect(results.length).toBe(6);
     for (const r of results) {
       expect(r.pass).toBe(true);
-      expect(r.item_id).toMatch(/^demo-b-tool-schema-01\.r1::fixture-[ab]::r[123]$/);
+      expect(r.item_id).toMatch(/^demo-b-tool-schema-01\.r1::fixture-[ab]::r[012]$/);
     }
   });
 });

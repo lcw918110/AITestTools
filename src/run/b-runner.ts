@@ -37,11 +37,6 @@ function parseCalls(trace: unknown): ToolCallTrace[] {
     .filter((x): x is ToolCallTrace => x !== null);
 }
 
-function roomRepeats(ctx: AdapterContext): number | undefined {
-  const r = ctx.environment.recipe.adapter?.repeats;
-  return typeof r === 'number' ? r : undefined;
-}
-
 interface BDirectDiscovered {
   job: EvalJob;
 }
@@ -62,7 +57,8 @@ export class BDirectAdapter implements ExecutionAdapter {
   readonly adapterId = 'b-direct-promptfoo';
 
   async discover(ctx: AdapterContext): Promise<DiscoveredInput> {
-    const repeats = ctx.revision.execution.repeats ?? roomRepeats(ctx) ?? 1;
+    // repeats 上移到编排层（ADR-0010）：adapter 内固定 1，不再自行展开。
+    const repeats = 1;
 
     const mustCallOracle = ctx.revision.expect.oracles.find(
       (o): o is OracleToolTrace => o.type === 'tool_trace',
@@ -198,8 +194,9 @@ export class BDirectAdapter implements ExecutionAdapter {
       const failed = failures.filter((o): o is Extract<OracleOutcome, { pass: false }> => !o.pass);
       const pass = failed.length === 0 && row.pass;
       const attribution = pass ? undefined : (failed[0]?.attribution ?? 'MODEL_SCHEMA');
+      // item_id 保留 model 段；trial 序号由编排层 executeOnce 统一追加（ADR-0010）。
       const result: AxisItemResult = {
-        item_id: `${ctx.revision.case_revision_id}::${row.model}::r${row.repeat}`,
+        item_id: `${ctx.revision.case_revision_id}::${row.model}`,
         item_rev: ctx.revision.revision_number,
         pass,
         oracle_failures: failed.map((f) => ({

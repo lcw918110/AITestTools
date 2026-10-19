@@ -1022,3 +1022,40 @@ grill-me 对齐后落盘设计（S2）并实现第 0 期（S3）。
 - `npm run typecheck`：0 错误；`npm run lint`：通过；`npm test`：336 通过（新增 21 例；4 例沙箱 `git init` 拦截属环境限制）。
 - 端到端实测：模型配置池增删改查、触发裁判（model/human）、rubric 自动读、judge_scores 落盘均正常。
 - ADR-0009 已挂 `docs/architecture/README.md` 索引；`docs/02` §4.3.1 + §5.1、`docs/03` §5.1 + §7、`docs/11` 已补。
+
+## §30 优化项 ② 一致性量化（repeats 上移 + pass^k，2026-10-19）
+
+grill-me 对齐后落盘设计（S2，ADR-0010）并实现（S3）。
+
+**1. 对齐结论（grill-me）**
+
+- 范围：direct + hosted 都纳入 repeats。
+- 实现位置：repeats 上移到 `RunOrchestrator.executeCase` 层循环，每次 trial 一个独立 `CaseExecution`（`replicate_index` 递增）+ `Attempt`，符合 docs/02 §3.3「统计重复以新 CaseExecution + replicate_index 表达」。
+- B-direct 迁移：`job.repeats` 固定 1，`item_id` 由编排层统一追加 `::rN` 尾缀（仅 repeats>1 时）。
+- **repeats 采用 opt-in 语义（默认 1，声明才生效）**：行业做法（HumanEval/SWE-bench/promptfoo/DeepEval 默认 n=1），要稳定性结论时显式声明 `repeats=4`（业界 pass@4）。
+
+**2. 实现（S3）**
+
+- `src/run/repeats.ts`：`resolveRepeats`（题级 `execution.repeats` > 环境级 `adapter.repeats` > 默认 1，钳制 ≥1）。
+- `src/run/consistency.ts`：`aggregateConsistency`（pass^k + 成功率范围 + flaky 标记）+ `extractCaseId`（去 `::rN` 尾缀）。
+- `src/run/run-orchestrator.ts`：`executeCase` 改为循环 `resolveRepeats` 次，返回 `caseExecutions[]`；`executeOnce` 抽单次 8 阶段；repeats>1 时统一追加 `::rN` 尾缀。
+- `src/run/b-runner.ts`：`discover` 的 `repeats` 固定 1，删除 `roomRepeats`；`item_id` 保留 model 段，trial 序号由编排层追加。
+- `src/run/write-artifacts.ts`：报告新增「一致性量化」段落（pass^k / 成功率范围 / flaky）；`byId` 用去尾缀 key 匹配，适配 repeats>1 的 item_id。
+
+**3. 验证（实测，2026-10-19）**
+
+- `npm run typecheck` 0 错误；`npm run lint` 通过；`npm test` 351 通过（新增 15 例：consistency 8 + write-artifacts 一致性报告 2 + orchestrator repeats 1 + 其他）。
+- 串行跑全绿；并发跑偶发 1 例失败（`run-command.test.ts` 与 `concurrency-run.test.ts` 共享 demo-project runs 目录的既有竞态，非本次改动引入）。
+- ADR-0010 已挂 `docs/architecture/README.md` 索引；`docs/02` §5.2、`docs/11` 优化项 ② 已补。
+
+**4. Bugbot 审查（S4）**
+
+- 云端 Bugbot 发现 1 项 medium：`aggregateConsistency` 未排除「无 `::rN` 尾缀的单次 trial 题」，混合 run 时单次题把成功率范围拉到 0%/100%、虚增 pass^k 分母。
+- 已修复：`hasTrialSuffix` 过滤单次题，仅聚合 repeats>1 的 trial；新增红测「单次题不污染聚合」验证。
+
+**5. 后续（未实施）**
+
+- 优化项 ① 裁判校验基准（依赖录题能力，第 1 期界面化后）。
+- 优化项 ④ 持续评测闭环（失败 → 回归题沉淀）。
+- 第 1 期界面化（录题 / 环境 / 数据集）；第 2 期（跑批 / 报告 / 健康检查 + console 退役）。
+- 优化项 ③ 安全红队（成本最高，最后）；⑤ OTel（明确后置）。

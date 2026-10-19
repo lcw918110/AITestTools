@@ -80,13 +80,14 @@ describe('RunOrchestrator 状态机（阶段 4b）', () => {
       ],
     };
 
-    const { caseExecution, results } = await orch.executeCase(
+    const { caseExecutions, results } = await orch.executeCase(
       {
         id: 'EVAL-B-PAIRED-TASK-22-OFF',
         rev: 2,
         axis: 'B',
         intent: { attribution_focus: 'TOOL' },
         stimulus: { ref: 'x' },
+        execution_profile: { mode: 'fold' },
         execution: {},
         expect: { oracles: [] },
         freeze: {},
@@ -96,9 +97,67 @@ describe('RunOrchestrator 状态机（阶段 4b）', () => {
       { projectRoot: '/tmp', models: [] },
     );
 
-    expect(caseExecution.execution_outcome).toBe('completed');
-    expect(caseExecution.evaluation_outcome).toBe('pass');
-    expect(caseExecution.attempts.length).toBe(1);
+    expect(caseExecutions.length).toBe(1);
+    expect(caseExecutions[0]?.execution_outcome).toBe('completed');
+    expect(caseExecutions[0]?.evaluation_outcome).toBe('pass');
+    expect(caseExecutions[0]?.attempts.length).toBe(1);
     expect(results[0]?.pass).toBe(true);
+  });
+
+  it('executeCase 声明 repeats=4（题级 execution.repeats），循环产生 4 个 CaseExecution + 4 个 replicate_index', async () => {
+    const orch = new RunOrchestrator();
+    orch.beginRun({});
+    orch.transitionRun('preflight');
+    orch.transitionRun('running');
+
+    let callCount = 0;
+    const countingAdapter = {
+      adapterId: 'counting',
+      discover: async () => ({ resolved: {} }),
+      prepare: async () => ({ prepared: true }),
+      submit: async () => ({ handle: 'h' }),
+      collect: async () => ({ output: {} }),
+      evaluate: async () => {
+        callCount += 1;
+        return [
+          {
+            item_id: `model-case.r1`,
+            item_rev: 1,
+            pass: true,
+            oracle_failures: [],
+            metrics: { a_case_pass_rate: 1, a_invariant_violations: 0 },
+          },
+        ];
+      },
+    };
+
+    const { caseExecutions, results } = await orch.executeCase(
+      {
+        case_id: 'model-case',
+        case_revision_id: 'model-case.r1',
+        revision_number: 1,
+        execution_profile: { mode: 'hosted' },
+        attribution_focus: 'TOOL',
+        stimulus: { ref: 'x' },
+        execution: { deadline_ms: 1000, requires_network: false, repeats: 4 },
+        expect: { oracles: [] },
+      } as never,
+      {} as never,
+      countingAdapter as never,
+      { projectRoot: '/tmp', models: [] },
+    );
+
+    expect(callCount).toBe(4);
+    expect(caseExecutions.length).toBe(4);
+    expect(results.length).toBe(4);
+    const indices = caseExecutions.map((ce) => ce.replicate_index).sort();
+    expect(indices).toEqual([0, 1, 2, 3]);
+    // repeats>1 时 item_id 尾缀 ::r<N>
+    expect(results.map((r) => r.item_id).sort()).toEqual([
+      'model-case.r1::r0',
+      'model-case.r1::r1',
+      'model-case.r1::r2',
+      'model-case.r1::r3',
+    ]);
   });
 });
