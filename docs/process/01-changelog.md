@@ -867,3 +867,24 @@
 - `npm run lint`：通过
 - `npm test`：57 文件 315 测试通过
 - `format:check`：全仓干净
+
+## §24 遗留待办①：AssetKind 死路径枚举删除（2026-10-19）
+
+按计划排序开启遗留待办，先处理最小最安全的 `AssetKind` 死路径。
+
+**1. 删除 `AssetKind` 旧枚举值**
+
+- `src/exam-engine/types.ts`：`AssetKind` 删除 `'items' | 'papersets' | 'rooms'`（papers-v1 旧资产种类，无消费者）。
+- `src/exam-engine/project.ts`：`DEFAULT_PATHS` 删除 `items: 'items'` / `papersets: 'papersets'` / `rooms: 'rooms'` 三个死映射（`loadProject` 生成的 `dirs.items/papersets/rooms` 无任何代码消费，实际只消费 `cases`/`case_revisions`/`dataset_releases`/`environments`/`candidates`/`materials`/`scripts`）。
+
+**2. 遗留（后续待办）**
+
+- 待办②：`item-new.ts` 骨架带 TODO 占位（`fold_entry: 'TODO'`、`script: 'scripts/TODO.json'`）。
+- 待办③：RunOrchestrator / ExecutionAdapter 状态机接线（Phase 2 大工程）。
+- 新发现：`tests/console/bank.test.ts` 等测试仍 seed 旧 `papersets/`、`bank/items/B` fixture（读路径已切 cases-v1，seed 代码残留，属测试卫生）。
+
+**验证（实测，2026-10-19）**：
+
+- `npm run typecheck`：0 错误
+- `npm run lint`：通过
+- `npm test`：57 文件 315 测试通过

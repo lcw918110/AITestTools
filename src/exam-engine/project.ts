@@ -6,9 +6,6 @@ import type { AssetKind, ExamManifest, Issue } from './types.ts';
 export const MANIFEST_FILENAME = 'exam.json';
 
 const DEFAULT_PATHS: Record<AssetKind, string> = {
-  items: 'items',
-  papersets: 'papersets',
-  rooms: 'rooms',
   materials: 'materials',
   scripts: 'scripts',
   cassettes: 'cassettes',

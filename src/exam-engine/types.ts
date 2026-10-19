@@ -241,9 +241,6 @@ export interface ExamManifest {
 
 /** 资产种类（项目路径约定）。 */
 export type AssetKind =
-  | 'items'
-  | 'papersets'
-  | 'rooms'
   | 'materials'
   | 'scripts'
   | 'cassettes'
