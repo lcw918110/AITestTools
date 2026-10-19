@@ -33,6 +33,7 @@ import { resolveHostedPrompt } from './hosted-prompt.ts';
 import { resolvePluginPath } from './plugin-path.ts';
 import { seedStimulusMaterials } from './seed-stimulus-materials.ts';
 import { materialsMutated, snapshotSeededFiles } from './hosted-workspace-state.ts';
+import { buildCanaryInjection, detectCanaryLeak } from '../security/canary.ts';
 
 /**
  * B-hosted adapter：真拉起本机 opencode。
@@ -78,6 +79,8 @@ export class HostedAdapter implements ExecutionAdapter {
   private journalPath: string | undefined;
   private deadline = 180_000;
   private runArgs: string[] = [];
+  private canarySecret: string | undefined;
+  private canaryLeak: { leaked: boolean; locations: string[] } | undefined;
 
   async discover(ctx: AdapterContext): Promise<DiscoveredInput> {
     this.pairKey = ctx.pairKey;
@@ -209,6 +212,20 @@ export class HostedAdapter implements ExecutionAdapter {
       : [];
     this.seedSnapshot = snapshotSeededFiles(this.workDir, this.seeded);
 
+    // 安全红队：canary 注入（独立于常规 run；ctx.security 存在时在隔离 workspace 播种 canary 指令文件）。
+    this.canarySecret = ctx.security?.canary_secret;
+    if (this.canarySecret !== undefined) {
+      if (!this.wantIsolated) {
+        // 安全红队必须隔离执行（docs/11 优化项 ③ 关键约束）；非隔离环境静默跳过会产出假阴性。
+        throw new AdapterError(
+          'prepare_failed',
+          'HARNESS',
+          '安全红队要求隔离 workspace（isolation_profile=isolated 或 durable_log_glob），当前环境未隔离',
+        );
+      }
+      writeFileSync(join(this.workDir, 'canary.txt'), buildCanaryInjection(this.canarySecret));
+    }
+
     if (cassetteOutDir !== undefined) {
       mkdirSync(cassetteOutDir, { recursive: true });
       writeFileSync(join(cassetteOutDir, 'journal.ndjson'), '');
@@ -296,6 +313,13 @@ export class HostedAdapter implements ExecutionAdapter {
     const stderrFull = run.stderr || '';
     this.tokenObs = observeHostedPassToken(ctx.revision, stdoutFull);
     this.mutated = materialsMutated(this.workDir, this.seeded, this.seedSnapshot);
+    // 安全红队：canary 泄露检测（工具 judge，程序化）。检测面 = 输出 + 工作区新写入文件。
+    if (this.canarySecret !== undefined) {
+      this.canaryLeak = detectCanaryLeak(this.canarySecret, [
+        { name: 'stdout', content: stdoutFull },
+        { name: 'stderr', content: stderrFull },
+      ]);
+    }
     this.oracleEval = evaluateHostedOracles({
       revision: ctx.revision,
       workspace: this.workDir,
@@ -399,6 +423,12 @@ export class HostedAdapter implements ExecutionAdapter {
       pass_token_role: this.tokenObs.pass_token_role,
       stdout: h.stdoutFull.slice(0, 4000),
       stderr: h.stderrFull.slice(0, 4000),
+      ...(this.canaryLeak !== undefined
+        ? {
+            canary_leak: this.canaryLeak.leaked,
+            canary_leak_locations: this.canaryLeak.locations,
+          }
+        : {}),
     };
     if (ctx.artifactDir !== undefined) {
       writeFileSync(

@@ -39,6 +39,10 @@ export interface AdapterContext {
   caseExecution: CaseExecution;
   attempt: Attempt;
   facts: ObservedFactsRecorder;
+  /** 安全红队注入配置（可选；存在时 hosted 隔离 workspace 注入 canary 并检测泄露）。 */
+  security?: {
+    canary_secret?: string;
+  };
 }
 
 /** 1. discover/resolve 输出。 */

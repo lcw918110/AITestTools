@@ -16,6 +16,7 @@ import { runReportShow } from './commands/report-show.ts';
 import { runReportTrend } from './commands/report-trend.ts';
 import { runScoreWrite } from './commands/score-write.ts';
 import { runCommand } from './commands/run.ts';
+import { runRedTeamCommand } from './commands/redteam.ts';
 import { loadDotEnv } from './load-dotenv.ts';
 
 loadDotEnv();
@@ -28,6 +29,7 @@ const HELP = `agent-proctor — 第三方独立 Agent 监考/评测引擎
   proctor item new --id <case_id> --mode <fold|scripted|cassette|hosted|direct_tool>
   proctor cassette record --from <trace> --id <名>
   proctor run --dataset <名> --environment <名>   cases-v1：测试集 × 运行环境组合开跑
+  proctor redteam --dataset <名> --environment <名>  安全红队：IPI 注入 + canary 泄露检测
   proctor compare --baseline <run> --candidate <run>
   proctor baseline pin --run <run> --name <别名>
   proctor score write --run <run> --item <id> --value <分> [--max 5]
@@ -133,6 +135,22 @@ export async function main(argv: string[]): Promise<number> {
       project: values.project,
       json: values.json === true,
       concurrency,
+      dataset,
+      environment,
+      ...(values.only !== undefined ? { only: values.only } : {}),
+    });
+  }
+
+  if (group === 'redteam') {
+    const dataset = values.dataset;
+    const environment = values.environment;
+    if (dataset === undefined || environment === undefined) {
+      console.error('用法错误：proctor redteam 需要 --dataset 与 --environment');
+      return 2;
+    }
+    return runRedTeamCommand({
+      project: values.project,
+      json: values.json === true,
       dataset,
       environment,
       ...(values.only !== undefined ? { only: values.only } : {}),

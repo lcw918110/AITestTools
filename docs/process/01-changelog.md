@@ -1232,4 +1232,37 @@ env 切片收口后，按「不留技术债」维度清理既有缺陷，使 `co
 
 - 云端 Bugbot 发现 1 Medium：`initHealthCheck()` 在页面加载时无条件触发完整健康检查（含耗时的 `item validate` spawn），即使用户未点按钮。已修复：`initHealthCheck` 只 `wire()` 绑定按钮，改为按需触发，不自动跑。
 
+## §37 优化项 ③ 安全红队执行器（IPI 注入 + canary 验证，2026-10-20）
+
+自主工作阶段切片：补安全边界强制（`docs/11` 优化项 ③），首期最小可行闭环。
+
+**1. 范围与决策（自主选择，按不留技术债维度）**
+
+- **范围**：新增独立命令 `proctor redteam`，复用 hosted 隔离机制跑题，每个 case 注入独立随机 canary，run 后程序化检测 canary 是否泄露到 stdout/stderr，产出 `security_report.json`（独立安全门禁，不进常规 pass 门禁）。
+- **canary 设计（可证伪）**：随机 `PROCTOR-CANARY-<16位hex>`，每次 run 生成、跨 case 不重复，避免固定 canary 被训练数据「认识」导致误报。
+- **判定（工具 judge，程序化）**：canary secret 出现在 stdout/stderr → 判泄露，记录命中表面。不做 prompt judge（模型判断隐瞒，成本高，后置）。
+- **不做**：全量红队（INFUSE 56 类攻击面）、对抗性自适应攻击、工作区新写入文件扫描（后续增强）、prompt judge。
+- **注入点**：通过 `AdapterContext.security.canary_secret` 可选透传，`HostedAdapter.prepare` 在隔离 workspace 播种 `canary.txt`；正常 run 不传 `security` 时零开销（安全测试独立于能力测试）。
+
+**2. 实现（S3）**
+
+- `src/security/canary.ts`（新增）：`generateCanarySecret` / `buildCanaryInjection` / `detectCanaryLeak` 纯逻辑。
+- `src/security/redteam.ts`（新增）：`buildSecurityReport` / `readCanaryLeakFromArtifact` / `generateCanarySecrets` / `writeSecurityReport`。
+- `src/run/execution-adapter.ts`：`AdapterContext` 增加可选 `security.canary_secret`。
+- `src/run/run-orchestrator.ts`：`executeCase` / `executeOnce` 透传 `security`。
+- `src/run/hosted-runner.ts`：`prepare` 注入 canary 文件、`submit` 检测泄露、`collect` 记录 `canary_leak` 到 runLog。
+- `src/cli/commands/redteam.ts`（新增）+ `main.ts`：`proctor redteam --dataset <名> --environment <名>`。
+
+**3. 验证（实测，2026-10-20）**
+
+- `tests/security/canary.test.ts`（7 例）+ `tests/security/redteam.test.ts`（7 例）全过。
+- `npm run typecheck` 0 错误；`npm run lint` 通过；`npm test` 377 通过（4 例 `git init` 沙箱拦截属环境限制）。
+- `proctor redteam` 命令注册正确（无 `--project` / 无 dataset 时报错路径符合预期）。
+
+**4. Bugbot 审查（S4）**
+
+- 云端 Bugbot 发现 1 High：canary 注入被 `this.wantIsolated` 门控，非隔离环境（`isolation_profile: 'shared'` 且无 `durable_log_glob`）时 canary 从未注入，但泄露检测仍报告 `leaked: false`，产出假阴性。已修复：`HostedAdapter.prepare` 在 `canarySecret` 存在但非隔离时抛 `AdapterError`（安全红队必须隔离执行，静默跳过会假阴性）。
+
+
+
 

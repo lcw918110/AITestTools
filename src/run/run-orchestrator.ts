@@ -143,6 +143,7 @@ export class RunOrchestrator {
       artifactDir?: string;
       sutRoot?: string;
       pairKey?: string;
+      security?: { canary_secret?: string };
     },
     caseIdentity?: CaseIdentity,
   ): Promise<{ caseExecutions: CaseExecution[]; results: AxisItemResult[] }> {
@@ -198,6 +199,7 @@ export class RunOrchestrator {
       artifactDir?: string;
       sutRoot?: string;
       pairKey?: string;
+      security?: { canary_secret?: string };
     },
     caseId: string,
     caseRevisionId: string,
@@ -235,6 +237,7 @@ export class RunOrchestrator {
       ...(exec.artifactDir !== undefined ? { artifactDir: exec.artifactDir } : {}),
       ...(exec.sutRoot !== undefined ? { sutRoot: exec.sutRoot } : {}),
       ...(exec.pairKey !== undefined ? { pairKey: exec.pairKey } : {}),
+      ...(exec.security !== undefined ? { security: exec.security } : {}),
       run,
       caseExecution,
       attempt,
