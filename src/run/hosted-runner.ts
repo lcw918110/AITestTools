@@ -15,9 +15,17 @@ import {
 } from '../attribution/ndjson-probes.ts';
 import { ensureHostedGitRepo, readWanxiangEventStore } from '../attribution/event-store.ts';
 import { loadJournal, sealJournalToManifestFields } from '../drivers/cassette/journal.ts';
-import type { CaseRevision, EnvironmentProfile } from '../domain/types.ts';
-import type { AxisItemResult } from './l2-runner.ts';
+import type { AxisItemResult } from './runner-types.ts';
 import { fail } from './runner-shared.ts';
+import type {
+  AdapterContext,
+  CollectedOutput,
+  DiscoveredInput,
+  ExecutionAdapter,
+  PreparedState,
+  SubmittedHandle,
+} from './execution-adapter.ts';
+import { AdapterError } from './execution-adapter.ts';
 import { evaluateHostedOracles } from './hosted-oracles.ts';
 import { observeHostExit, type HostedHostExitObservation } from './hosted-host-exit.ts';
 import { observeHostedPassToken, type HostedPassTokenObservation } from './hosted-pass-token.ts';
@@ -27,153 +35,198 @@ import { seedStimulusMaterials } from './seed-stimulus-materials.ts';
 import { materialsMutated, snapshotSeededFiles } from './hosted-workspace-state.ts';
 
 /**
- * B-hosted：真拉起本机 opencode。
+ * B-hosted adapter：真拉起本机 opencode。
  * - 拍板 D5：缺密钥 / 跑挂 → FAIL + 如实归因
- * - 若 room 声明 plugin / durable_log_glob：隔离工作区挂插件
+ * - 若 environment 声明 plugin / durable_log_glob：隔离工作区挂插件
  * - 耐久归因读 `refs/wanxiang/store`（EventStore）；`.wanxiangshu.ndjson` / 旧 WanEvent 不当挂载信号
+ * 把 runHostedSmokeItem 的隐式生命周期显式化为 8 阶段，执行语义不变。
  */
-export async function runHostedSmokeItem(opts: {
-  revision: CaseRevision;
-  environment: EnvironmentProfile;
-  projectRoot: string;
-  artifactDir?: string;
-  pairKey?: string;
-}): Promise<AxisItemResult> {
-  const focus = opts.revision.attribution_focus;
-  const hostBin =
-    typeof opts.environment.recipe.host_command === 'string'
-      ? opts.environment.recipe.host_command
-      : 'opencode';
-  const protocolProbesRaw = Array.isArray(opts.revision.protocol_probes)
-    ? opts.revision.protocol_probes.map(String)
-    : [];
-  const { active: protocolProbes, skippedStale: staleProtocolProbes } =
-    partitionHostedProtocolProbes(protocolProbesRaw);
+export class HostedAdapter implements ExecutionAdapter {
+  readonly adapterId = 'b-hosted-opencode';
 
-  const version = spawnSync(hostBin, ['--version'], { encoding: 'utf8', timeout: 15_000 });
-  const log = {
-    bin: hostBin,
-    version_status: version.status,
-    version_stdout: (version.stdout || '').trim(),
-    version_stderr: (version.stderr || '').trim(),
-  };
+  private hostBin = 'opencode';
+  private protocolProbes: string[] = [];
+  private staleProtocolProbes: string[] = [];
+  private log: Record<string, unknown> = {};
+  private workDir = '';
+  private isolatedHome: string | undefined;
+  private wantIsolated = false;
+  private seeded: string[] = [];
+  private seedSnapshot: Record<string, string> = {};
+  private hostObs!: ReturnType<typeof observeHostExit>;
+  private tokenObs!: ReturnType<typeof observeHostedPassToken>;
+  private mutated = false;
+  private oracleEval!: ReturnType<typeof evaluateHostedOracles>;
+  private runLog: Record<string, unknown> = {};
+  private sealNote = '';
+  private storeNote = '';
+  private staleProbeNote = '';
+  private hostNote = '';
+  private envAuthFail = false;
+  private protocolProbesMissing = false;
+  private pairKey: string | undefined;
+  // prepare 阶段元数据（供 collect 落盘 runLog / sealNote）
+  private hostConfig!: ReturnType<typeof prepareIsolatedHostConfig>;
+  private hostModel: string | undefined;
+  private modelSource = 'environment';
+  private frozenModel: string | undefined;
+  private roomModel: string | undefined;
+  private hostAgent: string | undefined;
+  private pluginPath: string | undefined;
+  private recordId: string | undefined;
+  private cassetteOutDir: string | undefined;
+  private journalPath: string | undefined;
+  private deadline = 180_000;
+  private runArgs: string[] = [];
 
-  if (opts.artifactDir !== undefined) {
-    mkdirSync(opts.artifactDir, { recursive: true });
-    writeFileSync(join(opts.artifactDir, 'hosted-log.json'), `${JSON.stringify(log, null, 2)}\n`);
+  async discover(ctx: AdapterContext): Promise<DiscoveredInput> {
+    this.pairKey = ctx.pairKey;
+    this.hostBin =
+      typeof ctx.environment.recipe.host_command === 'string'
+        ? ctx.environment.recipe.host_command
+        : 'opencode';
+    const protocolProbesRaw = Array.isArray(ctx.revision.protocol_probes)
+      ? ctx.revision.protocol_probes.map(String)
+      : [];
+    const { active: protocolProbes, skippedStale: staleProtocolProbes } =
+      partitionHostedProtocolProbes(protocolProbesRaw);
+    this.protocolProbes = protocolProbes;
+    this.staleProtocolProbes = staleProtocolProbes;
+
+    const version = spawnSync(this.hostBin, ['--version'], { encoding: 'utf8', timeout: 15_000 });
+    this.log = {
+      bin: this.hostBin,
+      version_status: version.status,
+      version_stdout: (version.stdout || '').trim(),
+      version_stderr: (version.stderr || '').trim(),
+    };
+
+    if (ctx.artifactDir !== undefined) {
+      mkdirSync(ctx.artifactDir, { recursive: true });
+      writeFileSync(
+        join(ctx.artifactDir, 'hosted-log.json'),
+        `${JSON.stringify(this.log, null, 2)}\n`,
+      );
+    }
+
+    return { versionStatus: version.status };
   }
 
-  if (version.status !== 0) {
-    const d = diagnoseHostedFailure({ harnessFault: true });
-    return fail(opts.revision, d.attribution, `无法执行 ${hostBin} --version`, {
-      artifactDir: opts.artifactDir,
-      effectPair: opts.pairKey,
-    });
+  async preflight(
+    ctx: AdapterContext,
+    discovered: DiscoveredInput,
+  ): Promise<{ ok: boolean; reason?: string }> {
+    const versionStatus = (discovered as { versionStatus?: number | null }).versionStatus;
+    if (versionStatus !== 0) {
+      const d = diagnoseHostedFailure({ harnessFault: true });
+      throw new AdapterError(
+        'preflight_failed',
+        d.attribution,
+        `无法执行 ${this.hostBin} --version`,
+        false,
+        [
+          fail(ctx.revision, d.attribution, `无法执行 ${this.hostBin} --version`, {
+            artifactDir: ctx.artifactDir,
+            effectPair: this.pairKey,
+          }),
+        ],
+      );
+    }
+    return { ok: true };
   }
 
-  // .env 里的 PROCTOR_HOSTED_MODEL 会盖掉环境声明。必须把来源记进产物，
-  // 否则报告显示的实验条件与真实执行不符，配对结论无从复现。
-  const envModel = process.env.PROCTOR_HOSTED_MODEL;
-  const roomModel =
-    typeof opts.environment.recipe.host_model === 'string'
-      ? opts.environment.recipe.host_model
-      : undefined;
-  const hostModel = envModel ?? roomModel;
-  const modelSource =
-    envModel === undefined
-      ? 'environment'
-      : roomModel !== undefined && roomModel !== envModel
-        ? 'env-override-environment'
-        : 'env';
-  // 题目级冻结模型（V1 freeze.model_id 迁移）
-  const frozenModel =
-    opts.revision.model_id !== undefined ? String(opts.revision.model_id) : undefined;
-  const hostAgent =
-    process.env.PROCTOR_HOSTED_AGENT ??
-    (typeof opts.environment.recipe.host_agent === 'string'
-      ? opts.environment.recipe.host_agent
-      : undefined);
+  async prepare(ctx: AdapterContext, _discovered: DiscoveredInput): Promise<PreparedState> {
+    // .env 里的 PROCTOR_HOSTED_MODEL 会盖掉环境声明。必须把来源记进产物，
+    // 否则报告显示的实验条件与真实执行不符，配对结论无从复现。
+    const envModel = process.env.PROCTOR_HOSTED_MODEL;
+    const roomModel =
+      typeof ctx.environment.recipe.host_model === 'string'
+        ? ctx.environment.recipe.host_model
+        : undefined;
+    const hostModel = envModel ?? roomModel;
+    const modelSource =
+      envModel === undefined
+        ? 'environment'
+        : roomModel !== undefined && roomModel !== envModel
+          ? 'env-override-environment'
+          : 'env';
+    const frozenModel =
+      ctx.revision.model_id !== undefined ? String(ctx.revision.model_id) : undefined;
+    const hostAgent =
+      process.env.PROCTOR_HOSTED_AGENT ??
+      (typeof ctx.environment.recipe.host_agent === 'string'
+        ? ctx.environment.recipe.host_agent
+        : undefined);
 
-  const pluginPath = resolvePluginPath(opts.environment, opts.projectRoot);
-  const recordId = process.env.PROCTOR_RECORD_CASSETTE?.trim();
-  const recorderPlugin =
-    recordId && recordId.length > 0
-      ? resolve(fileURLToPath(new URL('../drivers/cassette/recorder-plugin.mjs', import.meta.url)))
-      : undefined;
+    const pluginPath = resolvePluginPath(ctx.environment, ctx.projectRoot);
+    const recordId = process.env.PROCTOR_RECORD_CASSETTE?.trim();
+    const recorderPlugin =
+      recordId && recordId.length > 0
+        ? resolve(
+            fileURLToPath(new URL('../drivers/cassette/recorder-plugin.mjs', import.meta.url)),
+          )
+        : undefined;
 
-  const wantDurable =
-    Boolean(opts.environment.recipe.durable_log_glob) ||
-    opts.revision.execution.requires_durable_log === true ||
-    pluginPath !== undefined ||
-    recorderPlugin !== undefined;
+    const wantDurable =
+      Boolean(ctx.environment.recipe.durable_log_glob) ||
+      ctx.revision.execution.requires_durable_log === true ||
+      pluginPath !== undefined ||
+      recorderPlugin !== undefined;
 
-  /**
-   * 工作区隔离必须与「是否挂插件」解耦：否则 OFF 侧落在 projectRoot（能看到题库与引擎源码），
-   * ON 侧落在临时空仓，配对实验就同时变了工作区内容与插件两个因子，分差无法归因。
-   * recipe.isolation_profile = "isolated" 让无插件的对照侧拿到同构空仓。
-   */
-  const wantIsolated = wantDurable || opts.environment.recipe.isolation_profile === 'isolated';
+    this.wantIsolated = wantDurable || ctx.environment.recipe.isolation_profile === 'isolated';
+    this.workDir = this.wantIsolated
+      ? mkdtempSync(join(tmpdir(), 'proctor-hosted-'))
+      : ctx.projectRoot;
 
-  const workDir = wantIsolated ? mkdtempSync(join(tmpdir(), 'proctor-hosted-')) : opts.projectRoot;
-  let isolatedHome: string | undefined;
-  try {
     const cassetteOutDir =
-      recordId && recordId.length > 0 ? join(opts.projectRoot, 'cassettes', recordId) : undefined;
+      recordId && recordId.length > 0 ? join(ctx.projectRoot, 'cassettes', recordId) : undefined;
     const journalPath =
       cassetteOutDir !== undefined ? join(cassetteOutDir, 'journal.ndjson') : undefined;
 
-    if (wantIsolated) {
-      writeFileSync(join(workDir, 'README.md'), '# proctor hosted workspace\n');
-      const gitInit = ensureHostedGitRepo(workDir);
-      if (!gitInit.ok && opts.artifactDir !== undefined) {
+    if (this.wantIsolated) {
+      writeFileSync(join(this.workDir, 'README.md'), '# proctor hosted workspace\n');
+      const gitInit = ensureHostedGitRepo(this.workDir);
+      if (!gitInit.ok && ctx.artifactDir !== undefined) {
         writeFileSync(
-          join(opts.artifactDir, 'hosted-git-init.json'),
+          join(ctx.artifactDir, 'hosted-git-init.json'),
           `${JSON.stringify({ ok: false, error: gitInit.error ?? null }, null, 2)}\n`,
         );
       }
       const plugins: string[] = [];
       if (pluginPath !== undefined) plugins.push(pluginPath);
       if (recorderPlugin !== undefined) plugins.push(recorderPlugin);
-      const cfg: Record<string, unknown> = {
-        permission: { '*': 'allow' },
-      };
+      const cfg: Record<string, unknown> = { permission: { '*': 'allow' } };
       if (plugins.length > 0) cfg.plugin = plugins;
-      writeFileSync(join(workDir, 'opencode.json'), `${JSON.stringify(cfg, null, 2)}\n`);
+      writeFileSync(join(this.workDir, 'opencode.json'), `${JSON.stringify(cfg, null, 2)}\n`);
     }
 
-    const seeded = wantIsolated
+    this.seeded = this.wantIsolated
       ? seedStimulusMaterials({
-          workDir,
-          projectRoot: opts.projectRoot,
-          stimulusRef: opts.revision.stimulus.ref,
+          workDir: this.workDir,
+          projectRoot: ctx.projectRoot,
+          stimulusRef: ctx.revision.stimulus.ref,
         }).copied
       : [];
-    const seedSnapshot = snapshotSeededFiles(workDir, seeded);
+    this.seedSnapshot = snapshotSeededFiles(this.workDir, this.seeded);
 
     if (cassetteOutDir !== undefined) {
       mkdirSync(cassetteOutDir, { recursive: true });
-      // 清空旧 journal，避免跨次污染
       writeFileSync(join(cassetteOutDir, 'journal.ndjson'), '');
     }
 
-    const prompt = resolveHostedPrompt(opts.revision, opts.projectRoot);
-
+    const prompt = resolveHostedPrompt(ctx.revision, ctx.projectRoot);
     const runArgs = ['run'];
-    // 隔离仓必须显式 --dir：只设 spawn cwd 时，OpenCode 仍会发现并切到引擎仓
-    // （OFF 无插件时 wantDurable=false，缺 --dir 就会让模型改错仓库，播种与 workspace_assert 脱节）。
-    if (wantIsolated || wantDurable) runArgs.push('--dir', workDir);
-    // 禁止 --pure：会禁用外部 plugin
+    if (this.wantIsolated || wantDurable) runArgs.push('--dir', this.workDir);
     if (hostModel !== undefined && hostModel.length > 0) runArgs.push('-m', hostModel);
     if (hostAgent !== undefined && hostAgent.length > 0) runArgs.push('--agent', hostAgent);
-    // 宿主内部错误默认不落盘，失败时只剩一个 UnknownError ref，无从归因
     runArgs.push('--print-logs');
     runArgs.push(prompt);
 
-    const deadline = opts.revision.execution.deadline_ms || 180_000;
-    const managedAgentsRaw = opts.environment.recipe.managed_agents;
+    const deadline = ctx.revision.execution.deadline_ms || 180_000;
+    const managedAgentsRaw = ctx.environment.recipe.managed_agents;
     const managedAgents = Array.isArray(managedAgentsRaw) ? managedAgentsRaw.map(String) : [];
     const hostConfig = prepareIsolatedHostConfig({ managedAgents, model: hostModel });
-    isolatedHome = hostConfig.home;
+    this.isolatedHome = hostConfig.home;
     const runEnv: NodeJS.ProcessEnv = {
       ...process.env,
       CI: '1',
@@ -185,30 +238,55 @@ export async function runHostedSmokeItem(opts: {
       runEnv.PROCTOR_CASSETTE_JOURNAL = journalPath;
       runEnv.PROCTOR_CASSETTE_ID = recordId;
     }
-    // 墙钟耗时是目前唯一能从 opencode CLI 稳定取到的经济指标：
-    // 它不吐 token/成本（--print-logs 只在建会话时打一行全零计数）。
+
+    // 元数据落实例字段，供 collect 阶段补全 runLog / sealNote。
+    this.hostConfig = hostConfig;
+    this.hostModel = hostModel;
+    this.modelSource = modelSource;
+    this.frozenModel = frozenModel;
+    this.roomModel = roomModel;
+    this.hostAgent = hostAgent;
+    this.pluginPath = pluginPath;
+    this.recordId = recordId;
+    this.cassetteOutDir = cassetteOutDir;
+    this.journalPath = journalPath;
+    this.deadline = deadline;
+    this.runArgs = runArgs;
+
+    return { runArgs, deadline, runEnv, wantDurable };
+  }
+
+  async submit(ctx: AdapterContext, prepared: PreparedState): Promise<SubmittedHandle> {
+    const p = prepared as unknown as {
+      runArgs: string[];
+      deadline: number;
+      runEnv: NodeJS.ProcessEnv;
+    };
     const startedAt = Date.now();
-    const run = spawnSync(hostBin, runArgs, {
+    const run = spawnSync(this.hostBin, p.runArgs, {
       encoding: 'utf8',
-      timeout: deadline,
-      env: runEnv,
-      cwd: workDir,
+      timeout: p.deadline,
+      env: p.runEnv,
+      cwd: this.workDir,
     });
     const durationMs = Date.now() - startedAt;
-    const hostObs = observeHostExit(run);
+    this.hostObs = observeHostExit(run);
 
-    const ndjsonPath = join(workDir, '.wanxiangshu.ndjson');
-    // 旧 ndjson 若偶然存在仍解析，但不作健康信号；主路径读 EventStore
+    const ndjsonPath = join(this.workDir, '.wanxiangshu.ndjson');
     let ndjsonText = existsSync(ndjsonPath) ? readFileSync(ndjsonPath, 'utf8') : '';
-    let store = readWanxiangEventStore(workDir);
+    let store = readWanxiangEventStore(this.workDir);
     let kinds = mergeHostedKinds(ndjsonText, store.kinds);
-    // 宿主已超时则不再空等 EventStore（否则每道 ON 再堵 5s）
     if (
-      !hostObs.timed_out &&
-      protocolProbes.length > 0 &&
-      missingProtocolProbes(kinds, protocolProbes).length > 0
+      !this.hostObs.timed_out &&
+      this.protocolProbes.length > 0 &&
+      missingProtocolProbes(kinds, this.protocolProbes).length > 0
     ) {
-      const waited = await awaitWaitForHostedProbes(workDir, ndjsonPath, protocolProbes, 5_000);
+      const waited = await awaitWaitForHostedProbes(
+        this.workDir,
+        ndjsonPath,
+        this.protocolProbes,
+        5_000,
+      );
       ndjsonText = waited.ndjsonText;
       store = waited.store;
       kinds = waited.kinds;
@@ -216,228 +294,283 @@ export async function runHostedSmokeItem(opts: {
     const ndjsonExists = existsSync(ndjsonPath) || ndjsonText.length > 0;
     const stdoutFull = run.stdout || '';
     const stderrFull = run.stderr || '';
-    const tokenObs = observeHostedPassToken(opts.revision, stdoutFull);
-    const mutated = materialsMutated(workDir, seeded, seedSnapshot);
-    const oracleEval = evaluateHostedOracles({
-      revision: opts.revision,
-      workspace: workDir,
+    this.tokenObs = observeHostedPassToken(ctx.revision, stdoutFull);
+    this.mutated = materialsMutated(this.workDir, this.seeded, this.seedSnapshot);
+    this.oracleEval = evaluateHostedOracles({
+      revision: ctx.revision,
+      workspace: this.workDir,
       exitCode: typeof run.status === 'number' ? run.status : 1,
       hostStatus: run.status,
-      timedOut: hostObs.timed_out,
+      timedOut: this.hostObs.timed_out,
       stdout: stdoutFull,
       stderr: stderrFull,
-      focus,
+      focus: ctx.revision.attribution_focus,
     });
 
     const out = `${stdoutFull}\n${stderrFull}`;
     const outLower = out.toLowerCase();
-    // --print-logs 会打 providerID / llm.provider，不能用光秃的 provider|auth 当鉴权失败
     const authMiss =
       /额度不足|insufficient.?quota|unauthorized|invalid.?api.?key|not configured|no model|login required/i.test(
         outLower,
       );
-    const envAuthFail = authMiss && (hostObs.timed_out || hostObs.host_exit !== 0);
+    this.envAuthFail = authMiss && (this.hostObs.timed_out || this.hostObs.host_exit !== 0);
 
     const missingProbes =
-      protocolProbes.length > 0 ? missingProtocolProbes(kinds, protocolProbes) : [];
-    // 超时且工作区已过：探针未齐只记辅助，不否决（避免 ON 因慢落盘被 PROTOCOL 误杀）
-    const skipProtocolVeto = hostObs.timed_out && oracleEval.workspace_ok;
-    const protocolProbesMissing = missingProbes.length > 0 && !skipProtocolVeto;
+      this.protocolProbes.length > 0 ? missingProtocolProbes(kinds, this.protocolProbes) : [];
+    const skipProtocolVeto = this.hostObs.timed_out && this.oracleEval.workspace_ok;
+    this.protocolProbesMissing = missingProbes.length > 0 && !skipProtocolVeto;
 
-    const runLog = {
-      status: run.status,
-      duration_ms: durationMs,
-      deadline_ms: deadline,
-      stdout_chars: (run.stdout || '').length,
-      args: runArgs,
-      model: hostModel ?? null,
-      model_source: modelSource,
-      model_environment: roomModel ?? null,
-      model_env: envModel ?? null,
-      model_frozen: frozenModel ?? null,
-      model_matches_freeze: frozenModel === undefined ? null : hostModel === frozenModel,
-      agent: hostAgent ?? null,
-      plugin: pluginPath ?? null,
-      work_dir: workDir,
-      workspace_isolated: wantIsolated,
-      materials_seeded: seeded,
-      materials_mutated: mutated,
-      timed_out: hostObs.timed_out,
-      host_exit: hostObs.host_exit,
-      host_signal: hostObs.host_signal,
-      host_exit_role: hostObs.host_exit_role,
-      workspace_ok: oracleEval.workspace_ok,
-      workspace_ran: oracleEval.workspace_ran,
-      workspace_failures: oracleEval.workspace_failures,
-      exit_code_inconclusive: oracleEval.exit_code_inconclusive,
-      exit_code_nonzero: oracleEval.exit_code_nonzero,
-      protocol_probes_skipped_on_timeout: skipProtocolVeto && missingProbes.length > 0,
-      // 只记 provider 名与来源路径，绝不落密钥
-      config_home: hostConfig.configHome,
-      config_isolated_home: hostConfig.home,
-      config_inherited_from: hostConfig.inheritedFrom,
-      config_provider_names: hostConfig.providerNames,
-      config_managed_agents: hostConfig.managedAgents,
-      config_scheduler_model: hostConfig.schedulerModel,
-      event_store_present: store.present,
-      event_store_reason: store.reason ?? null,
-      event_store_ref: 'refs/wanxiang/store',
-      event_store_source: store.source ?? null,
-      event_store_kinds: store.kinds,
-      ndjson_exists: ndjsonExists,
-      ndjson_bytes: ndjsonText.length,
-      ndjson_kinds: [...collectNdjsonKinds(ndjsonText)].sort(),
-      ndjson_health_signal: false,
-      attribution_kinds: [...kinds].sort(),
-      stale_protocol_probes: staleProtocolProbes,
-      pass_token: tokenObs.pass_token,
-      pass_token_present: tokenObs.pass_token_present,
-      pass_token_role: tokenObs.pass_token_role,
-      stdout: stdoutFull.slice(0, 4000),
-      stderr: stderrFull.slice(0, 4000),
+    return {
+      run,
+      durationMs,
+      ndjsonText,
+      ndjsonExists,
+      store,
+      kinds,
+      stdoutFull,
+      stderrFull,
+      missingProbes,
+      skipProtocolVeto,
     };
-    if (opts.artifactDir !== undefined) {
+  }
+
+  async collect(ctx: AdapterContext, handle: SubmittedHandle): Promise<CollectedOutput> {
+    const h = handle as unknown as {
+      run: ReturnType<typeof spawnSync>;
+      durationMs: number;
+      ndjsonText: string;
+      ndjsonExists: boolean;
+      store: ReturnType<typeof readWanxiangEventStore>;
+      kinds: Set<string>;
+      stdoutFull: string;
+      stderrFull: string;
+      missingProbes: string[];
+      skipProtocolVeto: boolean;
+    };
+
+    this.runLog = {
+      status: h.run.status,
+      duration_ms: h.durationMs,
+      deadline_ms: this.deadline,
+      stdout_chars: (h.run.stdout || '').length,
+      args: this.runArgs,
+      model: this.hostModel ?? null,
+      model_source: this.modelSource,
+      model_environment: this.roomModel ?? null,
+      model_env: process.env.PROCTOR_HOSTED_MODEL ?? null,
+      model_frozen: this.frozenModel ?? null,
+      model_matches_freeze:
+        this.frozenModel === undefined ? null : this.hostModel === this.frozenModel,
+      agent: this.hostAgent ?? null,
+      plugin: this.pluginPath ?? null,
+      work_dir: this.workDir,
+      workspace_isolated: this.wantIsolated,
+      materials_seeded: this.seeded,
+      materials_mutated: this.mutated,
+      timed_out: this.hostObs.timed_out,
+      host_exit: this.hostObs.host_exit,
+      host_signal: this.hostObs.host_signal,
+      host_exit_role: this.hostObs.host_exit_role,
+      workspace_ok: this.oracleEval.workspace_ok,
+      workspace_ran: this.oracleEval.workspace_ran,
+      workspace_failures: this.oracleEval.workspace_failures,
+      exit_code_inconclusive: this.oracleEval.exit_code_inconclusive,
+      exit_code_nonzero: this.oracleEval.exit_code_nonzero,
+      protocol_probes_skipped_on_timeout: h.skipProtocolVeto && h.missingProbes.length > 0,
+      config_home: this.hostConfig.configHome,
+      config_isolated_home: this.hostConfig.home,
+      config_inherited_from: this.hostConfig.inheritedFrom,
+      config_provider_names: this.hostConfig.providerNames,
+      config_managed_agents: this.hostConfig.managedAgents,
+      config_scheduler_model: this.hostConfig.schedulerModel,
+      event_store_present: h.store.present,
+      event_store_reason: h.store.reason ?? null,
+      event_store_ref: 'refs/wanxiang/store',
+      event_store_source: h.store.source ?? null,
+      event_store_kinds: h.store.kinds,
+      ndjson_exists: h.ndjsonExists,
+      ndjson_bytes: h.ndjsonText.length,
+      ndjson_kinds: [...collectNdjsonKinds(h.ndjsonText)].sort(),
+      ndjson_health_signal: false,
+      attribution_kinds: [...h.kinds].sort(),
+      stale_protocol_probes: this.staleProtocolProbes,
+      pass_token: this.tokenObs.pass_token,
+      pass_token_present: this.tokenObs.pass_token_present,
+      pass_token_role: this.tokenObs.pass_token_role,
+      stdout: h.stdoutFull.slice(0, 4000),
+      stderr: h.stderrFull.slice(0, 4000),
+    };
+    if (ctx.artifactDir !== undefined) {
       writeFileSync(
-        join(opts.artifactDir, 'hosted-run.json'),
-        `${JSON.stringify(runLog, null, 2)}\n`,
+        join(ctx.artifactDir, 'hosted-run.json'),
+        `${JSON.stringify(this.runLog, null, 2)}\n`,
       );
-      // runLog 里的 stdout/stderr 是截断版；归因常常要看宿主日志全文
-      writeFileSync(join(opts.artifactDir, 'hosted-stdout.log'), run.stdout || '');
-      writeFileSync(join(opts.artifactDir, 'hosted-stderr.log'), run.stderr || '');
+      writeFileSync(join(ctx.artifactDir, 'hosted-stdout.log'), h.run.stdout || '');
+      writeFileSync(join(ctx.artifactDir, 'hosted-stderr.log'), h.run.stderr || '');
       writeFileSync(
-        join(opts.artifactDir, 'event-store.json'),
+        join(ctx.artifactDir, 'event-store.json'),
         `${JSON.stringify(
           {
-            present: store.present,
-            reason: store.reason ?? null,
-            rootOid: store.rootOid ?? null,
-            kinds: store.kinds,
-            events: store.events,
+            present: h.store.present,
+            reason: h.store.reason ?? null,
+            rootOid: h.store.rootOid ?? null,
+            kinds: h.store.kinds,
+            events: h.store.events,
           },
           null,
           2,
         )}\n`,
       );
-      if (ndjsonExists) {
-        writeFileSync(join(opts.artifactDir, 'wanxiangshu.ndjson'), ndjsonText);
+      if (h.ndjsonExists) {
+        writeFileSync(join(ctx.artifactDir, 'wanxiangshu.ndjson'), h.ndjsonText);
       }
     }
 
-    const sealNote = trySealRecordedCassette({
-      recordId,
-      cassetteOutDir,
-      journalPath,
-      projectRoot: opts.projectRoot,
-      ...(opts.artifactDir !== undefined ? { artifactDir: opts.artifactDir } : {}),
-      hostVersion: log.version_stdout,
+    this.sealNote = trySealRecordedCassette({
+      recordId: this.recordId,
+      cassetteOutDir: this.cassetteOutDir,
+      journalPath: this.journalPath,
+      projectRoot: ctx.projectRoot,
+      ...(ctx.artifactDir !== undefined ? { artifactDir: ctx.artifactDir } : {}),
+      hostVersion: String(this.log.version_stdout ?? ''),
     });
-
-    const storeNote = store.present
-      ? `；EventStore kinds=${store.kinds.join('|') || '∅'}`
-      : `；EventStore 未写入（${store.reason ?? 'unknown'}；万象术 0.8+ 耐久为 refs/wanxiang/store，不再读 .wanxiangshu.ndjson 当挂载）`;
-    const staleProbeNote =
-      staleProtocolProbes.length > 0 ? `；已跳过失效探针 ${staleProtocolProbes.join(', ')}` : '';
-    const hostNote = hostObs.timed_out
-      ? `；timed_out=true host_exit=${String(hostObs.host_exit)}`
-      : hostObs.host_exit !== 0
-        ? `；host_exit=${String(hostObs.host_exit)}`
+    this.storeNote = h.store.present
+      ? `；EventStore kinds=${h.store.kinds.join('|') || '∅'}`
+      : `；EventStore 未写入（${h.store.reason ?? 'unknown'}；万象术 0.8+ 耐久为 refs/wanxiang/store，不再读 .wanxiangshu.ndjson 当挂载）`;
+    this.staleProbeNote =
+      this.staleProtocolProbes.length > 0
+        ? `；已跳过失效探针 ${this.staleProtocolProbes.join(', ')}`
+        : '';
+    this.hostNote = this.hostObs.timed_out
+      ? `；timed_out=true host_exit=${String(this.hostObs.host_exit)}`
+      : this.hostObs.host_exit !== 0
+        ? `；host_exit=${String(this.hostObs.host_exit)}`
         : '';
 
-    const finish = (result: AxisItemResult): AxisItemResult =>
-      attachHostedObs(result, tokenObs, hostObs, oracleEval.workspace_ok, mutated);
+    return { collected: true };
+  }
 
-    if (!oracleEval.workspace_ok) {
+  async evaluate(ctx: AdapterContext, _collected: CollectedOutput): Promise<AxisItemResult[]> {
+    const finish = (result: AxisItemResult): AxisItemResult =>
+      attachHostedObs(
+        result,
+        this.tokenObs,
+        this.hostObs,
+        this.oracleEval.workspace_ok,
+        this.mutated,
+      );
+
+    if (!this.oracleEval.workspace_ok) {
       const attr = resolveWorkspaceFailAttribution({
-        timedOut: hostObs.timed_out,
-        materialsMutated: mutated,
-        authMiss: envAuthFail,
+        timedOut: this.hostObs.timed_out,
+        materialsMutated: this.mutated,
+        authMiss: this.envAuthFail,
       });
       const why =
-        oracleEval.workspace_failures[0]?.message ?? oracleEval.veto?.message ?? '工作区断言失败';
+        this.oracleEval.workspace_failures[0]?.message ??
+        this.oracleEval.veto?.message ??
+        '工作区断言失败';
       const untouched =
-        hostObs.timed_out && !mutated ? '超时且材料未改；' : hostObs.timed_out ? '超时；' : '';
-      return finish(
-        fail(
-          opts.revision,
-          attr,
-          `${untouched}${why}${hostNote}${sealNote}${storeNote}${staleProbeNote}`,
-          {
-            artifactDir: opts.artifactDir,
-            effectPair: opts.pairKey,
-            extraFailures: oracleEval.workspace_failures,
-          },
+        this.hostObs.timed_out && !this.mutated
+          ? '超时且材料未改；'
+          : this.hostObs.timed_out
+            ? '超时；'
+            : '';
+      return [
+        finish(
+          fail(
+            ctx.revision,
+            attr,
+            `${untouched}${why}${this.hostNote}${this.sealNote}${this.storeNote}${this.staleProbeNote}`,
+            {
+              artifactDir: ctx.artifactDir,
+              effectPair: this.pairKey,
+              extraFailures: this.oracleEval.workspace_failures,
+            },
+          ),
         ),
-      );
+      ];
     }
 
-    if (envAuthFail && !oracleEval.workspace_ran) {
+    if (this.envAuthFail && !this.oracleEval.workspace_ran) {
       const d = diagnoseHostedFailure({ contextProbeMiss: true });
-      return finish(
-        fail(
-          opts.revision,
-          d.attribution,
-          `hosted 鉴权/额度失败（status=${String(run.status)}）${hostNote}：${(run.stderr || run.stdout || '').slice(0, 240)}${sealNote} [rule ${d.matched_rule}]`,
-          {
-            artifactDir: opts.artifactDir,
-            effectPair: opts.pairKey,
-          },
+      return [
+        finish(
+          fail(
+            ctx.revision,
+            d.attribution,
+            `hosted 鉴权/额度失败${this.hostNote}${this.sealNote} [rule ${d.matched_rule}]`,
+            {
+              artifactDir: ctx.artifactDir,
+              effectPair: this.pairKey,
+            },
+          ),
         ),
-      );
+      ];
     }
 
-    if (protocolProbesMissing) {
+    if (this.protocolProbesMissing) {
       const d = diagnoseHostedFailure({ protocolProbeMiss: true });
-      return finish(
-        fail(
-          opts.revision,
-          resolveHostedAttribution(d.attribution, focus),
-          `协议探针缺失：${missingProbes.join(', ')}（已见 kinds=${[...kinds].sort().join('|') || '∅'}）${sealNote}${storeNote}${staleProbeNote} [rule ${d.matched_rule}]`,
-          {
-            artifactDir: opts.artifactDir,
-            effectPair: opts.pairKey,
-          },
+      return [
+        finish(
+          fail(
+            ctx.revision,
+            resolveHostedAttribution(d.attribution, ctx.revision.attribution_focus),
+            `协议探针缺失${this.sealNote}${this.storeNote}${this.staleProbeNote} [rule ${d.matched_rule}]`,
+            {
+              artifactDir: ctx.artifactDir,
+              effectPair: this.pairKey,
+            },
+          ),
         ),
-      );
+      ];
     }
 
-    if (oracleEval.veto !== undefined) {
-      return finish(
-        fail(
-          opts.revision,
-          oracleEval.veto.attribution,
-          `${oracleEval.veto.message}${hostNote}${sealNote}${storeNote}${staleProbeNote}`,
-          {
-            artifactDir: opts.artifactDir,
-            effectPair: opts.pairKey,
-          },
+    if (this.oracleEval.veto !== undefined) {
+      return [
+        finish(
+          fail(
+            ctx.revision,
+            this.oracleEval.veto.attribution,
+            `${this.oracleEval.veto.message}${this.hostNote}${this.sealNote}${this.storeNote}${this.staleProbeNote}`,
+            {
+              artifactDir: ctx.artifactDir,
+              effectPair: this.pairKey,
+            },
+          ),
         ),
-      );
+      ];
     }
 
-    return finish({
-      item_id: opts.revision.case_revision_id,
-      item_rev: opts.revision.revision_number,
-      pass: true,
-      oracle_failures: [],
-      metrics: { a_case_pass_rate: 1, a_invariant_violations: 0 },
-      ...(opts.artifactDir !== undefined ? { artifact_dir: opts.artifactDir } : {}),
-      ...(opts.pairKey !== undefined ? { effect_pair: opts.pairKey } : {}),
-    });
-  } finally {
-    if (wantIsolated) {
+    return [
+      finish({
+        item_id: ctx.revision.case_revision_id,
+        item_rev: ctx.revision.revision_number,
+        pass: true,
+        oracle_failures: [],
+        metrics: { a_case_pass_rate: 1, a_invariant_violations: 0 },
+        ...(ctx.artifactDir !== undefined ? { artifact_dir: ctx.artifactDir } : {}),
+        ...(this.pairKey !== undefined ? { effect_pair: this.pairKey } : {}),
+      }),
+    ];
+  }
+
+  async cleanup(_ctx: AdapterContext, _prepared: PreparedState): Promise<{ ok: boolean }> {
+    if (this.wantIsolated) {
       try {
-        rmSync(workDir, { recursive: true, force: true });
+        rmSync(this.workDir, { recursive: true, force: true });
       } catch {
         /* 清理失败可忽略 */
       }
     }
-    if (isolatedHome !== undefined) {
+    if (this.isolatedHome !== undefined) {
       try {
-        rmSync(isolatedHome, { recursive: true, force: true });
+        rmSync(this.isolatedHome, { recursive: true, force: true });
       } catch {
         /* 清理失败可忽略 */
       }
     }
+    return { ok: true };
   }
 }
 
@@ -556,7 +689,6 @@ function prepareIsolatedHostConfig(opts: { managedAgents: string[]; model?: stri
     };
     if (inherited.provider !== undefined) cfg.provider = inherited.provider;
 
-    // 受管 agent 若无 model 绑定，宿主会落到未鉴权的内置默认模型，题就白跑了
     const model = opts.model !== undefined && opts.model.length > 0 ? opts.model : undefined;
     if (opts.managedAgents.length > 0 && model !== undefined) {
       const agent: Record<string, unknown> = {};

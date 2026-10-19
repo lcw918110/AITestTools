@@ -1,10 +1,28 @@
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { loadProject } from '../../src/exam-engine/project.ts';
-import { runCItem } from '../../src/run/c-runner.ts';
+import { CAdapter } from '../../src/run/c-runner.ts';
+import { RunOrchestrator } from '../../src/run/run-orchestrator.ts';
 import { resolveDatasetItems } from '../../src/cli/commands/run.ts';
 
 const demo = fileURLToPath(new URL('../../examples/demo-project', import.meta.url));
+
+async function runC(revision: unknown, environment: unknown, projectRoot: string) {
+  const orch = new RunOrchestrator();
+  orch.beginRun({});
+  orch.transitionRun('preflight');
+  orch.transitionRun('running');
+  const { results } = await orch.executeCase(
+    revision as never,
+    environment as never,
+    new CAdapter(),
+    {
+      projectRoot,
+      models: [],
+    },
+  );
+  return results[0]!;
+}
 
 /**
  * PRD 附录 C 指标 `c_idempotent_pass_rate`（幂等类通过率）：
@@ -22,16 +40,8 @@ describe('C axis idempotency (c_idempotent_pass_rate)', () => {
     const { cases, environment } = resolveDatasetItems(project, 'smoke-c-write', 'shell-echo-v1');
     const runCase = cases.find((c) => c.revision.case_id === 'demo-c-write-01')!;
 
-    const run1 = await runCItem({
-      revision: runCase.revision,
-      environment,
-      projectRoot: project.root,
-    });
-    const run2 = await runCItem({
-      revision: runCase.revision,
-      environment,
-      projectRoot: project.root,
-    });
+    const run1 = await runC(runCase.revision, environment, project.root);
+    const run2 = await runC(runCase.revision, environment, project.root);
 
     // 两次跑都必须 pass（PRD 建议门禁 c_idempotent_pass_rate = 1.0）
     expect(run1.pass).toBe(true);

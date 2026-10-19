@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { GateBound } from '../exam-engine/types.ts';
-import type { L1ItemResult } from './l1-runner.ts';
+import type { AxisItemResult } from './runner-types.ts';
 import { aggregateItemMetrics, evaluateGates, type GateEvaluation } from './gates.ts';
 import { formatPassTokenCell } from './hosted-pass-token.ts';
 import { formatHostExitCell, formatTimedOutCell, formatWorkspaceCell } from './hosted-host-exit.ts';
@@ -24,7 +24,7 @@ export interface WriteArtifactsResult {
 export function writeRunArtifacts(opts: {
   runsRoot: string;
   meta: RunMeta;
-  results: L1ItemResult[];
+  results: AxisItemResult[];
   gates?: Record<string, GateBound> | undefined;
 }): WriteArtifactsResult {
   const dir = join(opts.runsRoot, opts.meta.run_id);

@@ -17,6 +17,7 @@ import type {
   ObservedFactsRecorder,
 } from './execution-adapter.ts';
 import { AdapterError } from './execution-adapter.ts';
+import type { AxisItemResult } from './runner-types.ts';
 
 /** 生成唯一 ID（进程内单调 + 随机后缀，避免同毫秒冲突）。 */
 let seq = 0;
@@ -128,13 +129,21 @@ export class RunOrchestrator {
   /**
    * 为单个 case-revision 创建 CaseExecution + Attempt，执行 adapter，落终态。
    * caseIdentity 缺省时从 revision.case_id / case_revision_id 取身份。
+   * 返回 CaseExecution（状态机实体）与 AxisItemResult（题级结果，供 write-artifacts 落盘）。
    */
   async executeCase(
     revision: CaseRevision,
     environment: EnvironmentProfile,
     adapter: ExecutionAdapter,
+    exec: {
+      projectRoot: string;
+      models: string[];
+      artifactDir?: string;
+      sutRoot?: string;
+      pairKey?: string;
+    },
     caseIdentity?: CaseIdentity,
-  ): Promise<CaseExecution> {
+  ): Promise<{ caseExecution: CaseExecution; results: AxisItemResult[] }> {
     if (this.run === null) {
       throw new AdapterError('preflight_failed', 'HARNESS', 'RunOrchestrator 未 beginRun');
     }
@@ -168,13 +177,14 @@ export class RunOrchestrator {
     caseExecution.attempts.push(attempt.attempt_id);
 
     const facts = new InMemoryFactsRecorder();
-    // 注意：projectRoot / models 暂为占位空值，7 个 runner 尚未改造为 adapter，
-    // 待 Phase 2 接入时由 executeCase 显式传入（见设计稿 §6 边界）。
     const ctx: AdapterContext = {
       revision,
       environment,
-      projectRoot: '',
-      models: [],
+      projectRoot: exec.projectRoot,
+      models: exec.models,
+      ...(exec.artifactDir !== undefined ? { artifactDir: exec.artifactDir } : {}),
+      ...(exec.sutRoot !== undefined ? { sutRoot: exec.sutRoot } : {}),
+      ...(exec.pairKey !== undefined ? { pairKey: exec.pairKey } : {}),
       run,
       caseExecution,
       attempt,
@@ -199,7 +209,7 @@ export class RunOrchestrator {
       const prepared = await adapter.prepare(ctx, discovered);
       const handle = await adapter.submit(ctx, prepared);
       const collected = await adapter.collect(ctx, handle);
-      const evaluation = await adapter.evaluate(ctx, collected);
+      const results = await adapter.evaluate(ctx, collected);
 
       if (adapter.cleanup !== undefined) {
         await adapter.cleanup(ctx, prepared);
@@ -208,10 +218,12 @@ export class RunOrchestrator {
       attempt.attempt_status = 'completed';
       attempt.ended_at = new Date().toISOString();
       caseExecution.execution_outcome = 'completed';
-      caseExecution.evaluation_outcome = evaluation.pass ? 'pass' : 'fail';
-      if (!evaluation.pass && evaluation.attribution !== undefined) {
-        caseExecution.attribution = evaluation.attribution;
+      const first = results[0];
+      caseExecution.evaluation_outcome = first !== undefined && first.pass ? 'pass' : 'fail';
+      if (first !== undefined && !first.pass && first.attribution !== undefined) {
+        caseExecution.attribution = first.attribution;
       }
+      return { caseExecution, results };
     } catch (e) {
       attempt.attempt_status = 'failed';
       attempt.ended_at = new Date().toISOString();
@@ -219,9 +231,29 @@ export class RunOrchestrator {
       caseExecution.execution_outcome = 'execution_failed';
       caseExecution.evaluation_outcome = 'fail';
       caseExecution.attribution = attribution;
+      // 失败路径：若 AdapterError 携带完整结果（runner 的 fail() 产物），透传之。
+      if (e instanceof AdapterError && e.result !== undefined) {
+        return { caseExecution, results: e.result };
+      }
+      // 兜底：无完整结果时，构造最小失败结果。
+      return {
+        caseExecution,
+        results: [
+          {
+            item_id: caseRevisionId,
+            item_rev: revision.revision_number,
+            pass: false,
+            attribution,
+            oracle_failures: [{ oracle_id: 'harness', message: (e as Error).message }],
+            metrics: {
+              a_case_pass_rate: 0,
+              a_invariant_violations:
+                attribution === 'PROTOCOL' || attribution === 'CONTEXT' ? 1 : 0,
+            },
+          },
+        ],
+      };
     }
-
-    return caseExecution;
   }
 
   /** 封存 Run 终态，写 RunFinalManifest。 */

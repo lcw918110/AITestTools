@@ -20,7 +20,7 @@ export interface ItemNewOptions {
   title?: string | undefined;
   dataset?: string | undefined;
   name?: string | undefined;
-  json: boolean;
+  json?: boolean;
 }
 
 /** prettier 格式化写 JSON（对齐仓库 format:check 口径）。 */

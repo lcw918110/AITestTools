@@ -7,14 +7,16 @@ import {
 } from '../../exam-engine/loader.ts';
 import { loadProject } from '../../exam-engine/project.ts';
 import type { CaseRevision, EnvironmentProfile } from '../../domain/types.ts';
-import { runBDirectItem } from '../../run/b-runner.ts';
-import { runCItem } from '../../run/c-runner.ts';
-import { runHostedSmokeItem } from '../../run/hosted-runner.ts';
-import { runL1Item } from '../../run/l1-runner.ts';
-import { runL2Item, type AxisItemResult } from '../../run/l2-runner.ts';
-import { runL3Item } from '../../run/l3-runner.ts';
+import { BDirectAdapter } from '../../run/b-runner.ts';
+import { CAdapter } from '../../run/c-runner.ts';
+import { HostedAdapter } from '../../run/hosted-runner.ts';
+import { L1Adapter } from '../../run/l1-runner.ts';
+import { L2Adapter } from '../../run/l2-runner.ts';
+import { L3Adapter } from '../../run/l3-runner.ts';
+import { RunOrchestrator } from '../../run/run-orchestrator.ts';
+import type { ExecutionAdapter } from '../../run/execution-adapter.ts';
 import { writeRunArtifacts } from '../../run/write-artifacts.ts';
-import type { RunCaseInput } from '../../run/runner-types.ts';
+import type { AxisItemResult, RunCaseInput } from '../../run/runner-types.ts';
 
 export interface RunOptions {
   project?: string | undefined;
@@ -65,57 +67,22 @@ async function mapPool<T, R>(
   return out;
 }
 
-async function runOneItem(opts: {
-  revision: CaseRevision;
-  environment: EnvironmentProfile;
-  pairKey?: string;
-  projectRoot: string;
-  artifactDir: string;
-  models: string[];
-  sutRoot?: string | undefined;
-}): Promise<AxisItemResult[]> {
-  const { revision, environment, projectRoot, artifactDir, models } = opts;
-
+/** 按 mode + environment.recipe.kind 解析执行 adapter（替代原 runOneItem switch）。 */
+function resolveAdapter(revision: CaseRevision, environment: EnvironmentProfile): ExecutionAdapter {
   const mode = revision.execution_profile?.mode ?? 'hosted';
 
   switch (mode) {
-    case 'fold': {
-      const l1opts: Parameters<typeof runL1Item>[0] = {
-        revision,
-        environment,
-        projectRoot,
-        artifactDir,
-      };
-      if (opts.sutRoot !== undefined) l1opts.sutRoot = opts.sutRoot;
-      return [await runL1Item(l1opts)];
-    }
-    case 'scripted': {
-      const l2opts: Parameters<typeof runL2Item>[0] = {
-        revision,
-        environment,
-        projectRoot,
-        artifactDir,
-      };
-      if (opts.sutRoot !== undefined) l2opts.sutRoot = opts.sutRoot;
-      return [await runL2Item(l2opts)];
-    }
+    case 'fold':
+      return new L1Adapter();
+    case 'scripted':
+      return new L2Adapter();
     case 'cassette':
-      return [await runL3Item({ revision, environment, projectRoot, artifactDir })];
+      return new L3Adapter();
     case 'hosted':
-      if (environment.recipe.kind === 'hosted') {
-        return [
-          await runHostedSmokeItem({
-            revision,
-            environment,
-            projectRoot,
-            artifactDir,
-            ...(opts.pairKey !== undefined ? { pairKey: opts.pairKey } : {}),
-          }),
-        ];
-      }
-      return runBDirectItem({ revision, environment, projectRoot, models, artifactDir });
+      if (environment.recipe.kind === 'hosted') return new HostedAdapter();
+      return new BDirectAdapter();
     case 'direct_tool':
-      return [await runCItem({ revision, environment, projectRoot, artifactDir })];
+      return new CAdapter();
     default:
       throw new Error(`试题 ${revision.case_revision_id} 的 mode=${String(mode)} 尚未支持`);
   }
@@ -207,15 +174,19 @@ export async function runCommand(options: RunOptions): Promise<number> {
   try {
     batchResults = await mapPool(filtered, concurrency, async (runCase) => {
       const artifactDir = join(runsRoot, rid, 'artifacts', runCase.revision.case_revision_id);
-      return runOneItem({
-        revision: runCase.revision,
-        environment,
-        ...(runCase.pairKey !== undefined ? { pairKey: runCase.pairKey } : {}),
+      const adapter = resolveAdapter(runCase.revision, environment);
+      const orch = new RunOrchestrator();
+      orch.beginRun({});
+      orch.transitionRun('preflight');
+      orch.transitionRun('running');
+      const { results } = await orch.executeCase(runCase.revision, environment, adapter, {
         projectRoot: project.root,
-        artifactDir,
         models,
-        sutRoot,
+        artifactDir,
+        ...(sutRoot !== undefined ? { sutRoot } : {}),
+        ...(runCase.pairKey !== undefined ? { pairKey: runCase.pairKey } : {}),
       });
+      return results;
     });
   } catch (e) {
     console.error((e as Error).message);

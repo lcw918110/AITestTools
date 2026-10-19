@@ -44,7 +44,26 @@ vi.mock('node:child_process', async (importOriginal) => {
   };
 });
 
-const { runHostedSmokeItem } = await import('../../src/run/hosted-runner.ts');
+const { HostedAdapter } = await import('../../src/run/hosted-runner.ts');
+const { RunOrchestrator } = await import('../../src/run/run-orchestrator.ts');
+
+async function runHosted(
+  revision: CaseRevision,
+  environment: EnvironmentProfile,
+  projectRoot: string,
+  artifactDir: string,
+) {
+  const orch = new RunOrchestrator();
+  orch.beginRun({});
+  orch.transitionRun('preflight');
+  orch.transitionRun('running');
+  const { results } = await orch.executeCase(revision, environment, new HostedAdapter(), {
+    projectRoot,
+    models: [],
+    artifactDir,
+  });
+  return results[0]!;
+}
 
 function makeRevision(oracles: CaseRevision['expect']['oracles']): CaseRevision {
   return {
@@ -107,7 +126,7 @@ describe('hosted_pass_token 降为辅助', () => {
       },
     ]);
 
-    const result = await runHostedSmokeItem({ revision, environment, projectRoot, artifactDir });
+    const result = await runHosted(revision, environment, projectRoot, artifactDir);
     expect(result.pass).toBe(true);
     expect(result.oracle_failures).toEqual([]);
     expect(result.attribution).toBeUndefined();
@@ -185,7 +204,7 @@ describe('hosted_pass_token 降为辅助', () => {
       },
     ]);
 
-    const result = await runHostedSmokeItem({ revision, environment, projectRoot, artifactDir });
+    const result = await runHosted(revision, environment, projectRoot, artifactDir);
     expect(result.pass).toBe(false);
     expect(result.attribution).toBe('MODEL_TASK');
     expect(result.attribution).not.toBe('PROTOCOL');

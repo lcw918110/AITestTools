@@ -69,10 +69,18 @@ describe('RunOrchestrator 状态机（阶段 4b）', () => {
       prepare: async () => ({ prepared: true }),
       submit: async () => ({ handle: 'h' }),
       collect: async () => ({ output: {} }),
-      evaluate: async () => ({ pass: true, attribution: undefined }),
+      evaluate: async () => [
+        {
+          item_id: 'demo-a-todo-fold-01.r1',
+          item_rev: 1,
+          pass: true,
+          oracle_failures: [],
+          metrics: { a_case_pass_rate: 1, a_invariant_violations: 0 },
+        },
+      ],
     };
 
-    const ce = await orch.executeCase(
+    const { caseExecution, results } = await orch.executeCase(
       {
         id: 'EVAL-B-PAIRED-TASK-22-OFF',
         rev: 2,
@@ -85,10 +93,12 @@ describe('RunOrchestrator 状态机（阶段 4b）', () => {
       } as never,
       {} as never,
       noopAdapter as never,
+      { projectRoot: '/tmp', models: [] },
     );
 
-    expect(ce.execution_outcome).toBe('completed');
-    expect(ce.evaluation_outcome).toBe('pass');
-    expect(ce.attempts.length).toBe(1);
+    expect(caseExecution.execution_outcome).toBe('completed');
+    expect(caseExecution.evaluation_outcome).toBe('pass');
+    expect(caseExecution.attempts.length).toBe(1);
+    expect(results[0]?.pass).toBe(true);
   });
 });

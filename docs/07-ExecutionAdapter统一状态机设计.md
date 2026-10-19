@@ -1,6 +1,6 @@
 # 07 · ExecutionAdapter 统一状态机设计（阶段 4b）
 
-> 状态：**阶段 4b 已落地（内存状态机）**；7 个 runner 尚未改造为 adapter，待后续逐个迁移
+> 状态：**阶段 4b 已落地（内存状态机）**；7 个 runner 已改造为 adapter，`run.ts` 已切到 RunOrchestrator（本设计 §5 落地）
 > 归属：Phase 1 阶段 4b，与 Phase 2 状态机、Phase 4 功能目录一并设计
 > 权威依据：`docs/02-总体架构与领域设计.md` §3.4（状态机）、§4.2（统一执行阶段）
 > 类型契约：`src/domain/types.ts`（已完整，Phase 1 阶段 1 落地）
@@ -80,8 +80,8 @@ export interface ExecutionAdapter {
 
 ```typescript
 export interface AdapterContext {
-  item: ItemDoc; // 适配层还原后的 ItemDoc（绞杀者模式，阶段 4a 产出）
-  room: RoomDoc; // 适配层还原后的 RoomDoc
+  revision: CaseRevision; // 领域对象（cases-v1），直接消费
+  environment: EnvironmentProfile; // 领域对象（environments/）
   projectRoot: string;
   artifactDir?: string;
   models: string[];
@@ -149,8 +149,8 @@ export class RunOrchestrator {
   /** 推进 Run：created → preflight → queued → running。 */
   transitionRun(status: RunLifecycleStatus): void; // 校验 RUN_TRANSITIONS，非法转换抛错
 
-  /** 为单个 item 创建 CaseExecution + Attempt，执行 adapter，落终态。 */
-  executeCase(item: ItemDoc, room: RoomDoc, adapter: ExecutionAdapter): Promise<CaseExecution>;
+  /** 为单个 case-revision 创建 CaseExecution + Attempt，执行 adapter，落终态。 */
+  executeCase(revision: CaseRevision, environment: EnvironmentProfile, adapter: ExecutionAdapter): Promise<CaseExecution>;
 
   /** 封存 Run 终态（completed / failed / cancelled），写 RunFinalManifest。 */
   sealRun(status: RunLifecycleStatus): RunFinalManifest;
@@ -194,7 +194,7 @@ export class RunOrchestrator {
 | B-hosted | `b-hosted-adapter.ts` | 读 probes                   | --version | 隔离环境         | spawn opencode      | EventStore/ndjson | 现有 oracle | rmSync       |
 | C        | `c-adapter.ts`        | 读 stimulus                 | —         | mkdtemp          | spawn node          | stdout/exit       | 现有 oracle | —            |
 
-> 原 `*-runner.ts` 文件保留为薄封装（内部调用 adapter），避免 `runOneItem` 分派逻辑大改，降低回归风险。
+> 原 `*-runner.ts` 文件**直接改造**为 `*-adapter.ts`（不留薄封装，删旧 `runXxxItem`），`run.ts` 删 `runOneItem` 改由 `RunOrchestrator.executeCase` 驱动，与「彻底清除 papers-v1 兼容层」的风格一致。
 
 ---
 
@@ -230,6 +230,6 @@ export class RunOrchestrator {
 | :-- | :------------------------------------------------------------ | :--- | :------------------------------------------------------- |
 | 1   | ExecutionAdapter 8 阶段接口形状                               | §3.1 | 是否接受「相邻阶段可合并」的宽松约定                     |
 | 2   | 三值记录用 `ObservedFactsRecorder` 而非直接改 AgentInvocation | §3.2 | 是否接受先落内存事实、Phase 2 再持久化                   |
-| 3   | 原 `*-runner.ts` 保留为薄封装                                 | §5   | 是否接受「不删旧文件、内部转调 adapter」的低风险路线     |
+| 3   | 原 `*-runner.ts` 直接改造为 adapter（删旧函数）            | §5   | 是否接受「不留薄封装、删旧 `runXxxItem`」的低冗余路线   |
 | 4   | AxisItemResult → 状态机终态映射                               | §4.3 | `attribution=HARNESS` 映射到 `execution_failed` 是否合理 |
 | 5   | Phase 2 边界（持久化/续跑/取消推迟）                          | §6   | 是否接受本次只做内存状态机                               |

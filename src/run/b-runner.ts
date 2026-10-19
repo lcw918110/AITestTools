@@ -2,7 +2,7 @@ import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { runPromptfooAdapter, type EvalJob } from '../drivers/model-adapter/index.ts';
 import type { OracleSchemaObedience, OracleToolTrace } from '../exam-engine/types.ts';
-import type { CaseRevision, EnvironmentProfile } from '../domain/types.ts';
+import type { AxisItemResult } from './runner-types.ts';
 import {
   runSchemaObedienceOracle,
   runToolTraceOracle,
@@ -10,7 +10,15 @@ import {
 } from '../oracles/index.ts';
 import { fail, applyMetricThresholdPass } from './runner-shared.ts';
 import type { ToolCallTrace } from '../oracles/tool-trace.ts';
-import type { AxisItemResult } from './l2-runner.ts';
+import type {
+  AdapterContext,
+  CollectedOutput,
+  DiscoveredInput,
+  ExecutionAdapter,
+  PreparedState,
+  SubmittedHandle,
+} from './execution-adapter.ts';
+import { AdapterError } from './execution-adapter.ts';
 
 function parseCalls(trace: unknown): ToolCallTrace[] {
   if (!Array.isArray(trace)) return [];
@@ -29,153 +37,192 @@ function parseCalls(trace: unknown): ToolCallTrace[] {
     .filter((x): x is ToolCallTrace => x !== null);
 }
 
-function roomRepeats(environment: EnvironmentProfile): number | undefined {
-  const r = environment.recipe.adapter?.repeats;
+function roomRepeats(ctx: AdapterContext): number | undefined {
+  const r = ctx.environment.recipe.adapter?.repeats;
   return typeof r === 'number' ? r : undefined;
 }
 
-export async function runBDirectItem(opts: {
-  revision: CaseRevision;
-  environment: EnvironmentProfile;
-  projectRoot: string;
-  models: string[];
-  artifactDir?: string;
-}): Promise<AxisItemResult[]> {
-  const focus = opts.revision.attribution_focus;
-  const repeats = opts.revision.execution.repeats ?? roomRepeats(opts.environment) ?? 1;
+interface BDirectDiscovered {
+  job: EvalJob;
+}
 
-  const mustCallOracle = opts.revision.expect.oracles.find(
-    (o): o is OracleToolTrace => o.type === 'tool_trace',
-  );
-  const schemaOracle = opts.revision.expect.oracles.find(
-    (o): o is OracleSchemaObedience => o.type === 'schema_obedience',
-  );
+type FrameworkRawResult =
+  ReturnType<typeof runPromptfooAdapter> extends Promise<infer T> ? T : never;
 
-  const jobItem: EvalJob['items'][number] = {
-    id: opts.revision.case_revision_id,
-    rev: opts.revision.revision_number,
-    prompt_ref: opts.revision.stimulus.ref,
-  };
-  if (Array.isArray(mustCallOracle?.must_call)) {
-    jobItem.must_call = mustCallOracle.must_call.map(String);
-  }
-  if (schemaOracle !== undefined) {
-    const tool = String(schemaOracle.tool ?? '');
-    const fields = Array.isArray(schemaOracle.required_fields)
-      ? schemaOracle.required_fields.map(String)
-      : [];
-    jobItem.required_fields = { [tool]: fields };
-  }
+interface BDirectCollected {
+  raw: FrameworkRawResult;
+}
 
-  const job: EvalJob = {
-    items: [jobItem],
-    models: opts.models,
-    repeats,
-  };
+/**
+ * B-direct adapter：promptfoo 模型矩阵（fixture / live 双模式）。
+ * 单题多 model × repeat 展开为多行 AxisItemResult。
+ * 执行语义不变，仅把隐式流程显式化为 8 阶段。
+ */
+export class BDirectAdapter implements ExecutionAdapter {
+  readonly adapterId = 'b-direct-promptfoo';
 
-  let raw;
-  try {
-    const adapterOpts: Parameters<typeof runPromptfooAdapter>[1] = {
-      projectRoot: opts.projectRoot,
-    };
-    if (opts.artifactDir !== undefined) adapterOpts.artifactDir = opts.artifactDir;
-    raw = await runPromptfooAdapter(job, adapterOpts);
-  } catch (e) {
-    return [
-      fail(opts.revision, 'HARNESS', `B-direct adapter 失败：${(e as Error).message}`, {
-        invariantViolationsExplicit: 0,
-        extraMetrics: { b_schema_obedience_rate: 0 },
-        ...(opts.models[0] !== undefined ? { modelSuffix: opts.models[0] } : {}),
-      }),
-    ];
-  }
+  async discover(ctx: AdapterContext): Promise<DiscoveredInput> {
+    const repeats = ctx.revision.execution.repeats ?? roomRepeats(ctx) ?? 1;
 
-  if (opts.artifactDir !== undefined) {
-    mkdirSync(opts.artifactDir, { recursive: true });
-    writeFileSync(
-      join(opts.artifactDir, 'framework-raw.json'),
-      `${JSON.stringify(raw, null, 2)}\n`,
+    const mustCallOracle = ctx.revision.expect.oracles.find(
+      (o): o is OracleToolTrace => o.type === 'tool_trace',
     );
+    const schemaOracle = ctx.revision.expect.oracles.find(
+      (o): o is OracleSchemaObedience => o.type === 'schema_obedience',
+    );
+
+    const jobItem: EvalJob['items'][number] = {
+      id: ctx.revision.case_revision_id,
+      rev: ctx.revision.revision_number,
+      prompt_ref: ctx.revision.stimulus.ref,
+    };
+    if (Array.isArray(mustCallOracle?.must_call)) {
+      jobItem.must_call = mustCallOracle.must_call.map(String);
+    }
+    if (schemaOracle !== undefined) {
+      const tool = String(schemaOracle.tool ?? '');
+      const fields = Array.isArray(schemaOracle.required_fields)
+        ? schemaOracle.required_fields.map(String)
+        : [];
+      jobItem.required_fields = { [tool]: fields };
+    }
+
+    const job: EvalJob = {
+      items: [jobItem],
+      models: ctx.models,
+      repeats,
+    };
+    return { job };
   }
 
-  const results: AxisItemResult[] = [];
-  for (const row of raw.rows) {
-    const calls = parseCalls(row.tool_trace);
-    const failures: OracleOutcome[] = [];
-    for (const [i, oracle] of opts.revision.expect.oracles.entries()) {
-      const oid = typeof oracle.id === 'string' ? oracle.id : `${oracle.type}#${i}`;
-      if (oracle.type === 'tool_trace') {
-        const must = Array.isArray(oracle.must_call) ? oracle.must_call.map(String) : [];
-        failures.push(
-          runToolTraceOracle({
-            oracle_id: oid,
-            must_call: must,
-            calls,
-            attribution: focus,
+  async prepare(_ctx: AdapterContext, discovered: DiscoveredInput): Promise<PreparedState> {
+    return { job: (discovered as unknown as BDirectDiscovered).job };
+  }
+
+  async submit(ctx: AdapterContext, prepared: PreparedState): Promise<SubmittedHandle> {
+    const { job } = prepared as unknown as BDirectDiscovered;
+    let raw: FrameworkRawResult;
+    try {
+      const adapterOpts: Parameters<typeof runPromptfooAdapter>[1] = {
+        projectRoot: ctx.projectRoot,
+      };
+      if (ctx.artifactDir !== undefined) adapterOpts.artifactDir = ctx.artifactDir;
+      raw = await runPromptfooAdapter(job, adapterOpts);
+    } catch (e) {
+      throw new AdapterError(
+        'submit_failed',
+        'HARNESS',
+        `B-direct adapter 失败：${(e as Error).message}`,
+        false,
+        [
+          fail(ctx.revision, 'HARNESS', `B-direct adapter 失败：${(e as Error).message}`, {
+            invariantViolationsExplicit: 0,
+            extraMetrics: { b_schema_obedience_rate: 0 },
+            ...(ctx.models[0] !== undefined ? { modelSuffix: ctx.models[0] } : {}),
           }),
-        );
-      } else if (oracle.type === 'schema_obedience') {
-        const fields = Array.isArray(oracle.required_fields)
-          ? oracle.required_fields.map(String)
-          : [];
-        failures.push(
-          runSchemaObedienceOracle({
+        ],
+      );
+    }
+    return { raw };
+  }
+
+  async collect(ctx: AdapterContext, handle: SubmittedHandle): Promise<CollectedOutput> {
+    const { raw } = handle as unknown as BDirectCollected;
+    if (ctx.artifactDir !== undefined) {
+      mkdirSync(ctx.artifactDir, { recursive: true });
+      writeFileSync(
+        join(ctx.artifactDir, 'framework-raw.json'),
+        `${JSON.stringify(raw, null, 2)}\n`,
+      );
+    }
+    return { raw };
+  }
+
+  async evaluate(ctx: AdapterContext, collected: CollectedOutput): Promise<AxisItemResult[]> {
+    const { raw } = collected as unknown as BDirectCollected;
+    const focus = ctx.revision.attribution_focus;
+    const results: AxisItemResult[] = [];
+
+    for (const row of raw.rows) {
+      const calls = parseCalls(row.tool_trace);
+      const failures: OracleOutcome[] = [];
+      for (const [i, oracle] of ctx.revision.expect.oracles.entries()) {
+        const oid = typeof oracle.id === 'string' ? oracle.id : `${oracle.type}#${i}`;
+        if (oracle.type === 'tool_trace') {
+          const must = Array.isArray(oracle.must_call) ? oracle.must_call.map(String) : [];
+          failures.push(
+            runToolTraceOracle({
+              oracle_id: oid,
+              must_call: must,
+              calls,
+              attribution: focus,
+            }),
+          );
+        } else if (oracle.type === 'schema_obedience') {
+          const fields = Array.isArray(oracle.required_fields)
+            ? oracle.required_fields.map(String)
+            : [];
+          failures.push(
+            runSchemaObedienceOracle({
+              oracle_id: oid,
+              tool: String(oracle.tool ?? ''),
+              required_fields: fields,
+              calls,
+              attribution: focus,
+            }),
+          );
+        } else if (oracle.type === 'metric_threshold') {
+          continue;
+        } else {
+          failures.push({
+            pass: false,
             oracle_id: oid,
-            tool: String(oracle.tool ?? ''),
-            required_fields: fields,
-            calls,
-            attribution: focus,
-          }),
-        );
-      } else if (oracle.type === 'metric_threshold') {
-        continue;
-      } else {
-        failures.push({
-          pass: false,
-          oracle_id: oid,
-          message: `B-direct 暂不支持 oracle ${oracle.type}`,
-          attribution: 'HARNESS',
-        });
+            message: `B-direct 暂不支持 oracle ${oracle.type}`,
+            attribution: 'HARNESS',
+          });
+        }
       }
-    }
-    const preFailed = failures.filter((o): o is Extract<OracleOutcome, { pass: false }> => !o.pass);
-    const draftPass = preFailed.length === 0 && row.pass;
-    const draftMetrics: Record<string, number> = {
-      b_schema_obedience_rate: draftPass ? 1 : 0,
-      b_required_tool_call_rate: draftPass ? 1 : 0,
-      a_case_pass_rate: draftPass ? 1 : 0,
-      a_invariant_violations: 0,
-    };
-    applyMetricThresholdPass(opts.revision.expect.oracles, draftMetrics, focus, (o) =>
-      failures.push(o),
-    );
-    const failed = failures.filter((o): o is Extract<OracleOutcome, { pass: false }> => !o.pass);
-    const pass = failed.length === 0 && row.pass;
-    const attribution = pass ? undefined : (failed[0]?.attribution ?? 'MODEL_SCHEMA');
-    const result: AxisItemResult = {
-      item_id: `${opts.revision.case_revision_id}::${row.model}::r${row.repeat}`,
-      item_rev: opts.revision.revision_number,
-      pass,
-      oracle_failures: failed.map((f) => ({
-        oracle_id: f.oracle_id,
-        message: f.message,
-      })),
-      metrics: {
-        b_schema_obedience_rate: pass ? 1 : 0,
-        b_required_tool_call_rate: pass ? 1 : 0,
-        a_case_pass_rate: pass ? 1 : 0,
+      const preFailed = failures.filter(
+        (o): o is Extract<OracleOutcome, { pass: false }> => !o.pass,
+      );
+      const draftPass = preFailed.length === 0 && row.pass;
+      const draftMetrics: Record<string, number> = {
+        b_schema_obedience_rate: draftPass ? 1 : 0,
+        b_required_tool_call_rate: draftPass ? 1 : 0,
+        a_case_pass_rate: draftPass ? 1 : 0,
         a_invariant_violations: 0,
-      },
-    };
-    if (attribution !== undefined) result.attribution = attribution;
-    if (opts.artifactDir !== undefined) {
-      result.artifact_dir = join(opts.artifactDir, sanitize(row.model), `r${row.repeat}`);
-      mkdirSync(result.artifact_dir, { recursive: true });
-      writeFileSync(join(result.artifact_dir, 'row.json'), `${JSON.stringify(row, null, 2)}\n`);
+      };
+      applyMetricThresholdPass(ctx.revision.expect.oracles, draftMetrics, focus, (o) =>
+        failures.push(o),
+      );
+      const failed = failures.filter((o): o is Extract<OracleOutcome, { pass: false }> => !o.pass);
+      const pass = failed.length === 0 && row.pass;
+      const attribution = pass ? undefined : (failed[0]?.attribution ?? 'MODEL_SCHEMA');
+      const result: AxisItemResult = {
+        item_id: `${ctx.revision.case_revision_id}::${row.model}::r${row.repeat}`,
+        item_rev: ctx.revision.revision_number,
+        pass,
+        oracle_failures: failed.map((f) => ({
+          oracle_id: f.oracle_id,
+          message: f.message,
+        })),
+        metrics: {
+          b_schema_obedience_rate: pass ? 1 : 0,
+          b_required_tool_call_rate: pass ? 1 : 0,
+          a_case_pass_rate: pass ? 1 : 0,
+          a_invariant_violations: 0,
+        },
+      };
+      if (attribution !== undefined) result.attribution = attribution;
+      if (ctx.artifactDir !== undefined) {
+        result.artifact_dir = join(ctx.artifactDir, sanitize(row.model), `r${row.repeat}`);
+        mkdirSync(result.artifact_dir, { recursive: true });
+        writeFileSync(join(result.artifact_dir, 'row.json'), `${JSON.stringify(row, null, 2)}\n`);
+      }
+      results.push(result);
     }
-    results.push(result);
+    return results;
   }
-  return results;
 }
 
 function sanitize(model: string): string {

@@ -1,5 +1,6 @@
 import type { CaseRevision, EnvironmentProfile } from '../domain/types.ts';
 import type { Attempt, Attribution, CaseExecution, Run } from '../domain/types.ts';
+import type { AxisItemResult } from './runner-types.ts';
 
 /**
  * ExecutionAdapter 统一执行阶段（02 §4.2）：
@@ -32,6 +33,8 @@ export interface AdapterContext {
   artifactDir?: string;
   models: string[];
   sutRoot?: string;
+  /** 配对键（effect pair key），由 run.ts 从 case.pair_key ?? case_id 解析后透传。 */
+  pairKey?: string;
   run: Run;
   caseExecution: CaseExecution;
   attempt: Attempt;
@@ -64,13 +67,10 @@ export interface CollectedOutput {
   [key: string]: unknown;
 }
 
-/** 6. evaluate 输出（CaseExecution 终态）。 */
-export interface EvaluationResult {
-  pass: boolean;
-  attribution?: Attribution;
-  metrics?: Record<string, number>;
-  oracleFailures?: Array<{ oracle_id: string; message: string }>;
-}
+/** 6. evaluate 输出：题级执行结果数组（AxisItemResult[]），由 write-artifacts 消费落盘。 */
+// evaluate 直接产出 AxisItemResult[]（替代原 EvaluationResult）。
+// B-direct 单题多 model × repeat 展开为多行，其余 runner 返回单元素数组，
+// 与改造前 runOneItem 统一返回 AxisItemResult[] 的口径一致。
 
 /** 7. cleanup 输出。 */
 export interface CleanupResult {
@@ -86,7 +86,7 @@ export interface ExecutionAdapter {
   prepare(ctx: AdapterContext, discovered: DiscoveredInput): Promise<PreparedState>;
   submit(ctx: AdapterContext, prepared: PreparedState): Promise<SubmittedHandle>;
   collect(ctx: AdapterContext, handle: SubmittedHandle): Promise<CollectedOutput>;
-  evaluate(ctx: AdapterContext, collected: CollectedOutput): Promise<EvaluationResult>;
+  evaluate(ctx: AdapterContext, collected: CollectedOutput): Promise<AxisItemResult[]>;
   cleanup?(ctx: AdapterContext, prepared: PreparedState): Promise<CleanupResult>;
 }
 
@@ -100,13 +100,14 @@ export type AdapterErrorKind =
   | 'evaluate_failed'
   | 'cleanup_failed';
 
-/** Adapter 统一错误：携带阶段、归因、是否可安全重试。 */
+/** Adapter 统一错误：携带阶段、归因、是否可安全重试，以及可选的失败结果透传。 */
 export class AdapterError extends Error {
   constructor(
     readonly kind: AdapterErrorKind,
     readonly attribution: Attribution,
     message: string,
     readonly retryable: boolean = false,
+    readonly result?: AxisItemResult[],
   ) {
     super(message);
     this.name = 'AdapterError';

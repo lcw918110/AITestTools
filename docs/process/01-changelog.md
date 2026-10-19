@@ -909,3 +909,45 @@
 - `npm run lint`：通过
 - `npm test`：57 文件 316 测试通过（新增 1 用例）
 - `format:check`：全仓干净
+
+## §26 遗留待办③：RunOrchestrator / ExecutionAdapter 状态机接线（2026-10-19）
+
+按计划推进待办③（Phase 2 目标架构）：把 7 个 runner 全部改造为 `ExecutionAdapter` 状态机，接进 `RunOrchestrator.executeCase`，删除旧 `runOneItem` 分派。
+
+**1. 统一接口与类型契约**
+
+- `src/run/execution-adapter.ts`：`ExecutionAdapter.evaluate` 返回类型改为 `Promise<AxisItemResult[]>`（替代旧 `EvaluationResult`），统一单行 runner 与多模型 runner（B-direct）的返回口径；`AdapterError` 新增 `result?: AxisItemResult[]` 透传字段，供 harness/致命错误时把完整 runner 失败载荷带出。
+- `src/run/runner-types.ts`：上提 `AxisItemResult`（统一 item 执行结果），打破 `l1-runner` 与 `runner-shared` 之间的循环类型依赖。
+
+**2. 7 个 runner 改造为 adapter 类**
+
+- `src/run/l1-runner.ts` → `L1Adapter`（fold 事件直测）
+- `src/run/l2-runner.ts` → `L2Adapter`（假宿主 + 剧本）
+- `src/run/l3-runner.ts` → `L3Adapter`（对拍）
+- `src/run/b-runner.ts` → `BDirectAdapter`（多模型直连）
+- `src/run/c-runner.ts` → `CAdapter`（轴 CLI 壳）
+- `src/run/hosted-runner.ts` → `HostedAdapter`（hosted 冒烟）
+- 均删除旧 `runXxxItem` 入口函数，8 阶段（discover → preflight → prepare → submit → collect → evaluate → cleanup）显式化，执行语义不变。
+
+**3. RunOrchestrator 接线**
+
+- `src/run/run-orchestrator.ts`：`executeCase` 改为直接消费 cases-v1 领域对象（`CaseRevision` + `EnvironmentProfile` + `AdapterContext`），串接 8 阶段并映射 `results`，处理 `AdapterError.result` 透传。
+- `src/cli/commands/run.ts`：删除 `runOneItem` switch 分派，改由 `resolveAdapter(revision, environment)` 按 `execution_profile.mode` 解析 adapter，再经 `RunOrchestrator.executeCase` 驱动执行。
+
+**4. 测试更新**
+
+- 新增 `tests/run/l2-runner.test.ts`、`tests/run/l3-runner.test.ts`、`tests/run/b-direct-runner.test.ts` 单测与端到端冒烟。
+- `tests/run/hosted-runner-pass-token.test.ts`、`tests/run/hosted-runner-timeout-workspace.test.ts` 改用 `HostedAdapter` + `RunOrchestrator` 的 `runHosted` 辅助函数。
+- `tests/drivers/fold.test.ts`、`tests/run/c-idempotency.test.ts`、`tests/run/run-orchestrator.test.ts` 改调新 adapter 类与 `RunOrchestrator`。
+
+**5. Bugbot 审查修复（S4）**
+
+- `HostedAdapter.pairKey` 字段声明后从未赋值，导致 hosted 结果 `effect_pair` 恒为 `undefined`。修复：`AdapterContext` / `executeCase` 的 `exec` 新增 `pairKey?: string`，`run.ts` 把 `runCase.pairKey`（`case.pair_key ?? case_id.toUpperCase()`）透传进 adapter，`HostedAdapter.discover` 读 `ctx.pairKey` 赋值。
+- `runLog.model_environment` 重构表达式错误（用 env 覆盖后的 `hostModel` 而非环境声明值）。修复：新增 `roomModel` 字段存环境声明模型，`model_environment` 还原为 `roomModel ?? null`（与原 `runHostedSmokeItem` 一致）。
+
+**验证（实测，2026-10-19）**：
+
+- `npm run typecheck`：0 错误
+- `npm run lint`：通过
+- `npm test`：61 文件 322 测试通过（沙箱内 `event-store.test.ts` 4 例因 `git init` 被沙箱拦截而红，非沙箱环境 5/5 通过，属环境限制非代码缺陷）
+- `format:check`：全仓干净

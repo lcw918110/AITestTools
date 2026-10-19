@@ -11,7 +11,6 @@ import { createTestSet, listTestSets, testSetIdFromRelease } from '../../apps/co
 function seed(): string {
   const root = mkdtempSync(join(tmpdir(), 'proctor-ts-'));
   mkdirSync(join(root, 'dataset-releases'), { recursive: true });
-  mkdirSync(join(root, 'papersets'), { recursive: true });
   const files: Array<
     [string, Array<{ case_id: string; case_revision_id: string; content_hash: string }>]
   > = [

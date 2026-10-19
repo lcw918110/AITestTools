@@ -7,21 +7,7 @@ import { createTask, getTask, updateTask } from '../../apps/console/bank.ts';
 function seedProject(): string {
   const root = mkdtempSync(join(tmpdir(), 'proctor-bank-'));
   mkdirSync(join(root, 'bank/materials'), { recursive: true });
-  mkdirSync(join(root, 'bank/items/B'), { recursive: true });
-  mkdirSync(join(root, 'papersets'), { recursive: true });
   mkdirSync(join(root, 'dataset-releases'), { recursive: true });
-  for (const name of [
-    'paired-off.json',
-    'paired-on.json',
-    'paired-off-calibrate.json',
-    'paired-on-calibrate.json',
-  ]) {
-    writeFileSync(
-      join(root, 'papersets', name),
-      `${JSON.stringify({ name: name.replace(/\.json$/, ''), items: [] }, null, 2)}\n`,
-    );
-  }
-  // 读路径（getTestSet）已切到 dataset-releases/，须同步 seed cases-v1 资产。
   for (const name of ['paired-off-calibrate', 'paired-on-calibrate']) {
     writeFileSync(
       join(root, 'dataset-releases', `${name}.dataset-release.json`),

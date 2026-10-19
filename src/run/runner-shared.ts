@@ -4,7 +4,7 @@ import { loadBundledContract } from '../contract/load.ts';
 import { runMetricThresholdOracle, type OracleOutcome } from '../oracles/index.ts';
 import type { Attribution, Oracle } from '../exam-engine/types.ts';
 import type { CaseRevision } from '../domain/types.ts';
-import type { L1ItemResult } from './l1-runner.ts';
+import type { AxisItemResult } from './runner-types.ts';
 
 /** Contracts 加载（从 l2/l3 提取，完全相同）。 */
 export function loadContract(
@@ -41,12 +41,12 @@ export function fail(
     effectPair?: string | undefined;
     extraFailures?: Array<{ oracle_id: string; message: string }>;
   },
-): L1ItemResult {
+): AxisItemResult {
   const hasInvariantViolation =
     opts?.invariantViolationsExplicit === 0
       ? false
       : attribution === 'PROTOCOL' || attribution === 'CONTEXT';
-  const result: L1ItemResult = {
+  const result: AxisItemResult = {
     item_id:
       opts?.modelSuffix !== undefined
         ? `${revision.case_revision_id}::${opts.modelSuffix}`
@@ -118,13 +118,13 @@ export function finalizeAxisResult(opts: {
   failures: OracleOutcome[];
   artifactDir?: string;
   foldState?: unknown;
-}): L1ItemResult {
+}): AxisItemResult {
   const failed = opts.failures.filter((o): o is Extract<OracleOutcome, { pass: false }> => !o.pass);
   const pass = failed.length === 0;
   const attribution: Attribution | undefined = pass
     ? undefined
     : (failed[0]?.attribution ?? 'PROTOCOL');
-  const result: L1ItemResult = {
+  const result: AxisItemResult = {
     item_id: opts.revision.case_revision_id,
     item_rev: opts.revision.revision_number,
     pass,

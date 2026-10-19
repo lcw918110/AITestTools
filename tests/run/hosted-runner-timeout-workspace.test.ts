@@ -60,9 +60,27 @@ vi.mock('node:child_process', async (importOriginal) => {
   };
 });
 
-const { runHostedSmokeItem } = await import('../../src/run/hosted-runner.ts');
+const { HostedAdapter } = await import('../../src/run/hosted-runner.ts');
+const { RunOrchestrator } = await import('../../src/run/run-orchestrator.ts');
 
 const projectRoot = resolve('examples/product-eval');
+
+async function runHosted(
+  revision: CaseRevision,
+  environment: EnvironmentProfile,
+  artifactDir: string,
+) {
+  const orch = new RunOrchestrator();
+  orch.beginRun({});
+  orch.transitionRun('preflight');
+  orch.transitionRun('running');
+  const { results } = await orch.executeCase(revision, environment, new HostedAdapter(), {
+    projectRoot,
+    models: [],
+    artifactDir,
+  });
+  return results[0]!;
+}
 
 function loadRevision(name: string): CaseRevision {
   return JSON.parse(
@@ -132,7 +150,7 @@ describe('hosted 超时仍跑 workspace_assert', () => {
     hostedIO.mutate = patch157;
     const artifactDir = mkdtempSync(join(tmpdir(), 'proctor-to-ok-'));
     const revision = loadRevision('paired-task-157.r1.off.case-revision.json');
-    const result = await runHostedSmokeItem({ revision, environment, projectRoot, artifactDir });
+    const result = await runHosted(revision, environment, artifactDir);
     expect(result.pass).toBe(true);
     expect(result.timed_out).toBe(true);
     expect(result.workspace_ok).toBe(true);
@@ -191,7 +209,7 @@ describe('hosted 超时仍跑 workspace_assert', () => {
     hostedIO.error = timeoutError();
     const artifactDir = mkdtempSync(join(tmpdir(), 'proctor-to-miss-'));
     const revision = loadRevision('paired-task-157.r1.off.case-revision.json');
-    const result = await runHostedSmokeItem({ revision, environment, projectRoot, artifactDir });
+    const result = await runHosted(revision, environment, artifactDir);
     expect(result.pass).toBe(false);
     expect(result.timed_out).toBe(true);
     expect(result.workspace_ok).toBe(false);
@@ -215,7 +233,7 @@ describe('hosted 超时仍跑 workspace_assert', () => {
     const artifactDir = mkdtempSync(join(tmpdir(), 'proctor-to-on-miss-'));
     const revision = loadRevision('paired-task-157.r1.on.case-revision.json');
     expect(revision.attribution_focus).toBe('PROTOCOL');
-    const result = await runHostedSmokeItem({ revision, environment, projectRoot, artifactDir });
+    const result = await runHosted(revision, environment, artifactDir);
     expect(result.pass).toBe(false);
     expect(result.workspace_ok).toBe(false);
     expect(result.materials_mutated).toBe(false);
@@ -231,7 +249,7 @@ describe('hosted 超时仍跑 workspace_assert', () => {
     const artifactDir = mkdtempSync(join(tmpdir(), 'proctor-to-wrong-'));
     const revision = loadRevision('paired-task-157.r1.on.case-revision.json');
     expect(revision.attribution_focus).toBe('PROTOCOL');
-    const result = await runHostedSmokeItem({ revision, environment, projectRoot, artifactDir });
+    const result = await runHosted(revision, environment, artifactDir);
     expect(result.pass).toBe(false);
     expect(result.timed_out).toBe(true);
     expect(result.workspace_ok).toBe(false);
@@ -245,7 +263,7 @@ describe('hosted 超时仍跑 workspace_assert', () => {
     hostedIO.mutate = patch157;
     const artifactDir = mkdtempSync(join(tmpdir(), 'proctor-nz-ok-'));
     const revision = loadRevision('paired-task-157.r1.off.case-revision.json');
-    const result = await runHostedSmokeItem({ revision, environment, projectRoot, artifactDir });
+    const result = await runHosted(revision, environment, artifactDir);
     expect(result.pass).toBe(true);
     expect(result.timed_out).toBe(false);
     expect(result.workspace_ok).toBe(true);
@@ -257,7 +275,7 @@ describe('hosted 超时仍跑 workspace_assert', () => {
     hostedIO.stderr = 'stream providerID=wave-ai llm.provider=wave-ai\n';
     const artifactDir = mkdtempSync(join(tmpdir(), 'proctor-provider-log-'));
     const revision = loadRevision('paired-task-157.r1.off.case-revision.json');
-    const result = await runHostedSmokeItem({ revision, environment, projectRoot, artifactDir });
+    const result = await runHosted(revision, environment, artifactDir);
     expect(result.pass).toBe(false);
     expect(result.timed_out).toBe(false);
     expect(result.host_exit).toBe(0);

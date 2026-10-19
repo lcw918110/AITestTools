@@ -16,26 +16,8 @@ import {
 function seedProject(): string {
   const root = mkdtempSync(join(tmpdir(), 'proctor-bank-'));
   mkdirSync(join(root, 'bank/materials'), { recursive: true });
-  mkdirSync(join(root, 'bank/items/B'), { recursive: true });
-  mkdirSync(join(root, 'papersets'), { recursive: true });
   mkdirSync(join(root, 'dataset-releases'), { recursive: true });
-  for (const name of [
-    'paired-off.json',
-    'paired-on.json',
-    'eval-model.json',
-    'eval-agent.json',
-    'eval-model-alt.json',
-    'paired-off-calibrate.json',
-    'paired-off-alt-calibrate.json',
-    'paired-on-calibrate.json',
-    'paired-on-alt-calibrate.json',
-  ]) {
-    writeFileSync(
-      join(root, 'papersets', name),
-      `${JSON.stringify({ name: name.replace(/\.json$/, ''), items: [] }, null, 2)}\n`,
-    );
-  }
-  // 读路径（getTestSet）已切到 dataset-releases/，须同步 seed cases-v1 资产。
+  // 读路径（getTestSet）已切到 dataset-releases/，须 seed cases-v1 资产。
   for (const name of [
     'paired-off',
     'paired-on',
@@ -319,11 +301,19 @@ describe('console bank', () => {
     );
     expect(fail).toMatchObject({ code: 500 });
     expect(existsSync(join(root, 'bank/materials/PAIRED-TASK-93'))).toBe(false);
-    expect(existsSync(join(root, 'bank/items/B/eval-b-paired-task-93-off.item.json'))).toBe(false);
-    const paperset = JSON.parse(
-      readFileSync(join(root, 'papersets/paired-off-calibrate.json'), 'utf8'),
-    ) as { items: string[] };
-    expect(paperset.items).not.toContain('EVAL-B-PAIRED-TASK-93-OFF');
+    expect(existsSync(join(root, 'cases/paired-task-93.case.json'))).toBe(false);
+    expect(existsSync(join(root, 'case-revisions/paired-task-93.r1.off.case-revision.json'))).toBe(
+      false,
+    );
+    const release = JSON.parse(
+      readFileSync(
+        join(root, 'dataset-releases/paired-off-calibrate.dataset-release.json'),
+        'utf8',
+      ),
+    ) as { case_revisions: Array<{ case_revision_id: string }> };
+    expect(release.case_revisions.map((r) => r.case_revision_id)).not.toContain(
+      'paired-task-93.r1.off',
+    );
   });
 
   it('rejects bad create taskId (C-B-34)', async () => {
