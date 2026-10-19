@@ -11,6 +11,7 @@ const PRESETS = [
     label: '测模型',
     description: '同一 Agent、无插件、同一任务；换模型',
     defaultExamMode: 'off' as const,
+    defaultRelease: 'paired-off' as const,
     defaultTestSetId: 'full',
   },
   {
@@ -18,6 +19,7 @@ const PRESETS = [
     label: '测万象术',
     description: '同一 Agent、同一模型、同一批题目；只变有无插件',
     defaultExamMode: 'both' as const,
+    defaultRelease: 'paired-off' as const,
     defaultTestSetId: 'full',
   },
   {
@@ -25,6 +27,7 @@ const PRESETS = [
     label: '测 Agent',
     description: '同一模型、无插件、同一任务',
     defaultExamMode: 'off' as const,
+    defaultRelease: 'paired-off' as const,
     defaultTestSetId: 'full',
   },
 ] as const;

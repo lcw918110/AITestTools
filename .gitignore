@@ -14,6 +14,9 @@ baselines/
 # 控制台本地任务缓存
 apps/console/.jobs/
 
+# 控制台运行环境验证状态（运行时产物，不入库）
+**/.console-catalog.json
+
 # 事件诊断产物（一次性 incident 排查，不入库）
 .diagnostics/
 

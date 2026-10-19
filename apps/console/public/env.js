@@ -79,6 +79,7 @@ function saveEnvironmentField(name, partial) {
   }
   if ('workspace' in partial) pending.workspace = partial.workspace;
   if ('network' in partial) pending.network = partial.network;
+  if ('lifecycle' in partial) pending.lifecycle = partial.lifecycle;
   pendingEnvironmentChanges.set(name, pending);
   clearTimeout(environmentTimers.get(name));
   environmentTimers.set(
@@ -243,7 +244,63 @@ function renderEnvironments() {
     netLabel.appendChild(document.createTextNode(' 网络'));
     card.appendChild(netLabel);
 
+    // lifecycle 展示 + 流转
+    const lcLabel = document.createElement('label');
+    lcLabel.textContent = '生命周期';
+    const lcBadge = document.createElement('span');
+    lcBadge.className = `lifecycle-badge lifecycle-${environment.lifecycle || 'draft'}`;
+    lcBadge.textContent = environment.lifecycle || 'draft';
+    lcLabel.appendChild(lcBadge);
+    card.appendChild(lcLabel);
+
+    const lcRow = document.createElement('div');
+    lcRow.className = 'lifecycle-actions';
+    const lcTargets = ['draft', 'active', 'deprecated'].filter(
+      (t) => t !== (environment.lifecycle || 'draft'),
+    );
+    for (const target of lcTargets) {
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.textContent = `→ ${target}`;
+      btn.addEventListener('click', () => {
+        saveEnvironmentField(environment.name, { lifecycle: target });
+      });
+      lcRow.appendChild(btn);
+    }
+    card.appendChild(lcRow);
+
     host.appendChild(card);
+  }
+}
+
+async function loadReproManifest() {
+  const host = document.getElementById('reproManifest');
+  if (!host) return;
+  try {
+    const m = await api('/api/env/manifest');
+    const rows = [
+      ['Git commit', m.gitCommit ?? '未采集'],
+      ['工作树', m.worktreeDirty ? '脏（有未提交改动）' : '干净'],
+      ['Node 版本', m.nodeVersion ?? '未采集'],
+      ['OS 架构', m.osPlatform && m.osArch ? `${m.osPlatform}/${m.osArch}` : '未采集'],
+      ['锁文件摘要', m.lockfileSummary ?? '未采集'],
+    ];
+    host.innerHTML = '';
+    for (const [k, v] of rows) {
+      const li = document.createElement('li');
+      const key = document.createElement('span');
+      key.className = 'manifest-key';
+      key.textContent = k;
+      const val = document.createElement('span');
+      val.className = 'manifest-val';
+      val.textContent = v;
+      if (v === '未采集') val.classList.add('muted');
+      li.appendChild(key);
+      li.appendChild(val);
+      host.appendChild(li);
+    }
+  } catch (e) {
+    host.innerHTML = `<li class="muted">复现清单采集失败：${String(e.message || e)}</li>`;
   }
 }
 
@@ -282,6 +339,7 @@ export async function initEnv() {
   });
   await loadEnvCatalog();
   await loadEnvironments();
+  await loadReproManifest();
 }
 
 document.addEventListener('env-catalog-changed', () => renderEnvironments());

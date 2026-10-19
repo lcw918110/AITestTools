@@ -16,6 +16,7 @@ import {
   envCatalog,
   envEnvironmentsList,
   envEnvironmentsUpdate,
+  envManifest,
   envVerify,
 } from './controllers/env.ts';
 import {
@@ -118,6 +119,11 @@ export async function handleRequest(req: IncomingMessage, res: ServerResponse): 
   }
   if (req.method === 'GET' && pathname === '/api/env/environments') {
     const r = await envEnvironmentsList();
+    json(res, r.status, r.body);
+    return;
+  }
+  if (req.method === 'GET' && pathname === '/api/env/manifest') {
+    const r = envManifest();
     json(res, r.status, r.body);
     return;
   }
@@ -290,7 +296,9 @@ export async function handleRequest(req: IncomingMessage, res: ServerResponse): 
     return;
   }
   if (req.method === 'POST' && pathname.endsWith('/lifecycle')) {
-    const taskId = decodeURIComponent(pathname.slice('/api/bank/tasks/'.length, -'/lifecycle'.length));
+    const taskId = decodeURIComponent(
+      pathname.slice('/api/bank/tasks/'.length, -'/lifecycle'.length),
+    );
     const parsed = parseJsonBody<{ to?: string; reason?: string }>(await readBody(req));
     if (!parsed.ok) {
       json(res, 400, { error: parsed.error });

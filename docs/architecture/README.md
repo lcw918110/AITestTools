@@ -14,6 +14,7 @@
 | [0009](adr/0009-web-ui-and-model-pool.md)      | 全面界面化与全局模型配置池          | 已采纳 |
 | [0010](adr/0010-consistency-quantification.md) | 一致性量化（repeats 上移 + pass^k） | 已采纳 |
 | [0011](adr/0011-bank-lifecycle-rubric.md)      | 录题界面化（生命周期 + rubric）     | 已采纳 |
+| [0012](adr/0012-env-profile-ui.md)             | 运行环境 Profile 管理 UI            | 已采纳 |
 
 废止 ADR-0003 → [`../archive/design/adr-0003-scaffold-freeze.md`](../archive/design/adr-0003-scaffold-freeze.md)。
 

@@ -9,6 +9,7 @@ import { parseJsonObject, sanitizeEnvironmentUpdate } from '../parse.ts';
 import { safeUnder } from '../bank.ts';
 import { writeJsonAtomicCas } from '../json-io.ts';
 import { addEnvAgent, addEnvModel, loadEnvCatalog, verifyEnvEntry } from '../env-catalog.ts';
+import { assertProfileLifecycleTransition, collectReproManifest } from '../env-profile.ts';
 
 export async function envCatalog(): Promise<HttpResponse> {
   return { status: 200, body: loadEnvCatalog(PROJECT) };
@@ -46,6 +47,7 @@ export async function envEnvironmentsList(): Promise<HttpResponse> {
   const environmentFiles: Array<{
     name: string;
     recipe: Record<string, unknown>;
+    lifecycle?: string;
     workspace?: unknown;
     network?: unknown;
   }> = [];
@@ -53,7 +55,7 @@ export async function envEnvironmentsList(): Promise<HttpResponse> {
     for (const f of readdirSync(environmentsDir)) {
       if (!f.endsWith('.environment.json') || f.startsWith('.')) continue;
       const name = f.replace(/\.environment\.json$/, '');
-      const abs = safeUnder(environmentsDir, f);
+      const abs = safeUnder(environmentsDir, join(environmentsDir, f));
       if (!abs) continue;
       try {
         const text = readFileSync(abs, 'utf8');
@@ -67,9 +69,11 @@ export async function envEnvironmentsList(): Promise<HttpResponse> {
         // workspace/network 从 recipe 还原（isolation_profile→workspace、network_policy→network）。
         const workspace = recipe.isolation_profile === 'isolated' ? 'isolated' : 'project';
         const network = recipe.network_policy === 'allow';
+        const lifecycle = typeof doc.lifecycle === 'string' ? doc.lifecycle : undefined;
         environmentFiles.push({
           name,
           recipe,
+          ...(lifecycle !== undefined ? { lifecycle } : {}),
           ...(workspace !== undefined ? { workspace } : {}),
           ...(network !== undefined ? { network } : {}),
         });
@@ -83,11 +87,16 @@ export async function envEnvironmentsList(): Promise<HttpResponse> {
 
 export async function envEnvironmentsUpdate(
   environmentName: string,
-  body: { recipe?: Record<string, unknown>; workspace?: unknown; network?: unknown },
+  body: {
+    recipe?: Record<string, unknown>;
+    workspace?: unknown;
+    network?: unknown;
+    lifecycle?: string;
+  },
 ): Promise<HttpResponse> {
   const environmentsDir = join(PROJECT, 'environments');
   const fileName = `${environmentName}.environment.json`;
-  const abs = safeUnder(environmentsDir, fileName);
+  const abs = safeUnder(environmentsDir, join(environmentsDir, fileName));
   if (!abs || !existsSync(abs)) {
     return { status: 404, body: { error: 'environment not found' } };
   }
@@ -120,6 +129,13 @@ export async function envEnvironmentsUpdate(
         network_policy: update.network ? 'allow' : 'deny',
       };
     }
+    // Profile 生命周期流转：校验后写顶层 lifecycle 字段。
+    if (body.lifecycle !== undefined) {
+      const from = typeof existing.lifecycle === 'string' ? existing.lifecycle : 'draft';
+      const bad = assertProfileLifecycleTransition(from, body.lifecycle);
+      if (bad) return { status: 400, body: { error: bad } };
+      existing.lifecycle = body.lifecycle;
+    }
     const wrote = writeJsonAtomicCas(abs, existing, readMtime);
     if (!wrote) {
       return { status: 409, body: { error: '环境配置已被并发修改，请重新读取后重试' } };
@@ -132,11 +148,13 @@ export async function envEnvironmentsUpdate(
         : {};
     const workspace = resultRecipe.isolation_profile === 'isolated' ? 'isolated' : 'project';
     const network = resultRecipe.network_policy === 'allow';
+    const lifecycle = typeof existing.lifecycle === 'string' ? existing.lifecycle : 'draft';
     return {
       status: 200,
       body: {
         name: environmentName,
         recipe: resultRecipe,
+        lifecycle,
         ...(workspace !== undefined ? { workspace } : {}),
         ...(network !== undefined ? { network } : {}),
       },
@@ -144,4 +162,10 @@ export async function envEnvironmentsUpdate(
   } catch (e) {
     return { status: 500, body: { error: (e as Error).message } };
   }
+}
+
+/** GET /api/env/manifest：复现清单实时只读采集（不落盘）。 */
+export function envManifest(): HttpResponse {
+  const manifest = collectReproManifest();
+  return { status: 200, body: manifest };
 }

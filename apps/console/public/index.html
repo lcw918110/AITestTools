@@ -231,7 +231,12 @@
               </label>
               <label>
                 任务类型（分层）
-                <input id="taskStrataType" type="text" placeholder="可空，例如 coding" autocomplete="off" />
+                <input
+                  id="taskStrataType"
+                  type="text"
+                  placeholder="可空，例如 coding"
+                  autocomplete="off"
+                />
               </label>
               <label>
                 难度分层
@@ -286,7 +291,12 @@
                     <option value="released">released</option>
                     <option value="deprecated">deprecated</option>
                   </select>
-                  <input id="lifecycleReason" type="text" placeholder="流转说明" autocomplete="off" />
+                  <input
+                    id="lifecycleReason"
+                    type="text"
+                    placeholder="流转说明"
+                    autocomplete="off"
+                  />
                   <button type="button" id="transitionLifecycle" class="ghost">推进/回退</button>
                 </div>
                 <pre id="lifecycleHistory" class="log" hidden></pre>
@@ -344,6 +354,8 @@
           <div id="environmentList" class="environment-list"></div>
           <datalist id="environmentModelOptions"></datalist>
           <datalist id="environmentAgentOptions"></datalist>
+          <h3 class="manifest-title">复现清单（实时只读）</h3>
+          <ul id="reproManifest" class="manifest-list"></ul>
         </div>
         <pre id="envLog" class="log" hidden></pre>
       </section>
@@ -574,7 +586,12 @@
           </label>
           <label>
             任务类型（分层，可选）
-            <input id="wizStrataType" type="text" placeholder="可空，例如 coding" autocomplete="off" />
+            <input
+              id="wizStrataType"
+              type="text"
+              placeholder="可空，例如 coding"
+              autocomplete="off"
+            />
           </label>
           <label>
             难度分层（可选）

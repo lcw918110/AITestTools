@@ -1079,3 +1079,35 @@ grill-me 对齐后落盘设计（S2，ADR-0011），实现见后续提交。
 
 - ADR-0011 已挂 `docs/architecture/README.md` 索引。
 - `docs/02` §3.2 补生命周期流转规则；`docs/03` §4.1 补录题/改题表单字段。
+
+## §32 运行环境 Profile 管理 UI（生命周期 + 复现清单，2026-10-19）
+
+grill-me 对齐后落盘设计（S2，ADR-0012），实现见后续提交。
+
+**1. 对齐结论（grill-me）**
+
+- 范围：Profile 管理 UI（Instance 编排后置）。
+- Profile 生命周期：`draft → active → deprecated` 线性前进，存环境文件顶层 `lifecycle` 字段（与 `recipe` 平级），变更不触发配方版本化。
+- 复现清单实时只读采集，不落盘 `EnvironmentManifest`（Manifest 属 Instance 编排，后置）：
+  - 静态：recipe 字段、Secret Reference 状态（只显示「已配置/未配置」，不显示密钥值）。
+  - 运行时采集：Git commit、工作树 dirty 状态、Node 版本、OS 架构、lockfile 摘要。
+  - 采集失败显示「未采集/不可用」及原因，不伪造版本/hash。
+- 后置：Instance 编排（一键建立/检查/重置/停止/销毁/重建）、EnvironmentManifest 落盘。
+
+**2. 设计落盘（S2）**
+
+- ADR-0012 已挂 `docs/architecture/README.md` 索引。
+- `docs/02` §4.7 补 Profile 生命周期流转规则与复现清单实时采集定位；`docs/03` §4.4 补 Profile 管理。
+
+**3. 实现与决策记录（S3–S5，自主工作阶段）**
+
+本切片实现过程中的关键选择（供复核）：
+
+- **`safeUnder` 传文件名既有 bug**：`envEnvironmentsList/Update` 原用 `safeUnder(environmentsDir, f)` 传文件名，`safeUnder` 内部 `resolve(target)` 基于 cwd 而非 root，导致环境列表恒返回空。修复为传完整路径 `join(environmentsDir, f)`。此为 env 功能的前置依赖，非顺手重构。
+- **`collectReproManifest` 不接收 project 参数**：复现清单采集的是测试平台（本仓）自身版本信息（Git commit/Node/OS/lockfile），与具体被测项目无关，故移除多余参数，避免语义误导。
+- **`lockfileSummary` 依赖计数**：用 `"node_modules/"` 前缀计数，实测精确（1022 依赖 = packages 字段数 −1，根项目无前缀），不引入完整 JSON.parse 开销。
+- **既有 L0 冒烟阻塞修复**（为让 env 断言 C-A-53~56 能跑到）：
+  - `health.ts` PRESETS 补 `defaultRelease: 'paired-off'`（与 `run-plan.ts` 的 `defaultRelease` 一致，此前缺失导致 C-A-02 断言 KeyError）。
+  - `console-l0.sh` C-A-52 verify 模型 ID 由不存在的 `wave-ai/gpt-5.4-mini` 改为真实 `wave-anthropic/claude-sonnet-5`。
+- **`.console-catalog.json` 运行时产物**：L0 冒烟 verify stub 会生成该文件，此前未 gitignore。已加 `**/.console-catalog.json` 规则并清理残留。
+- **既有未修问题（记录，不在本切片）**：`bank/validate` 与 `/api/run` 的 job 执行在 Node 24 下因 `src/run/execution-adapter.ts:106` 的 TS 参数属性语法（strip-types 不支持）失败，属既有运行时环境约束；`format:check` 报 7 个既有文件格式问题（`apps/console/bank.ts`、`tests/console/bank-lifecycle.test.ts`、`docs/07`、`docs/10`、`docs/README.md`、`docs/archive`、`.Herdchestra/diagnostics`），均为前序切片遗留，待独立清理。

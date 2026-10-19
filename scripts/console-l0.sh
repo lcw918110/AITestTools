@@ -41,9 +41,63 @@ curl -sf "$BASE/api/env/catalog" | python3 -c 'import sys,json; d=json.load(sys.
 
 # C-A-52 stub 验证
 curl -sf -X POST "$BASE/api/env/verify" -H 'content-type: application/json' \
-  -d '{"kind":"model","id":"wave-ai/gpt-5.4-mini"}' | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d.get("ok")'
+  -d '{"kind":"model","id":"wave-anthropic/claude-sonnet-5"}' | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d.get("ok")'
 curl -sf -X POST "$BASE/api/env/verify" -H 'content-type: application/json' \
   -d '{"kind":"agent","id":"fast-coder"}' | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d.get("ok")'
+
+# C-A-53 环境列表返回 lifecycle 字段
+curl -sf "$BASE/api/env/environments" | python3 -c 'import sys,json; d=json.load(sys.stdin); envs=d["environments"]; assert envs and all("lifecycle" in e for e in envs), "environment 缺 lifecycle"'
+
+# C-A-54 复现清单实时只读采集
+curl -sf "$BASE/api/env/manifest" | python3 -c 'import sys,json; m=json.load(sys.stdin); assert "worktreeDirty" in m and "nodeVersion" in m and "osPlatform" in m and "osArch" in m'
+
+# C-A-55 环境 lifecycle 流转校验（非法回退 400）
+CODE=$(curl -s -o /tmp/ca55.json -w '%{http_code}' -X PUT "$BASE/api/env/environments/hosted-plain-v1" \
+  -H 'content-type: application/json' -d '{"lifecycle":"draft"}')
+test "$CODE" = "400"
+grep -q '不可回退' /tmp/ca55.json
+
+# C-A-56 环境 lifecycle 合法流转（临时环境文件闭环，测完删除不污染）
+python3 - <<'PY'
+import json, os, urllib.request, urllib.error
+base = os.environ["BASE"]
+root = os.environ["ROOT"]
+env_dir = os.path.join(root, "examples/product-eval/environments")
+tmp_name = "l0-tmp-env"
+tmp_file = os.path.join(env_dir, tmp_name + ".environment.json")
+doc = {
+    "environment_profile_id": tmp_name,
+    "name": tmp_name,
+    "lifecycle": "draft",
+    "recipe": {"runtime": "opencode", "host_model": "wave-ai/gpt-5.4-mini"},
+}
+with open(tmp_file, "w", encoding="utf8") as f:
+    json.dump(doc, f, ensure_ascii=False, indent=2)
+    f.write("\n")
+
+def put(name, lifecycle):
+    req = urllib.request.Request(
+        base + "/api/env/environments/" + name,
+        data=json.dumps({"lifecycle": lifecycle}).encode(),
+        headers={"content-type": "application/json"},
+        method="PUT",
+    )
+    with urllib.request.urlopen(req) as r:
+        return json.load(r)
+
+try:
+    assert put(tmp_name, "active")["lifecycle"] == "active"
+    assert put(tmp_name, "deprecated")["lifecycle"] == "deprecated"
+    # 终态不可再流转
+    try:
+        put(tmp_name, "active")
+        raise SystemExit("expected 400 when transitioning from deprecated")
+    except urllib.error.HTTPError as e:
+        assert e.code == 400
+finally:
+    os.remove(tmp_file)
+print("env lifecycle transition OK")
+PY
 
 JOB=$(curl -sf -X POST "$BASE/api/run" -H 'content-type: application/json' \
   -d '{"experiment":"plugin","live":false}' | python3 -c 'import sys,json; print(json.load(sys.stdin)["jobId"])')
