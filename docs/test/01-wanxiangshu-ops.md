@@ -190,9 +190,9 @@ npm run proctor -- compare --baseline "$OFF" --candidate "$ON"
 | hosted smoke | `WX-B-HOSTED-PLUGIN-01`（万象术 papers）                                                                         |
 | Fold/ST      | `st-import-L1`                                                                                                   |
 
-**更新原则**：改任务/成功标准 → off/on **同步** `bump-rev`；禁止把仅 on 侧协议事件写进 off 期望；打分量表变更单独版本化。
+**更新原则**：改任务/成功标准 → off/on **同步**升 rev（新建 revision 文件）；禁止把仅 on 侧协议事件写进 off 期望；打分量表变更单独版本化。
 
-换任务：改 `bank/materials/PAIRED-TASK-01/prompt.txt` 与对应 item 的判定字段 → off/on **同步** `bump-rev` → 重跑。
+换任务：改 `bank/materials/PAIRED-TASK-01/prompt.txt` 与对应 item 的判定字段 → off/on **同步**升 rev → 重跑。
 
 ### 2.7 hosted 真跑的环境约束（2026-08-31 实测）
 
@@ -262,7 +262,7 @@ npm run eval:model:demo-schema
 
 - 产品效果：`examples/product-eval` · `eval-model` / `eval-model-alt`（156 OFF）；经济实验用校准 14 题：`paired-off-alt-calibrate`
 - 工程 fixture：`examples/demo-project` · `eval-model` / `model-core`
-- **更新**：改任务/成功标准 → `bump-rev`；只换模型 → 不升题 rev；禁止为弱模型单独放宽同一题
+- **更新**：改任务/成功标准 → 升 rev（新建 revision 文件）；只换模型 → 不升题 rev；禁止为弱模型单独放宽同一题
 
 ---
 

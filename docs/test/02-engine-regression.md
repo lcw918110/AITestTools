@@ -66,11 +66,8 @@ npm run proctor -- item validate --project "$PROJECT"
 # 新建骨架（--mode 对齐 execution_profile.mode）
 npm run proctor -- item new --id my-a-01 --mode fold --layer L1 --project "$PROJECT"
 
-# 语义变更后升 rev（勿静默改期望）
-npm run proctor -- item bump-rev my-a-01 --project "$PROJECT" --name "说明为何变严/变宽"
-
-# 退役（deprecated，勿直接删历史基线依赖题）
-npm run proctor -- item retire my-a-01 --project "$PROJECT" --name "被 X 取代"
+# 语义变更后升 rev：手动新建 case_id.rN.case-revision.json（revision_number +1，重算 content_hash）
+# 退役：把 case.json 的 lifecycle 改为 deprecated（勿直接删历史基线依赖题）
 
 # 钉选 / 对比
 npm run proctor -- baseline pin --run runs/<id> --name smoke-a-l1
@@ -116,7 +113,7 @@ npm run proctor -- report trend --project "$PROJECT"   # 多 run 指标时间线
 | 2   | 试题 `execution_profile.layer=L2`，`mode=scripted`，引用 `script` + `stimulus.kind=hook_script`       | 剧本驱动轮次，无真 API                                             |
 | 3   | Oracle 用 `event_subsequence` / `state_predicate` / `no_event` 钉时序，而非「某事件最终出现」         | 如 nudge 必须夹在两轮之间（见 demo `demo-a-nudge-timing-01` rev2） |
 | 4   | `npm run proctor -- run --dataset smoke-a --environment fake-host-v1 --project examples/demo-project` | 全绿；artifacts 含 durable 会话痕迹（若 `requires_durable_log`）   |
-| 5   | 改契约或剧本后：先 `item bump-rev`，再跑；旧 baseline 用 `compare` 看回归                             | 故意变严应导致旧 baseline 失败分类清晰                             |
+| 5   | 改契约或剧本后：先升 rev（新建 revision 文件），再跑；旧 baseline 用 `compare` 看回归                 | 故意变严应导致旧 baseline 失败分类清晰                             |
 
 #### 情况 1.3：L3 cassette 对拍
 
@@ -163,11 +160,11 @@ npm run proctor -- run --dataset st-import-l1 --environment fold-wanxiangshu-v1 
 
 ### 1.5 测试用例更新原则（行为 / 事件）
 
-1. **领域不变量几乎不变**：业务规则变 → 改 `expected-fold` / 谓词，并 **`bump-rev`**，在 `change_log` 写清「变严/变宽/纠错」。
+1. **领域不变量几乎不变**：业务规则变 → 改 `expected-fold` / 谓词，并**升 rev**（新建 `case_id.rN.case-revision.json`，`revision_number` +1，重算 `content_hash`），在 `change_log` 写清「变严/变宽/纠错」。
 2. **控制流周级变**：优先改 L2 剧本与 subsequence；禁止用「最终出现某事件」掩盖时序错误。
 3. **宿主月级变**：先 `contract verify`；契约变则更新 L2；仅边界题重录 L3，禁止整库升 cassette。
 4. **禁止**把真模型噪声写进行为/事件期望；行为/事件失败归因不应落到 `MODEL_*`。
-5. **退役**：旧题被新 ST 取代 → `item retire`，不要物理删除仍被 baseline 引用的 id。
+5. **退役**：旧题被新 ST 取代 → 把 `case.json` 的 `lifecycle` 改为 `deprecated`，不要物理删除仍被 baseline 引用的 id。
 6. **Flaky**：先修刺激确定性（去裸 sleep、固定 seed/事件序），再改期望；连续 flaky 不得靠放宽 oracle 蒙混。
 
 ---
@@ -245,7 +242,7 @@ npm run proctor -- item new --id demo-b-tool-06 --mode direct_tool \
 ### 2.5 测试用例更新原则（模型）
 
 1. **换模型 ≠ 改题**：模型矩阵变更只改 run 参数 / environment 默认模型，不升题 rev。
-2. **改 prompt / 必填字段 / 必调工具** → 必须 `bump-rev`，并说明对服从率的预期影响。
+2. **改 prompt / 必填字段 / 必调工具** → 必须升 rev（新建 revision 文件），并说明对服从率的预期影响。
 3. **工具实现变更**：direct 仍用 recorded fixture；真工具回归放到 **工具 CLI**，禁止用模型题背锅。
 4. **hosted**：协议探针随插件 NDJSON schema 变而更新；归因树变更走设计评审，不把偶然 PASS 写成门禁。
 5. **repeats**：减噪靠重复与 fixture，不靠单次运气放宽 oracle。
@@ -317,7 +314,7 @@ npm run proctor -- item new --id wx-c-st-99 --mode direct_tool \
 
 ### 3.5 测试用例更新原则（工具）
 
-1. **壳协议变**（stdout JSON 字段、exit 语义）→ 全量相关题 `bump-rev`，并同步壳与 oracle。
+1. **壳协议变**（stdout JSON 字段、exit 语义）→ 全量相关题升 rev（新建 revision 文件），并同步壳与 oracle。
 2. **工具行为变严**（如 ff-only 更严）→ 更新 `tool_result_equals` / 工作区断言，禁止删断言装绿。
 3. **可改 L1 覆盖的「工具改投影」**优先迁行为/事件 L1；工具聚焦 IO/边界/幂等/截断（PRD 补充）。
 4. **禁止**在工具题里依赖活模型；不挂模型（无模型驱动）。

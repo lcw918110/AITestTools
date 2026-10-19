@@ -809,3 +809,31 @@
 - `npm run lint`：通过
 - `npm test`：57 文件 315 测试通过（删除 1 个回退测试用例）
 - `format:check`：全仓干净
+
+## §22 文档与注释残留收口 + 升 rev/退役新口径（2026-10-19）
+
+§21 清完 console 层死代码后，二次全盘审视发现现行手册仍引用已删除的命令/类型，且「升 rev / 退役」在删除 `item bump-rev`/`item retire` 后无替代口径，本轮一并收口。
+
+**1. 现行手册命令引用修正**
+
+- `docs/test/02-engine-regression.md`：删除 `item bump-rev`/`item retire` 命令引用，改为新口径（见下）；「升 rev 时机」速查表保留概念性描述。
+- `docs/test/01-wanxiangshu-ops.md`：`bump-rev` 改为「升 rev（新建 revision 文件）」。
+
+**2. 升 rev / 退役新口径（写入手册）**
+
+- 升 rev：语义变更后手动新建 `case_id.rN.case-revision.json`（`revision_number` +1，重算 `content_hash`），在 `change_log` 写清原因；`item new` 只生成 r1 骨架。
+- 退役：把 `case.json` 的 `lifecycle` 改为 `deprecated`，不物理删除仍被 baseline 引用的 id。
+
+**3. 迁移映射表收口**
+
+- `docs/05-领域对象与代码类型映射.md`：第 10 行约定改为「papers-v1 旧类型已彻底删除，不再保留兼容接口」；第 11 节「V1→V2.17 迁移映射」表精简为「迁移已收口」说明，指向过程日志 §20。
+
+**4. 注释残留清理**
+
+- `src/domain/types.ts`、`src/run/runner-types.ts`、`src/run/run-orchestrator.ts`：删除提到已删旧类型名（ItemDoc/RoomDoc）的注释，改为中性描述。
+
+**验证（实测，2026-10-19）**：
+
+- `npm run typecheck`：0 错误
+- `npm run lint`：通过
+- `format:check`：全仓干净

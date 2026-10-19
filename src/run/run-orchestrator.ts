@@ -48,7 +48,7 @@ class InMemoryFactsRecorder implements ObservedFactsRecorder {
   }
 }
 
-/** CaseExecution 需要的身份信息（由调用方从 CaseRevision 提供，ItemDoc 不携带）。 */
+/** CaseExecution 需要的身份信息（由调用方从 CaseRevision 提供）。 */
 export interface CaseIdentity {
   case_id: string;
   case_revision_id: string;

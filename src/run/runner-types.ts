@@ -1,8 +1,7 @@
 /**
  * runner 输入类型（绞杀者完成后的领域对象形状）。
  *
- * 深迁移收尾：runner 不再消费 @deprecated 的 ItemDoc / RoomDoc 旧形状，
- * 直接消费领域对象 CaseRevision / EnvironmentProfile。
+ * runner 直接消费领域对象 CaseRevision / EnvironmentProfile。
  * 配对键（pair_key）来自 Case，通过 RunCaseInput.pairKey 单独携带。
  */
 import type { CaseRevision, EnvironmentProfile } from '../domain/types.ts';
