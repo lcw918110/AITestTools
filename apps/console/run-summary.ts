@@ -69,6 +69,10 @@ export interface FailureDraftHint {
   suggested_prompt?: string;
   /** 若 item_id 可映射到 PAIRED-TASK-* */
   suggested_task_id?: string;
+  /** 来源 run 路径（回归沉淀证据链）。 */
+  source_run?: string;
+  /** 失败 oracle 摘要（回归沉淀证据链）。 */
+  oracle_failures?: Array<{ oracle_id?: string; message?: string }>;
 }
 
 export interface PassTokenSummaryRow {
@@ -345,7 +349,7 @@ export function summarizePassTokens(rows: ResultRow[]): PassTokenSummaryRow[] {
     });
 }
 
-export function summarizeFailures(rows: ResultRow[]): FailureDraftHint[] {
+export function summarizeFailures(rows: ResultRow[], runDir?: string): FailureDraftHint[] {
   const out: FailureDraftHint[] = [];
   for (const r of rows) {
     if (r.pass) continue;
@@ -360,6 +364,13 @@ export function summarizeFailures(rows: ResultRow[]): FailureDraftHint[] {
     if (prompt !== undefined) hint.suggested_prompt = prompt;
     const taskId = taskIdFromItemId(r.item_id);
     if (taskId !== undefined) hint.suggested_task_id = taskId;
+    if (runDir !== undefined) hint.source_run = runDir;
+    if (r.oracle_failures !== undefined) {
+      hint.oracle_failures = r.oracle_failures.map((f) => ({
+        ...(f.oracle_id !== undefined ? { oracle_id: f.oracle_id } : {}),
+        ...(f.message !== undefined ? { message: f.message.slice(0, 200) } : {}),
+      }));
+    }
     out.push(hint);
   }
   return out;
@@ -389,6 +400,7 @@ export function buildRunSummary(opts: {
   resultsText: string | null;
   metricsText: string | null;
   scoresText: string | null;
+  runDir?: string;
 }): RunSummary {
   const rows = parseResultsNdjson(opts.resultsText ?? '');
   let aggregates: Record<string, number> = {};
@@ -404,7 +416,7 @@ export function buildRunSummary(opts: {
   const effect_pairs = summarizeEffectPairs(rows);
   const info_metrics = summarizeInfoMetrics(aggregates, rows);
   const stability = summarizeStability(aggregates, rows);
-  const failures = summarizeFailures(rows);
+  const failures = summarizeFailures(rows, opts.runDir);
   const pass_tokens = summarizePassTokens(rows);
   const reference_scores = summarizeScores(opts.scoresText);
   const summary: RunSummary = {

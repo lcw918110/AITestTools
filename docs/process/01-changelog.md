@@ -1175,3 +1175,32 @@ env 切片收口后，按「不留技术债」维度清理既有缺陷，使 `co
 **4. Bugbot 审查（S4）**
 
 - 云端 Bugbot 发现 4 项 Low/Info（无 High/Medium）：`app.js` 死代码三元表达式、样本不足文案措辞、`judgeAgreement` async 冗余、`cohensKappa` 无变异退化边界未文档化。均已修复。
+
+## §35 优化项 ④ 持续评测闭环（失败 → 回归题沉淀，2026-10-19）
+
+自主工作阶段切片：失败 run 一键沉淀为 `candidate` 状态回归题，保留证据链。
+
+**1. 范围与决策（自主选择，按不留技术债维度）**
+
+- **现状**：已有「失败 → 预填录题向导」半自动回流（`renderFailDrafts` → `openWizardWithDraft`），但缺三点：不保留证据链（attribution/oracle 失败信息/来源 run）、不标记 `candidate` 状态、不记录来源。
+- **范围**：补齐证据链 + `candidate` 状态 + 来源记录，把「预填向导」升级为「一键沉淀为候选回归题」。**不做**：自动全量沉淀（保留人工确认）、生产流量采样（本项目无此概念）。
+- **「异常」定义**：所有 `fail` 题都可沉淀（不限定 attribution 为 MODEL_*）。回归题价值在「曾经失败过」，产品缺陷（product_defect）类失败同样值得沉淀；由用户在 UI 勾选要沉淀哪几题。
+- **「原题+新证据」还是「新题」**：沉淀为**新题**（新 taskId），但把失败证据（attribution + oracle 失败信息 + 来源 run）写入 notes 与 change_log，保留证据链。理由：失败题常需改题干/终态词才能成为有效回归题，直接复用原题会造成混淆。
+- **证据链落点**：`FailureDraftHint` 补 `source_run`（来源 run 路径）+ `oracle_failures` 摘要；沉淀时写入新题 `notes`（「回归沉淀：来源 run X · 归因 Y · 失败信息 Z」），默认 `lifecycle = candidate`。
+
+**2. 实现（S3）**
+
+- `apps/console/run-summary.ts`：`FailureDraftHint` 补 `source_run`/`oracle_failures`；`summarizeFailures` 补 `runDir` 参数；`buildRunSummary` opts 补 `runDir`。
+- `apps/console/controllers/runs.ts`：`runsView` 传 `runDir: dir`。
+- `apps/console/public/bank.js`：`openWizardWithDraft` 接收失败证据，预填时默认 `lifecycle=candidate`、写回归沉淀 notes；`wizSubmit` body 加 `lifecycle`/`notes`；向导第 4 步预览展示「回归沉淀」来源标记。
+- `apps/console/public/app.js`：`renderFailDrafts` 传完整 hint（含 sourceRun/oracleFailures），按钮文案改「沉淀为候选回归题」。
+- `apps/console/bank.ts`：`createTask` 补 lifecycle 枚举校验（防非法状态写入）。
+
+**3. 验证（实测，2026-10-19）**
+
+- `tests/console/run-summary.test.ts` 补 `source_run`/`oracle_failures` 断言；`tests/console/bank-lifecycle.test.ts` 补「create 拒绝非法 lifecycle」1 例；均通过。
+- `npm run typecheck` 0 错误；`npm run lint` 通过；`scripts/console-l0.sh` 完整冒烟通过。
+
+**4. Bugbot 审查（S4）**
+
+- 本地自审发现 1 Low（`createTask` 未校验 lifecycle 值，已补 `isLifecycleState` 校验）+ 3 Info（changelog 描述与实际改动不符，已修正；message 截断口径与信息重复展示属设计取舍，不阻塞）。

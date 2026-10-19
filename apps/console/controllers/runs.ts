@@ -39,6 +39,7 @@ export async function runsView(rawPath: string): Promise<HttpResponse> {
     resultsText: resultsRaw,
     metricsText: metrics,
     scoresText: scores,
+    runDir: dir,
   });
   let effect_structured: ReturnType<typeof compareRuns> | null = null;
   let baselineResults: string | null = null;

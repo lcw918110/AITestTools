@@ -72,6 +72,25 @@ describe('生命周期状态机（第 1 期录题界面化）', () => {
     expect(Array.isArray(caseDoc.lifecycle_history)).toBe(true);
   });
 
+  it('create 拒绝非法 lifecycle 状态（防非法值写入 case.json）', async () => {
+    root = seedProject();
+    const created = await createTask(
+      root,
+      {
+        taskId: 'PAIRED-TASK-99',
+        prompt: 'Reply with exactly Z.',
+        passToken: 'Z',
+        testSetId: 'calibrate',
+        lifecycle: 'not-a-state',
+      },
+      { validate: okValidate },
+    );
+    expect('error' in created).toBe(true);
+    if ('error' in created) {
+      expect(created.error).toContain('非法生命周期状态');
+    }
+  });
+
   it('create 写入 expect.rubric 与 strata（红：当前不写 rubric/strata）', async () => {
     root = seedProject();
     const created = await createTask(

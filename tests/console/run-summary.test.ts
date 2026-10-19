@@ -68,10 +68,14 @@ describe('console run-summary', () => {
         aggregates: { a_case_pass_rate: 0, a_flaky_rerun_delta: 0 },
       }),
       scoresText: null,
+      runDir: '/tmp/runs/example-run',
     });
     expect(s.attribution.primary_fail).toBe('MODEL_TASK');
     expect(s.failures[0]?.suggested_token).toBe('PLAN_OK');
     expect(s.failures[0]?.suggested_task_id).toBe('PAIRED-TASK-04');
+    expect(s.failures[0]?.source_run).toBe('/tmp/runs/example-run');
+    expect(s.failures[0]?.oracle_failures).toHaveLength(1);
+    expect(s.failures[0]?.oracle_failures?.[0]?.message).toContain('PLAN_OK');
   });
 
   it('PASS 且无暗号时摘要写 pass_token_present false', () => {

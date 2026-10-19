@@ -27,6 +27,8 @@ let nextTaskId = 'PAIRED-TASK-02';
 let knownTokens = new Map();
 let testSets = [];
 let bankFilterId = '';
+/** 失败 run 回归沉淀的草稿元数据（证据链），录题时写入 notes/lifecycle。 */
+let wizardDraft = {};
 
 function setBankStatus(text, cls) {
   const el = document.getElementById('bankStatus');
@@ -155,9 +157,23 @@ function openWizard() {
   })();
 }
 
-/** 从失败 run 预填录题向导（最小回流）。 */
+/** 由回归沉淀草稿构造 notes（证据链）。 */
+function buildRegressionNotes(draft) {
+  const parts = [];
+  if (draft.sourceRun) parts.push(`来源 run：${draft.sourceRun}`);
+  if (draft.attribution) parts.push(`归因：${draft.attribution}`);
+  if (draft.message) parts.push(`失败信息：${draft.message}`);
+  const oracles = draft.oracleFailures || [];
+  if (oracles.length) {
+    parts.push(`oracle 失败：${oracles.map((o) => o.oracle_id || o.message || '?').join('、')}`);
+  }
+  return parts.length ? `回归沉淀 · ${parts.join(' · ')}` : '';
+}
+
+/** 从失败 run 预填录题向导（最小回流）。draft 可带回归沉淀证据（sourceRun/attribution/message/oracleFailures）。 */
 export function openWizardWithDraft(draft = {}) {
   wizardStep = 1;
+  wizardDraft = draft;
   document.getElementById('wizTaskId').value = draft.taskId || nextTaskId || '';
   document.getElementById('wizPrompt').value = draft.prompt || '';
   document.getElementById('wizToken').value = draft.passToken || '';
@@ -187,7 +203,7 @@ function renderWizardStep() {
     const tags = document.getElementById('wizTags').value.trim();
     const tsId = document.getElementById('wizTestSet').value;
     const ts = testSets.find((x) => x.id === tsId);
-    document.getElementById('wizPreview').textContent = [
+    const lines = [
       `将创建：`,
       `- bank/materials/${id}/prompt.txt`,
       `- …/EVAL-B-${id}-OFF.item.json`,
@@ -196,7 +212,14 @@ function renderWizardStep() {
       `（不自动进 156 全量，除非所选即全量）`,
       `任务类型：${tags || '（未填）'}`,
       `判定：退出码 0 + 回复必须出现「${must}」${forbid ? `；禁止出现「${forbid}」` : ''}`,
-    ].join('\n');
+    ];
+    if (wizardDraft.sourceRun) {
+      lines.push(
+        `回归沉淀：来源 ${wizardDraft.sourceRun}${wizardDraft.attribution ? ` · 归因 ${wizardDraft.attribution}` : ''}`,
+      );
+      lines.push(`生命周期：candidate（候选回归题）`);
+    }
+    document.getElementById('wizPreview').textContent = lines.join('\n');
   }
 }
 
@@ -408,6 +431,13 @@ function wireBank() {
         ...(rubric ? { rubric } : {}),
         ...(strataType && strataDifficulty
           ? { strata: { task_type: strataType, difficulty_level: strataDifficulty } }
+          : {}),
+        // 回归沉淀：写证据链 notes + candidate 生命周期。
+        ...(wizardDraft.sourceRun
+          ? {
+              lifecycle: 'candidate',
+              notes: buildRegressionNotes(wizardDraft),
+            }
           : {}),
       };
       const d = await api('/api/bank/tasks', {

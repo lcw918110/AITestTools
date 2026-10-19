@@ -759,12 +759,16 @@ function renderFailDrafts(summary) {
     const btn = document.createElement('button');
     btn.type = 'button';
     btn.className = 'ghost';
-    btn.textContent = '预填录题向导';
+    btn.textContent = '沉淀为候选回归题';
     btn.addEventListener('click', () => {
       openWizardWithDraft({
         taskId: f.suggested_task_id || '',
         prompt: f.suggested_prompt || '',
         passToken: f.suggested_token || '',
+        sourceRun: f.source_run || '',
+        attribution: f.attribution || '',
+        message: f.message || '',
+        oracleFailures: f.oracle_failures || [],
       });
     });
     row.appendChild(meta);

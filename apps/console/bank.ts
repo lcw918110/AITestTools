@@ -1093,6 +1093,10 @@ export async function createTask(
   const strataErr = assertStrata(body.strata);
   if (strataErr) return { error: strataErr, code: 400 };
 
+  if (body.lifecycle !== undefined && !isLifecycleState(body.lifecycle)) {
+    return { error: `非法生命周期状态：${body.lifecycle}`, code: 400 };
+  }
+
   const testSetId = (body.testSetId ?? '').trim();
   if (!testSetId) return { error: '请选择测试集', code: 400 };
   const testSet = getTestSet(project, testSetId);
