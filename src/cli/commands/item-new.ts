@@ -90,6 +90,20 @@ function oraclesOf(mode: Mode, caseId: string): Record<string, unknown>[] {
   return [{ id: 'todo', type: 'exit_code', equals: 0 }];
 }
 
+/** mode → 需人工补全的占位字段提示（骨架生成后引导用户补全）。 */
+function todoHintsOf(mode: Mode): string[] {
+  if (mode === 'fold') return ['execution_profile.fold_entry（当前为 TODO）'];
+  if (mode === 'scripted') {
+    return [
+      'execution_profile.contract（当前为 TODO）',
+      'execution_profile.script（当前为 scripts/TODO.json）',
+    ];
+  }
+  if (mode === 'cassette') return [];
+  if (mode === 'hosted') return [];
+  return [];
+}
+
 /**
  * cases-v1 录题：生成 case + case-revision（含 content_hash）骨架 + materials 目录。
  * 可选 --dataset 挂载到 dataset-release（创建或追加引用并重算 closure_hash）。
@@ -240,6 +254,11 @@ export async function runItemNew(options: ItemNewOptions): Promise<number> {
     console.log(`已创建 case：${caseId} → ${caseFile}`);
     console.log(`已创建 case-revision：${caseRevisionId} → ${revisionFile}`);
     if (datasetFile !== undefined) console.log(`已挂载 dataset-release：${datasetFile}`);
+    const hints = todoHintsOf(modeTyped);
+    if (hints.length > 0) {
+      console.log('下一步补全（骨架占位，未补全前无法 run）：');
+      for (const h of hints) console.log(`  - ${h}`);
+    }
   }
   return 0;
 }

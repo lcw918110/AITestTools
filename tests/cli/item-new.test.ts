@@ -1,7 +1,7 @@
 import { existsSync, mkdtempSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { runItemNew } from '../../src/cli/commands/item-new.ts';
 import { revisionDigest } from '../../src/exam-engine/digest.ts';
 import type { CaseRevision } from '../../src/exam-engine/types.ts';
@@ -101,6 +101,25 @@ describe('item new（cases-v1 录题）', () => {
       expect(dsDoc.case_revisions[0]?.case_revision_id).toBe('demo-b-01.r1');
       expect(dsDoc.closure_hash).toMatch(/^[0-9a-f]{64}$/);
     } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('非 JSON 模式提示需补全的占位字段（fold/scripted）', async () => {
+    const root = seedProject();
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    try {
+      expect(await runItemNew({ project: root, id: 'demo-fold-02', mode: 'fold' })).toBe(0);
+      const foldLogs = logSpy.mock.calls.map((c) => c.join(' '));
+      expect(foldLogs.some((l) => l.includes('execution_profile.fold_entry'))).toBe(true);
+
+      logSpy.mockClear();
+      expect(await runItemNew({ project: root, id: 'demo-script-01', mode: 'scripted' })).toBe(0);
+      const scriptLogs = logSpy.mock.calls.map((c) => c.join(' '));
+      expect(scriptLogs.some((l) => l.includes('execution_profile.contract'))).toBe(true);
+      expect(scriptLogs.some((l) => l.includes('execution_profile.script'))).toBe(true);
+    } finally {
+      logSpy.mockRestore();
       rmSync(root, { recursive: true, force: true });
     }
   });

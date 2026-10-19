@@ -888,3 +888,24 @@
 - `npm run typecheck`：0 错误
 - `npm run lint`：通过
 - `npm test`：57 文件 315 测试通过
+
+## §25 遗留待办②：item new 骨架补全提示（2026-10-19）
+
+按计划依序推进待办②：`item new` 生成的骨架带 TODO 占位（`fold_entry: 'TODO'`、`contract: 'TODO'`、`script: 'scripts/TODO.json'`），生成后提示不明确，易漏补。
+
+**1. 方案（不改骨架结构，优化提示）**
+
+- 保留 TODO 占位（骨架约定，schema 只查 string 类型，能过 validate；但未补全前无法 run）。
+- 新增 `todoHintsOf(mode)`：按 mode 返回需补全的占位字段清单（fold → `execution_profile.fold_entry`；scripted → `execution_profile.contract` + `execution_profile.script`；cassette/hosted/direct_tool 无占位）。
+- 非 JSON 模式下，生成后打印「下一步补全（骨架占位，未补全前无法 run）：」+ 逐条提示；JSON 模式不受影响（保持机器可读）。
+
+**2. 测试**
+
+- `tests/cli/item-new.test.ts` 新增用例：非 JSON 模式下 fold/scripted 的提示输出包含对应占位字段名。
+
+**验证（实测，2026-10-19）**：
+
+- `npm run typecheck`：0 错误
+- `npm run lint`：通过
+- `npm test`：57 文件 316 测试通过（新增 1 用例）
+- `format:check`：全仓干净
