@@ -1288,3 +1288,8 @@ env 切片收口后，按「不留技术债」维度清理既有缺陷，使 `co
 - `npm test` 381 通过（非沙箱全绿；沙箱下 4 例 `git init` 拦截属环境限制）。
 - `scripts/console-l0.sh` 完整冒烟通过（含 C-A-57~60 断言）。
 - 全仓 TODO/占位仅 `item-new.ts` 骨架约定（有意设计，§25 已记录），无技术债尾巴。
+
+**4. 状态机终态细分（docs/07 §4.3「推迟到 Phase 2」项）最终处置**
+
+- `pass=false, 其它归因 → completed + fail`（区分「跑通未通过」vs「执行异常」）**已随 §26 落地**：`RunOrchestrator.executeCase` 成功路径映射 `completed + pass/fail + attribution`（跑通未通过），异常路径映射 `execution_failed + fail + attribution`（执行异常），两者已区分。
+- `timed_out=true → timed_out + indeterminate`（超时独立终态）**明确后置**：超时事实已通过 `AxisItemResult.timed_out` 字段记录并在报告「超时」列可见（`write-artifacts.ts`），仅未拆成独立 `execution_outcome` 枚举值；属低价值枚举细化，非功能缺口，不再单独立项。
