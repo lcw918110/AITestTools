@@ -1298,3 +1298,17 @@ env 切片收口后，按「不留技术债」维度清理既有缺陷，使 `co
 
 - `RUN_TRANSITIONS` 状态机表**已完整落地**（`created/preflight/queued/running/cancelling/interrupted/completed/failed/cancelled/blocked` 全状态 + 流转约束，`types.ts`），`RunOrchestrator` 已接线 `cancelled`/`interrupted` 封存逻辑（§26）。
 - **持久化 / 断点续跑 / 取消调度队列**（docs/07 §6 三项）**明确后置**：当前为「内存状态机 + 各 runner 独立产物落盘」架构（docs/07 §1 明示「不引入持久化存储」）；`Run.interrupted`/`cancelled` 的语义契约已在 docs/02 §3.4 定义，但落盘对账/续跑/并发调度属独立引擎增强，docs/08 明示「不做 Phase 2~8（状态机持久化…）」。非功能缺口，不再单独立项。
+
+## §39 全量审核收口：推送 + 万象术 worktree 残留归属判定（2026-10-20）
+
+对自主工作阶段做全量审核，收口两项遗留：
+
+**1. 本地 19 个提交推送 origin/main**
+
+- 本地 `main` 曾领先 `origin/main` 19 个提交（功能实现 + 文档收口），已 `git push origin main` 同步；pre-push 终审门禁通过（`527cda7..f531bc9`）。
+
+**2. 万象术 plugin 运行残留 worktree（`manager/hkhhh3`）归属判定**
+
+- 现象：`git worktree list` 存在游离 worktree `manager/hkhhh3`，指向 `/private/var/folders/…/wanxiangshu-hkhhh3`，提交 `02c8c55` 已在 main 历史。
+- 判定：本仓 `src/` 无任何 `git worktree` 代码，该 worktree 是**万象术 plugin（被测对象）manager agent 在 hosted 评测运行时自建**，非测试平台产物。测试平台自身隔离环境（`proctor-hosted-*` 临时目录 + 隔离 HOME）在 `HostedAdapter.cleanup` 已 `rmSync` 清理，无残留。
+- 决策：**万象术自建的 worktree 不干预、只记录**——主动清理会掩盖「被测对象不清理环境」这一行为本身，干扰评测结论。后续若需把「被测对象是否污染环境」纳入评测观察维度，另立独立优化项（grill-me 对齐），不在本次实现。
