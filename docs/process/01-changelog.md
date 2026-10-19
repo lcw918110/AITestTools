@@ -1111,3 +1111,12 @@ grill-me 对齐后落盘设计（S2，ADR-0012），实现见后续提交。
   - `console-l0.sh` C-A-52 verify 模型 ID 由不存在的 `wave-ai/gpt-5.4-mini` 改为真实 `wave-anthropic/claude-sonnet-5`。
 - **`.console-catalog.json` 运行时产物**：L0 冒烟 verify stub 会生成该文件，此前未 gitignore。已加 `**/.console-catalog.json` 规则并清理残留。
 - **既有未修问题（记录，不在本切片）**：`bank/validate` 与 `/api/run` 的 job 执行在 Node 24 下因 `src/run/execution-adapter.ts:106` 的 TS 参数属性语法（strip-types 不支持）失败，属既有运行时环境约束；`format:check` 报 7 个既有文件格式问题（`apps/console/bank.ts`、`tests/console/bank-lifecycle.test.ts`、`docs/07`、`docs/10`、`docs/README.md`、`docs/archive`、`.Herdchestra/diagnostics`），均为前序切片遗留，待独立清理。
+
+**4. 技术债清理（自主工作阶段续）**
+
+env 切片收口后，按「不留技术债」维度清理既有缺陷，使 `console-l0.sh` 完整冒烟首次全绿：
+
+- **`format:check` 全绿**（提交 `38facd9`）：`.prettierignore` 排除 `.Herdchestra/` 诊断产物目录；格式化 6 个前序切片遗留文件。
+- **Node 24 strip-types 参数属性**（提交 `df2d6d8`）：`src/run/execution-adapter.ts` 的 `AdapterError` 构造器参数属性（`readonly kind` 等）改显式字段声明 + 赋值，规避 strip-only 模式不支持参数属性，恢复 `/api/run` 与 `bank/validate` 的 live 执行。
+- **录题 schema 缺失 `lifecycle_history`**（提交 `df2d6d8`）：`buildCaseDoc` 已写 `lifecycle_history` 字段但 `case.schema.json` 未定义（`additionalProperties: false`），导致录题后校验 `SCHEMA_CASE` 报错回滚。补 `lifecycle_history` 数组定义（`from/to/reason/at`）。
+- **修复后 `console-l0.sh` 完整冒烟通过**（含新建/删除题闭环、run、pin/compare），此前因上述既有缺陷一直跑不通。
