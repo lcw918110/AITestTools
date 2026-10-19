@@ -102,14 +102,23 @@ export type AdapterErrorKind =
 
 /** Adapter 统一错误：携带阶段、归因、是否可安全重试，以及可选的失败结果透传。 */
 export class AdapterError extends Error {
+  readonly kind: AdapterErrorKind;
+  readonly attribution: Attribution;
+  readonly retryable: boolean;
+  readonly result: AxisItemResult[] | undefined;
+
   constructor(
-    readonly kind: AdapterErrorKind,
-    readonly attribution: Attribution,
+    kind: AdapterErrorKind,
+    attribution: Attribution,
     message: string,
-    readonly retryable: boolean = false,
-    readonly result?: AxisItemResult[],
+    retryable: boolean = false,
+    result?: AxisItemResult[],
   ) {
     super(message);
     this.name = 'AdapterError';
+    this.kind = kind;
+    this.attribution = attribution;
+    this.retryable = retryable;
+    this.result = result;
   }
 }

@@ -34,6 +34,21 @@
       "type": "string",
       "description": "配对键：OFF/ON 两侧相同，用于 compare 分差对齐。"
     },
+    "lifecycle_history": {
+      "type": "array",
+      "description": "生命周期流转历史（操作者/时间/说明，本机单用户信任模型，非双人审批）。",
+      "items": {
+        "type": "object",
+        "required": ["from", "to", "reason", "at"],
+        "additionalProperties": false,
+        "properties": {
+          "from": { "type": "string" },
+          "to": { "type": "string" },
+          "reason": { "type": "string" },
+          "at": { "type": "string" }
+        }
+      }
+    },
     "created_at": { "type": "string" },
     "updated_at": { "type": "string" }
   }
