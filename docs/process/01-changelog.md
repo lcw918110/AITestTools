@@ -1285,7 +1285,7 @@ env 切片收口后，按「不留技术债」维度清理既有缺陷，使 `co
 **3. 全量验证（实测，2026-10-20）**
 
 - `npm run format:check` 全绿；`npm run lint` 通过；`npm run typecheck` 0 错误。
-- `npm test` 381 通过（非沙箱全绿；沙箱下 4 例 `git init` 拦截属环境限制）。
+- `npm test` 390 通过（非沙箱全绿；沙箱下 4 例 `git init` 拦截属环境限制）。
 - `scripts/console-l0.sh` 完整冒烟通过（含 C-A-57~60 断言）。
 - 全仓 TODO/占位仅 `item-new.ts` 骨架约定（有意设计，§25 已记录），无技术债尾巴。
 
@@ -1293,3 +1293,8 @@ env 切片收口后，按「不留技术债」维度清理既有缺陷，使 `co
 
 - `pass=false, 其它归因 → completed + fail`（区分「跑通未通过」vs「执行异常」）**已随 §26 落地**：`RunOrchestrator.executeCase` 成功路径映射 `completed + pass/fail + attribution`（跑通未通过），异常路径映射 `execution_failed + fail + attribution`（执行异常），两者已区分。
 - `timed_out=true → timed_out + indeterminate`（超时独立终态）**明确后置**：超时事实已通过 `AxisItemResult.timed_out` 字段记录并在报告「超时」列可见（`write-artifacts.ts`），仅未拆成独立 `execution_outcome` 枚举值；属低价值枚举细化，非功能缺口，不再单独立项。
+
+**5. 引擎层 Phase 2 边界（docs/07 §6「推迟到 Phase 2」项）最终处置**
+
+- `RUN_TRANSITIONS` 状态机表**已完整落地**（`created/preflight/queued/running/cancelling/interrupted/completed/failed/cancelled/blocked` 全状态 + 流转约束，`types.ts`），`RunOrchestrator` 已接线 `cancelled`/`interrupted` 封存逻辑（§26）。
+- **持久化 / 断点续跑 / 取消调度队列**（docs/07 §6 三项）**明确后置**：当前为「内存状态机 + 各 runner 独立产物落盘」架构（docs/07 §1 明示「不引入持久化存储」）；`Run.interrupted`/`cancelled` 的语义契约已在 docs/02 §3.4 定义，但落盘对账/续跑/并发调度属独立引擎增强，docs/08 明示「不做 Phase 2~8（状态机持久化…）」。非功能缺口，不再单独立项。

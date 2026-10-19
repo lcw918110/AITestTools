@@ -214,6 +214,8 @@ export class RunOrchestrator {
 
 **推迟到 Phase 2**：
 
+> 处置更新（2026-10-20，见 changelog §38）：`RUN_TRANSITIONS` 状态机表已完整落地（全状态 + 流转约束）；以下三项「持久化 / 断点续跑 / 取消调度队列」明确后置（当前为内存状态机 + 产物落盘架构，见 §1「不引入持久化存储」；docs/08 明示「不做 Phase 2~8」）。
+
 - 持久化 Run/CaseExecution/Attempt 到存储。
 - 断点续跑 / 对账（interrupted 恢复流程）。
 - 取消（cancelling）与并发调度队列（queued 的完整语义）。
@@ -230,12 +232,12 @@ export class RunOrchestrator {
 
 ---
 
-## 8. 评审要点（请重点看）
+## 8. 评审要点（已随 §26 决策落地）
 
-| #   | 决策点                                                        | 位置 | 需要你确认                                               |
-| :-- | :------------------------------------------------------------ | :--- | :------------------------------------------------------- |
-| 1   | ExecutionAdapter 8 阶段接口形状                               | §3.1 | 是否接受「相邻阶段可合并」的宽松约定                     |
-| 2   | 三值记录用 `ObservedFactsRecorder` 而非直接改 AgentInvocation | §3.2 | 是否接受先落内存事实、Phase 2 再持久化                   |
-| 3   | 原 `*-runner.ts` 直接改造为 adapter（删旧函数）               | §5   | 是否接受「不留薄封装、删旧 `runXxxItem`」的低冗余路线    |
-| 4   | AxisItemResult → 状态机终态映射                               | §4.3 | `attribution=HARNESS` 映射到 `execution_failed` 是否合理 |
-| 5   | Phase 2 边界（持久化/续跑/取消推迟）                          | §6   | 是否接受本次只做内存状态机                               |
+| #   | 决策点                                                        | 位置 | 决策结果（2026-10-19 §26 落地）                              |
+| :-- | :------------------------------------------------------------ | :--- | :----------------------------------------------------------- |
+| 1   | ExecutionAdapter 8 阶段接口形状                               | §3.1 | 已接受「相邻阶段可合并」的宽松约定                           |
+| 2   | 三值记录用 `ObservedFactsRecorder` 而非直接改 AgentInvocation | §3.2 | 已接受先落内存事实（`InMemoryFactsRecorder`）                |
+| 3   | 原 `*-runner.ts` 直接改造为 adapter（删旧函数）               | §5   | 已接受「不留薄封装、删旧 `runXxxItem`」的低冗余路线          |
+| 4   | AxisItemResult → 状态机终态映射                               | §4.3 | 已接受 `attribution=HARNESS` 映射 `execution_failed`         |
+| 5   | Phase 2 边界（持久化/续跑/取消推迟）                          | §6   | 已接受本次只做内存状态机（持久化/续跑/取消明确后置，见 §38） |
