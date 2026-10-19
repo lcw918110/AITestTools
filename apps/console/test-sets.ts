@@ -6,6 +6,8 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { writeJsonAtomic } from './json-io.ts';
 import { join } from 'node:path';
 import { taskIdsOfCaseRevisions } from './run-plan.ts';
+import { getTask } from './bank.ts';
+import type { TaskStrata } from '../../src/exam-engine/types.ts';
 
 export const ENV_RELEASE_NAMES = new Set(['eval-model', 'eval-agent', 'eval-model-alt']);
 export const TEST_SET_ID_RE = /^[a-z][a-z0-9-]{0,40}$/;
@@ -130,6 +132,76 @@ export function getTestSet(project: string, id: string): TestSet | { error: stri
   const row = listTestSets(project).find((t) => t.id === id);
   if (!row) return { error: `未知测试集：${id}`, code: 400 };
   return row;
+}
+
+/** 数据集详情中的单个题目条目。 */
+export type TestSetTaskEntry = {
+  taskId: string;
+  strata?: TaskStrata;
+  lifecycle?: string;
+  tags: string[];
+};
+
+/** 数据集覆盖统计：任务类型 × 难度矩阵 + 无插件/有插件侧计数 + 未覆盖项。 */
+export type TestSetCoverage = {
+  matrix: Record<string, Record<string, number>>;
+  offCount: number;
+  onCount: number;
+  /** 缺分层（strata）的题目号；读取失败（异常情况）单独记 unreadable。 */
+  missing: string[];
+  /** getTask 读取失败的题目号（理论上不应发生，独立于缺分层语义）。 */
+  unreadable: string[];
+};
+
+export type TestSetDetail = TestSet & {
+  tasks: TestSetTaskEntry[];
+  coverage: TestSetCoverage;
+};
+
+/** 数据集详情：题目列表（含 strata/lifecycle）+ 覆盖矩阵。 */
+export function testSetDetail(
+  project: string,
+  id: string,
+): TestSetDetail | { error: string; code: number } {
+  const row = getTestSet(project, id);
+  if ('error' in row) return row;
+
+  const tasks: TestSetTaskEntry[] = [];
+  const matrix: Record<string, Record<string, number>> = {};
+  const missing: string[] = [];
+  const unreadable: string[] = [];
+  let offCount = 0;
+  let onCount = 0;
+
+  for (const taskId of row.taskIds) {
+    const detail = getTask(project, taskId);
+    if ('error' in detail) {
+      tasks.push({ taskId, tags: [] });
+      unreadable.push(taskId);
+      continue;
+    }
+    const strata = detail.strata;
+    if (strata?.task_type && strata?.difficulty_level) {
+      const byDiff = (matrix[strata.task_type] ??= {});
+      byDiff[strata.difficulty_level] = (byDiff[strata.difficulty_level] ?? 0) + 1;
+    } else {
+      missing.push(taskId);
+    }
+    if (detail.off !== undefined) offCount += 1;
+    if (detail.on !== undefined) onCount += 1;
+    tasks.push({
+      taskId,
+      ...(strata ? { strata } : {}),
+      ...(detail.lifecycle ? { lifecycle: detail.lifecycle } : {}),
+      tags: detail.tags ?? [],
+    });
+  }
+
+  return {
+    ...row,
+    tasks,
+    coverage: { matrix, offCount, onCount, missing, unreadable },
+  };
 }
 
 function slugFromName(name: string): string {

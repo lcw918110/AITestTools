@@ -36,6 +36,13 @@ curl -sf "$BASE/api/presets" | python3 -c 'import sys,json; d=json.load(sys.stdi
 curl -sf "$BASE/api/project" | python3 -c 'import sys,json; d=json.load(sys.stdin); ids={t["id"] for t in d["testSets"]}; assert "effect-smoke" in ids and "full" in ids and "eval-model" not in ids'
 curl -sf "$BASE/api/test-sets" | python3 -c 'import sys,json; d=json.load(sys.stdin); ids={t["id"] for t in d["testSets"]}; assert "calibrate" in ids'
 
+# C-A-57 数据集详情接口（题目列表 + 覆盖矩阵 + 无插件/有插件侧计数）
+curl -sf "$BASE/api/test-sets/effect-smoke" | python3 -c 'import sys,json; d=json.load(sys.stdin); assert "tasks" in d and "coverage" in d; c=d["coverage"]; assert "matrix" in c and "offCount" in c and "onCount" in c and "missing" in c and "unreadable" in c; assert isinstance(c["offCount"], int) and isinstance(c["onCount"], int)'
+# 未知测试集 400
+CODE=$(curl -s -o /tmp/ca57.json -w '%{http_code}' "$BASE/api/test-sets/no-such-set")
+test "$CODE" = "400"
+grep -q '未知测试集' /tmp/ca57.json
+
 # C-A-51 catalog
 curl -sf "$BASE/api/env/catalog" | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d["models"] and d["agents"]'
 

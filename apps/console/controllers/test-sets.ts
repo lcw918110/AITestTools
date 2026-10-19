@@ -3,7 +3,7 @@
  */
 import type { HttpResponse } from '../http.ts';
 import { PROJECT } from '../config.ts';
-import { createTestSet, listTestSets } from '../test-sets.ts';
+import { createTestSet, listTestSets, testSetDetail } from '../test-sets.ts';
 
 export interface TestSetCreateBody {
   name?: string;
@@ -21,4 +21,12 @@ export async function testSetsCreate(body: TestSetCreateBody): Promise<HttpRespo
     return { status: created.code, body: { error: created.error } };
   }
   return { status: 201, body: created };
+}
+
+export async function testSetsGet(id: string): Promise<HttpResponse> {
+  const detail = testSetDetail(PROJECT, id);
+  if ('error' in detail) {
+    return { status: detail.code, body: { error: detail.error } };
+  }
+  return { status: 200, body: detail };
 }

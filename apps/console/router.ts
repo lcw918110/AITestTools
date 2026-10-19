@@ -9,7 +9,12 @@ import { readBody, parseJsonBody } from './request.ts';
 import { HOST, PORT, PUBLIC } from './config.ts';
 import { serveStatic } from './static-server.ts';
 import * as healthController from './controllers/health.ts';
-import { testSetsList, testSetsCreate, type TestSetCreateBody } from './controllers/test-sets.ts';
+import {
+  testSetsList,
+  testSetsCreate,
+  testSetsGet,
+  type TestSetCreateBody,
+} from './controllers/test-sets.ts';
 import {
   envAddAgent,
   envAddModel,
@@ -79,6 +84,12 @@ export async function handleRequest(req: IncomingMessage, res: ServerResponse): 
       return;
     }
     const r = await testSetsCreate(parsed.value);
+    json(res, r.status, r.body);
+    return;
+  }
+  if (req.method === 'GET' && pathname.startsWith('/api/test-sets/')) {
+    const id = decodeURIComponent(pathname.slice('/api/test-sets/'.length));
+    const r = await testSetsGet(id);
     json(res, r.status, r.body);
     return;
   }

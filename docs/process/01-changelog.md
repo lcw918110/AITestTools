@@ -20,7 +20,7 @@
 - 可保存的**测试任务**承担原「模板」意向；不改 `eval:paired` 默认绑 156。类型只在新建时选，打开后只读。勾选是「本题要跑的题目」，不写回测试集。
 - 权威效果小样本仍是 157–159。**T6 Grill 已对齐（§6）**：固定模型只变插件；直接改这三题直到 OFF 必挂、ON 有机会过；CONTEXT 不进结论。2026-09-01 对照曾 OFF/ON 均为 0/3，**改题重测前不能说插件更好**。不要把 156 全量当效果结论。
 - 测模型 / 测万象术 / 测 Agent 互斥。无插件 / 有插件 / 同时跑只属于测万象术，是运行环境不是两套测试集。
-- 界面：顶栏 **测试 | 题库 | 运行环境**。测试集 × 运行环境组合开跑。模型 / Agent 在运行环境页配置并 Hello World 验证后，任务只选已验证项并记下快照。录题必选或新建测试集。输入提示用中文（题号格式等协议值除外）。
+- 界面：顶栏 **测试 | 题库 | 数据集 | 运行环境 | 模型配置**。测试集 × 运行环境组合开跑。模型 / Agent 在运行环境页配置并 Hello World 验证后，任务只选已验证项并记下快照。录题必选或新建测试集。输入提示用中文（题号格式等协议值除外）。
 
 ---
 
@@ -1120,3 +1120,30 @@ env 切片收口后，按「不留技术债」维度清理既有缺陷，使 `co
 - **Node 24 strip-types 参数属性**（提交 `df2d6d8`）：`src/run/execution-adapter.ts` 的 `AdapterError` 构造器参数属性（`readonly kind` 等）改显式字段声明 + 赋值，规避 strip-only 模式不支持参数属性，恢复 `/api/run` 与 `bank/validate` 的 live 执行。
 - **录题 schema 缺失 `lifecycle_history`**（提交 `df2d6d8`）：`buildCaseDoc` 已写 `lifecycle_history` 字段但 `case.schema.json` 未定义（`additionalProperties: false`），导致录题后校验 `SCHEMA_CASE` 报错回滚。补 `lifecycle_history` 数组定义（`from/to/reason/at`）。
 - **修复后 `console-l0.sh` 完整冒烟通过**（含新建/删除题闭环、run、pin/compare），此前因上述既有缺陷一直跑不通。
+
+## §33 第 1 期数据集管理界面化（2026-10-19）
+
+自主工作阶段切片：数据集管理 UI（`docs/03` §3 数据集管理第一步）。
+
+**1. 范围与决策（自主选择，按不留技术债维度）**
+
+- **范围**：前端独立「数据集」页 + 后端 `GET /api/test-sets/:id` 详情接口。展示：题目名单（taskId）、任务类型 × 难度覆盖矩阵、无插件侧/有插件侧计数、未覆盖项（缺分层 / 读取失败分列）。
+- **不做**：测试集删除 / 编辑（底层 `createTestSet` 已有；删除/编辑涉及 OFF/ON 成对 release 一致性，风险高，后置）。
+- **「正例/负例」口径澄清**：配对题语境下 OFF（无插件）与 ON（有插件）是**同一道题的两个侧面**，并非两类样本。`offCount`/`onCount` 是「具备无插件侧/有插件侧修订的题目数」，配对题两者恒相等。故 UI 用「无插件侧（OFF）/ 有插件侧（ON）」措辞，不用「正例/负例」，避免与 `docs/02` §3.1 `expected_negative_behavior` 归因语义混淆。
+- **「边界覆盖」表达**：用 strata 的 `difficulty_level` 分布近似表达（覆盖矩阵 task_type × difficulty_level），不引入新字段。
+
+**2. 实现（S3）**
+
+- `apps/console/test-sets.ts`：新增 `testSetDetail()`，复用 `getTask` 读每题 strata/lifecycle/tags/off/on，聚合覆盖矩阵 + 计数 + `missing`（缺分层）/ `unreadable`（读取失败，分列）。
+- `apps/console/controllers/test-sets.ts` + `router.ts`：新增 `GET /api/test-sets/:id`。
+- `apps/console/public/datasets.js`（新增）+ `index.html` + `app.js` + `styles.css`：数据集页（列表 + 详情 + 覆盖矩阵表 + 新建测试集复用题库页对话框）。
+- 新建测试集成功后 `bank.js` 派发 `test-sets-changed` 事件，`datasets.js` 监听刷新（避免重复注册 submit handler 导致重复创建）。
+
+**3. 验证（实测，2026-10-19）**
+
+- `scripts/console-l0.sh` 完整冒烟通过（新增 C-A-57 详情接口断言：字段齐全 + 未知测试集 400）。
+- `npm run typecheck` 0 错误；`npm run lint` 通过。
+
+**4. Bugbot 审查（S4）**
+
+- 本地自审发现 4 项：1 High（正例/负例口径错误，已改为「无插件侧/有插件侧」）、1 Medium（导航页口径需同步 changelog §1，已更新顶栏）、2 Low（事件联动耦合、`missing` 语义混杂，已拆 `unreadable` 字段）。均已修复。

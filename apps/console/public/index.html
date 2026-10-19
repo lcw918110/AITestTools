@@ -13,6 +13,7 @@
         <nav class="top-nav" aria-label="主导航">
           <a href="#test" id="navTest" class="top-nav-link">测试</a>
           <a href="#bank" id="navBank" class="top-nav-link">题库</a>
+          <a href="#datasets" id="navDatasets" class="top-nav-link">数据集</a>
           <a href="#env" id="navEnv" class="top-nav-link">运行环境</a>
           <a href="#models" id="navModels" class="top-nav-link">模型配置</a>
         </nav>
@@ -314,6 +315,36 @@
                 </label>
                 <p class="meta" id="taskIdsReadonly"></p>
               </details>
+            </div>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <main class="layout layout-bank" id="pageDatasets" hidden>
+      <section class="panel">
+        <h1>数据集管理</h1>
+        <p class="hint">
+          成对数据集（无插件 / 有插件）的题目名单与覆盖情况。每道题同时具备无插件侧（OFF）与有插件侧（ON）。
+        </p>
+        <div class="actions">
+          <button type="button" id="newTestSetTop" class="primary">新建测试集</button>
+          <span id="datasetsStatus" class="status"></span>
+        </div>
+        <div class="datasets-layout">
+          <ul id="datasetList" class="run-list"></ul>
+          <div class="bank-edit" id="datasetDetail">
+            <div id="datasetEmpty" class="bank-empty">请选择一个数据集</div>
+            <div id="datasetView" hidden>
+              <h2 id="datasetTitle">—</h2>
+              <p id="datasetMeta" class="meta"></p>
+              <h3>覆盖矩阵（任务类型 × 难度）</h3>
+              <div id="datasetMatrix" class="dataset-matrix"></div>
+              <h3>无插件侧 / 有插件侧</h3>
+              <div id="datasetCounts" class="summary-block"></div>
+              <p id="datasetMissing" class="hint tiny" hidden></p>
+              <h3>题目列表</h3>
+              <ul id="datasetTasks" class="run-list"></ul>
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 import { api, initBank, openWizardWithDraft } from './bank.js';
 import { initEnv, verifiedAgents, verifiedModels } from './env.js';
 import { initModelPool } from './model-pool.js';
+import { initDatasets } from './datasets.js';
 
 const runBtn = document.getElementById('runBtn');
 const jobStatus = document.getElementById('jobStatus');
@@ -929,6 +930,7 @@ await refreshBaselines();
 await initEnv();
 await initBank(testSets);
 initModelPool();
+initDatasets();
 initJudge();
 
 if (evalTasks.length) {
@@ -1044,17 +1046,21 @@ function applyPage() {
   const hash =
     location.hash === '#bank'
       ? 'bank'
-      : location.hash === '#env'
-        ? 'env'
-        : location.hash === '#models'
-          ? 'models'
-          : 'test';
+      : location.hash === '#datasets'
+        ? 'datasets'
+        : location.hash === '#env'
+          ? 'env'
+          : location.hash === '#models'
+            ? 'models'
+            : 'test';
   document.getElementById('pageTest').hidden = hash !== 'test';
   document.getElementById('pageBank').hidden = hash !== 'bank';
+  document.getElementById('pageDatasets').hidden = hash !== 'datasets';
   document.getElementById('pageEnv').hidden = hash !== 'env';
   document.getElementById('pageModels').hidden = hash !== 'models';
   document.getElementById('navTest').classList.toggle('active', hash === 'test');
   document.getElementById('navBank').classList.toggle('active', hash === 'bank');
+  document.getElementById('navDatasets').classList.toggle('active', hash === 'datasets');
   document.getElementById('navEnv').classList.toggle('active', hash === 'env');
   document.getElementById('navModels').classList.toggle('active', hash === 'models');
 }
