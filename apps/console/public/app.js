@@ -2,6 +2,8 @@ import { api, initBank, openWizardWithDraft } from './bank.js';
 import { initEnv, verifiedAgents, verifiedModels } from './env.js';
 import { initModelPool } from './model-pool.js';
 import { initDatasets } from './datasets.js';
+import { initTrends } from './trends.js';
+import { initHealthCheck } from './health-check.js';
 
 const runBtn = document.getElementById('runBtn');
 const jobStatus = document.getElementById('jobStatus');
@@ -648,9 +650,7 @@ async function renderAgreement(runDir) {
     );
     for (const d of r.dimensions ?? []) {
       const dk = d.kappa === undefined ? '—' : d.kappa.toFixed(3);
-      lines.push(
-        `  ${d.dimension}: Kappa ${dk} · ${d.agreeCount}/${d.sampleCount} 一致`,
-      );
+      lines.push(`  ${d.dimension}: Kappa ${dk} · ${d.agreeCount}/${d.sampleCount} 一致`);
     }
     judgeAgreementEl.textContent = lines.join('\n');
   } catch {
@@ -967,6 +967,8 @@ await initEnv();
 await initBank(testSets);
 initModelPool();
 initDatasets();
+initTrends();
+initHealthCheck();
 initJudge();
 
 if (evalTasks.length) {
@@ -1088,17 +1090,25 @@ function applyPage() {
           ? 'env'
           : location.hash === '#models'
             ? 'models'
-            : 'test';
+            : location.hash === '#trends'
+              ? 'trends'
+              : location.hash === '#health'
+                ? 'health'
+                : 'test';
   document.getElementById('pageTest').hidden = hash !== 'test';
   document.getElementById('pageBank').hidden = hash !== 'bank';
   document.getElementById('pageDatasets').hidden = hash !== 'datasets';
   document.getElementById('pageEnv').hidden = hash !== 'env';
   document.getElementById('pageModels').hidden = hash !== 'models';
+  document.getElementById('pageTrends').hidden = hash !== 'trends';
+  document.getElementById('pageHealth').hidden = hash !== 'health';
   document.getElementById('navTest').classList.toggle('active', hash === 'test');
   document.getElementById('navBank').classList.toggle('active', hash === 'bank');
   document.getElementById('navDatasets').classList.toggle('active', hash === 'datasets');
   document.getElementById('navEnv').classList.toggle('active', hash === 'env');
   document.getElementById('navModels').classList.toggle('active', hash === 'models');
+  document.getElementById('navTrends').classList.toggle('active', hash === 'trends');
+  document.getElementById('navHealth').classList.toggle('active', hash === 'health');
 }
 
 window.addEventListener('hashchange', applyPage);

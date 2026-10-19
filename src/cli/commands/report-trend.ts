@@ -10,7 +10,7 @@ export interface ReportTrendOptions {
   json: boolean;
 }
 
-interface RunPoint {
+export interface RunPoint {
   run_id: string;
   run_dir: string;
   started_at?: string;
@@ -58,11 +58,14 @@ function loadPoint(runDir: string): RunPoint | null {
   }
 }
 
-/** 从 runs/ 扫描同一 dataset 的 metrics 时间线（Phase 3 最小面）。 */
-export function runReportTrend(options: ReportTrendOptions): number {
+/** 扫描 runs/ 收集趋势点（纯函数，CLI 与 console API 共用）。 */
+export function collectTrendPoints(options: {
+  project?: string | undefined;
+  dataset?: string | undefined;
+  limit?: number | undefined;
+}): RunPoint[] {
   const project = loadProject(options.project);
   const limit = Math.max(1, options.limit ?? 20);
-  const metric = options.metric ?? 'a_case_pass_rate';
   const points: RunPoint[] = [];
   for (const dir of listRunDirs(project.dirs.runs)) {
     const p = loadPoint(dir);
@@ -72,7 +75,18 @@ export function runReportTrend(options: ReportTrendOptions): number {
   }
   // 按 started_at / run_id 倒序取最近 N 条，再正序展示
   points.sort((a, b) => (a.started_at ?? a.run_id).localeCompare(b.started_at ?? b.run_id));
-  const recent = points.slice(-limit);
+  return points.slice(-limit);
+}
+
+/** 从 runs/ 扫描同一 dataset 的 metrics 时间线（Phase 3 最小面）。 */
+export function runReportTrend(options: ReportTrendOptions): number {
+  const project = loadProject(options.project);
+  const metric = options.metric ?? 'a_case_pass_rate';
+  const recent = collectTrendPoints({
+    project: options.project,
+    dataset: options.dataset,
+    limit: options.limit,
+  });
 
   if (options.json) {
     console.log(

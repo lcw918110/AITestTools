@@ -48,6 +48,12 @@ CODE=$(curl -s -o /tmp/ca58.json -w '%{http_code}' "$BASE/api/judge/agreement?ru
 test "$CODE" = "400"
 grep -q 'run 路径无效' /tmp/ca58.json
 
+# C-A-59 指标趋势接口（返回 points 数组，含 metric 与 gates_pass）
+curl -sf "$BASE/api/runs/trend?metric=a_case_pass_rate&limit=20" | python3 -c 'import sys,json; d=json.load(sys.stdin); assert "points" in d and isinstance(d["points"], list); assert "metric" in d; assert d["metric"]=="a_case_pass_rate"'
+
+# C-A-60 综合健康检查接口（聚合各维度，返回 ok 与结构）
+curl -sf "$BASE/api/health/check" | python3 -c 'import sys,json; d=json.load(sys.stdin); assert "ok" in d and "service" in d and "project" in d and "bank" in d and "environment" in d and "datasets" in d and "manifest" in d; assert isinstance(d["datasets"]["integrity"], list)'
+
 # C-A-51 catalog
 curl -sf "$BASE/api/env/catalog" | python3 -c 'import sys,json; d=json.load(sys.stdin); assert d["models"] and d["agents"]'
 

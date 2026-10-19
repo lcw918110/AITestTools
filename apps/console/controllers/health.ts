@@ -4,6 +4,11 @@
  */
 import type { HttpResponse } from '../http.ts';
 import { projectSummary } from '../project-reader.ts';
+import { validateBank } from '../bank.ts';
+import { loadEnvCatalog } from '../env-catalog.ts';
+import { listTestSets, testSetDetail } from '../test-sets.ts';
+import { collectReproManifest } from '../env-profile.ts';
+import { PROJECT, REPO_ROOT } from '../config.ts';
 
 const PRESETS = [
   {
@@ -42,4 +47,55 @@ export async function presets(): Promise<HttpResponse> {
 
 export async function project(): Promise<HttpResponse> {
   return { status: 200, body: projectSummary() };
+}
+
+/** 综合健康检查：服务状态 + 题库校验 + 环境目录 + 数据集完整性 + 复现清单。 */
+export async function healthCheck(): Promise<HttpResponse> {
+  const summary = projectSummary();
+  const catalog = loadEnvCatalog(PROJECT);
+  const testSets = listTestSets(PROJECT);
+  const datasetIntegrity = testSets.map((ts) => {
+    const detail = testSetDetail(PROJECT, ts.id);
+    if ('error' in detail) {
+      return { id: ts.id, error: detail.error };
+    }
+    return {
+      id: ts.id,
+      taskCount: detail.taskIds.length,
+      offCount: detail.coverage.offCount,
+      onCount: detail.coverage.onCount,
+      missing: detail.coverage.missing,
+      unreadable: detail.coverage.unreadable,
+    };
+  });
+  const bank = await validateBank(REPO_ROOT);
+  const manifest = collectReproManifest();
+  const unverifiedModels = catalog.models.filter((m) => !m.verifiedAt).map((m) => m.id);
+  const unverifiedAgents = catalog.agents.filter((a) => !a.verifiedAt).map((a) => a.id);
+  const datasetErrors = datasetIntegrity.filter(
+    (d) => 'error' in d || d.missing.length > 0 || d.unreadable.length > 0,
+  );
+  const ok =
+    bank.ok &&
+    summary.errors.length === 0 &&
+    unverifiedModels.length === 0 &&
+    unverifiedAgents.length === 0 &&
+    datasetErrors.length === 0;
+  return {
+    status: 200,
+    body: {
+      ok,
+      service: { ok: true, project: 'examples/product-eval' },
+      project: { errors: summary.errors },
+      bank: { ok: bank.ok, exitCode: bank.exitCode, summary: bank.summary },
+      environment: {
+        models: catalog.models.length,
+        agents: catalog.agents.length,
+        unverifiedModels,
+        unverifiedAgents,
+      },
+      datasets: { total: testSets.length, integrity: datasetIntegrity },
+      manifest,
+    },
+  };
 }

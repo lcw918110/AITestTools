@@ -20,7 +20,7 @@
 - 可保存的**测试任务**承担原「模板」意向；不改 `eval:paired` 默认绑 156。类型只在新建时选，打开后只读。勾选是「本题要跑的题目」，不写回测试集。
 - 权威效果小样本仍是 157–159。**T6 Grill 已对齐（§6）**：固定模型只变插件；直接改这三题直到 OFF 必挂、ON 有机会过；CONTEXT 不进结论。2026-09-01 对照曾 OFF/ON 均为 0/3，**改题重测前不能说插件更好**。不要把 156 全量当效果结论。
 - 测模型 / 测万象术 / 测 Agent 互斥。无插件 / 有插件 / 同时跑只属于测万象术，是运行环境不是两套测试集。
-- 界面：顶栏 **测试 | 题库 | 数据集 | 运行环境 | 模型配置**。测试集 × 运行环境组合开跑。模型 / Agent 在运行环境页配置并 Hello World 验证后，任务只选已验证项并记下快照。录题必选或新建测试集。输入提示用中文（题号格式等协议值除外）。
+- 界面：顶栏 **测试 | 题库 | 数据集 | 运行环境 | 模型配置 | 趋势 | 健康检查**。测试集 × 运行环境组合开跑。模型 / Agent 在运行环境页配置并 Hello World 验证后，任务只选已验证项并记下快照。录题必选或新建测试集。输入提示用中文（题号格式等协议值除外）。
 
 ---
 
@@ -1204,3 +1204,32 @@ env 切片收口后，按「不留技术债」维度清理既有缺陷，使 `co
 **4. Bugbot 审查（S4）**
 
 - 本地自审发现 1 Low（`createTask` 未校验 lifecycle 值，已补 `isLifecycleState` 校验）+ 3 Info（changelog 描述与实际改动不符，已修正；message 截断口径与信息重复展示属设计取舍，不阻塞）。
+
+## §36 第 2 期界面化：趋势页 + 健康检查页（2026-10-20）
+
+自主工作阶段切片：第 2 期 Web UI 的「趋势」与「健康检查」两页，把 CLI `report trend` 与运维检查搬进操作台。
+
+**1. 范围与决策（自主选择，按不留技术债维度）**
+
+- **趋势页**：把 CLI `report trend` 的核心扫描逻辑抽成纯函数 `collectTrendPoints`（CLI 与 console API 共用，不复制两份），新增 `GET /api/runs/trend`，前端「趋势」页展示跨 run 指标时间线（started_at / run_id / 数据集 / 指标值 / 门禁）。
+- **健康检查页**：新增 `GET /api/health/check` 综合健康检查，聚合服务状态、项目摘要错误、题库校验（复用 `item validate`）、环境目录（未验证模型/Agent）、数据集完整性（缺分层/读取失败）、复现清单。前端「健康检查」页一键触发。
+- **console 退役（后置）**：本次**不删** CLI 引擎命令（`proctor run/compare/baseline` 等仍被 console 内部调用，删除会破坏依赖）。console 退役是渐进过程，本次聚焦「趋势 + 健康检查」界面化，退役作为后续独立项。
+- **指标口径**：趋势默认 `a_case_pass_rate`，前端下拉提供 `a_case_pass_rate` / `a_token_pass_rate` / `a_timeout_rate`；后端按 `metric` 从 `aggregates` 取值，不引入新字段。
+
+**2. 实现（S3）**
+
+- `src/cli/commands/report-trend.ts`：抽 `collectTrendPoints` 纯函数 + 导出 `RunPoint`；`runReportTrend` 改调它（行为不变）。
+- `apps/console/controllers/runs.ts` + `router.ts`：新增 `runsTrend` + `GET /api/runs/trend`。
+- `apps/console/controllers/health.ts` + `router.ts`：新增 `healthCheck` + `GET /api/health/check`。
+- `apps/console/public/trends.js`（新增）+ `health-check.js`（新增）+ `index.html` + `app.js`：趋势页与健康检查页，接入顶栏导航与 `applyPage`。
+
+**3. 验证（实测，2026-10-20）**
+
+- `scripts/console-l0.sh` 完整冒烟通过（新增 C-A-59 趋势接口、C-A-60 健康检查接口断言）。
+- `npm run typecheck` 0 错误；`npm run lint` 通过；`npm test` 363 通过（4 例 `git init` 沙箱拦截属环境限制，非沙箱下 event-store 5 例全过）。
+
+**4. Bugbot 审查（S4）**
+
+- 云端 Bugbot 发现 1 Medium：`initHealthCheck()` 在页面加载时无条件触发完整健康检查（含耗时的 `item validate` spawn），即使用户未点按钮。已修复：`initHealthCheck` 只 `wire()` 绑定按钮，改为按需触发，不自动跑。
+
+

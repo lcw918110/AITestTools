@@ -32,7 +32,14 @@ import {
   evalTasksList,
   type EvalTaskInput,
 } from './controllers/eval-tasks.ts';
-import { baselinesList, baselinesPin, compare, runsList, runsView } from './controllers/runs.ts';
+import {
+  baselinesList,
+  baselinesPin,
+  compare,
+  runsList,
+  runsTrend,
+  runsView,
+} from './controllers/runs.ts';
 import { jobsGet } from './controllers/jobs.ts';
 import { run, type RunBody } from './controllers/run.ts';
 import {
@@ -59,6 +66,11 @@ export async function handleRequest(req: IncomingMessage, res: ServerResponse): 
 
   if (req.method === 'GET' && pathname === '/api/health') {
     const r = await healthController.health();
+    json(res, r.status, r.body);
+    return;
+  }
+  if (req.method === 'GET' && pathname === '/api/health/check') {
+    const r = await healthController.healthCheck();
     json(res, r.status, r.body);
     return;
   }
@@ -195,6 +207,15 @@ export async function handleRequest(req: IncomingMessage, res: ServerResponse): 
   }
   if (req.method === 'GET' && pathname === '/api/runs') {
     const r = await runsList();
+    json(res, r.status, r.body);
+    return;
+  }
+  if (req.method === 'GET' && pathname === '/api/runs/trend') {
+    const r = await runsTrend({
+      dataset: url.searchParams.get('dataset') ?? undefined,
+      metric: url.searchParams.get('metric') ?? undefined,
+      limit: url.searchParams.get('limit') ?? undefined,
+    });
     json(res, r.status, r.body);
     return;
   }

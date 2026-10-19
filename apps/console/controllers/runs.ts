@@ -15,9 +15,38 @@ import { buildRunDashboard, readHostedSnaps } from '../dashboard.ts';
 import { compareRuns, writeEffectCompareMarkdown } from '../../../src/report/compare.ts';
 import { runBaselinePin } from '../../../src/cli/commands/baseline-pin.ts';
 import { listRuns } from '../project-reader.ts';
+import { collectTrendPoints } from '../../../src/cli/commands/report-trend.ts';
 
 export async function runsList(): Promise<HttpResponse> {
   return { status: 200, body: { runs: listRuns(30) } };
+}
+
+export async function runsTrend(query: {
+  dataset?: string | undefined;
+  metric?: string | undefined;
+  limit?: string | undefined;
+}): Promise<HttpResponse> {
+  const dataset = query.dataset?.trim() || undefined;
+  const metric = query.metric?.trim() || 'a_case_pass_rate';
+  const limit = Number.parseInt(query.limit ?? '20', 10);
+  const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 20;
+  const points = collectTrendPoints({ project: PROJECT, dataset, limit: safeLimit });
+  return {
+    status: 200,
+    body: {
+      project: PROJECT,
+      dataset: dataset ?? null,
+      metric,
+      points: points.map((p) => ({
+        run_id: p.run_id,
+        started_at: p.started_at,
+        dataset: p.dataset,
+        value: p.aggregates[metric],
+        gates_pass: p.gates_pass,
+        run_dir: p.run_dir,
+      })),
+    },
+  };
 }
 
 export async function runsView(rawPath: string): Promise<HttpResponse> {

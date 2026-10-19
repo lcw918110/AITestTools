@@ -16,6 +16,8 @@
           <a href="#datasets" id="navDatasets" class="top-nav-link">数据集</a>
           <a href="#env" id="navEnv" class="top-nav-link">运行环境</a>
           <a href="#models" id="navModels" class="top-nav-link">模型配置</a>
+          <a href="#trends" id="navTrends" class="top-nav-link">趋势</a>
+          <a href="#health" id="navHealth" class="top-nav-link">健康检查</a>
         </nav>
       </div>
     </header>
@@ -326,7 +328,8 @@
       <section class="panel">
         <h1>数据集管理</h1>
         <p class="hint">
-          成对数据集（无插件 / 有插件）的题目名单与覆盖情况。每道题同时具备无插件侧（OFF）与有插件侧（ON）。
+          成对数据集（无插件 /
+          有插件）的题目名单与覆盖情况。每道题同时具备无插件侧（OFF）与有插件侧（ON）。
         </p>
         <div class="actions">
           <button type="button" id="newTestSetTop" class="primary">新建测试集</button>
@@ -430,6 +433,59 @@
           </thead>
           <tbody id="modelPoolBody"></tbody>
         </table>
+      </section>
+    </main>
+
+    <main class="layout layout-bank" id="pageTrends" hidden>
+      <section class="panel">
+        <h1>指标趋势</h1>
+        <p class="hint">
+          跨跑次看同一指标的时间线（按 started_at 正序）。默认最近 20 次，可按数据集过滤。
+        </p>
+        <div class="actions">
+          <label class="inline">
+            数据集
+            <select id="trendDatasetFilter"></select>
+          </label>
+          <label class="inline">
+            指标
+            <select id="trendMetric">
+              <option value="a_case_pass_rate">a_case_pass_rate</option>
+              <option value="a_token_pass_rate">a_token_pass_rate</option>
+              <option value="a_timeout_rate">a_timeout_rate</option>
+            </select>
+          </label>
+          <button type="button" id="trendRefresh" class="primary">刷新</button>
+          <span id="trendStatus" class="status"></span>
+        </div>
+        <p id="trendEmpty" class="bank-empty" hidden>暂无匹配跑次</p>
+        <table class="model-pool-table" id="trendTable" hidden>
+          <thead>
+            <tr>
+              <th>started_at</th>
+              <th>run_id</th>
+              <th>数据集</th>
+              <th>指标值</th>
+              <th>门禁</th>
+            </tr>
+          </thead>
+          <tbody id="trendBody"></tbody>
+        </table>
+      </section>
+    </main>
+
+    <main class="layout layout-bank" id="pageHealth" hidden>
+      <section class="panel">
+        <h1>健康检查</h1>
+        <p class="hint">
+          汇总服务状态、题库校验、环境目录、数据集完整性与复现清单。检查题库会跑一次 item
+          validate，可能较慢。
+        </p>
+        <div class="actions">
+          <button type="button" id="healthRun" class="primary">运行完整检查</button>
+          <span id="healthStatus" class="status"></span>
+        </div>
+        <div id="healthResult" class="summary-block" hidden></div>
       </section>
     </main>
 
