@@ -1312,3 +1312,9 @@ env 切片收口后，按「不留技术债」维度清理既有缺陷，使 `co
 - 现象：`git worktree list` 存在游离 worktree `manager/hkhhh3`，指向 `/private/var/folders/…/wanxiangshu-hkhhh3`，提交 `02c8c55` 已在 main 历史。
 - 判定：本仓 `src/` 无任何 `git worktree` 代码，该 worktree 是**万象术 plugin（被测对象）manager agent 在 hosted 评测运行时自建**，非测试平台产物。测试平台自身隔离环境（`proctor-hosted-*` 临时目录 + 隔离 HOME）在 `HostedAdapter.cleanup` 已 `rmSync` 清理，无残留。
 - 决策：**万象术自建的 worktree 不干预、只记录**——主动清理会掩盖「被测对象不清理环境」这一行为本身，干扰评测结论。后续若需把「被测对象是否污染环境」纳入评测观察维度，另立独立优化项（grill-me 对齐），不在本次实现。
+
+**3. 流程审计：补跑 §31/§32 缺口 Bugbot 审查**
+
+- 流程审计发现 §31（录题界面化）与 §32（环境 Profile）两个改代码切片缺 S4 Bugbot 审查记录（其余 §26/§29/§30/§33–§37 均有记录）。
+- 补跑 Bugbot（natural language 方式，精确限定 §31/§32 改动文件）发现 **1 项 medium**：`automationReadiness` 在 `createTask`/`updateTask` 两条写路径均无枚举校验，非法值原样写入 `case.json` 破坏 schema 契约（`enum: not_assessed/manual_only/spec_incomplete/design_ready/blocked`）。
+- 已修复（提交 `0b5f677`）：新增 `isAutomationReadiness` 校验，两条写路径落盘前拒绝非法值；顺带消除 `LIFECYCLE_ORDER` 本地硬编码，改从 `src/domain/types.ts` 复用 `CASE_LIFECYCLE`/`AUTOMATION_READINESS` 权威枚举，避免两套口径。红测先证缺陷（Red）后转绿（Green），全量 391 测试通过。
