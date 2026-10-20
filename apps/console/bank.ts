@@ -23,6 +23,7 @@ import {
 import { writeJsonAtomic, writeTextAtomic } from './json-io.ts';
 import { revisionDigest } from '../../src/exam-engine/digest.ts';
 import type { CaseRevision, RubricSpec, TaskStrata } from '../../src/exam-engine/types.ts';
+import { AUTOMATION_READINESS, CASE_LIFECYCLE } from '../../src/domain/types.ts';
 
 /** 路径安全：已有任务（含历史特例） */
 const TASK_ID_SAFE_RE = /^[A-Z][A-Z0-9-]*$/;
@@ -606,6 +607,11 @@ export async function updateTask(
     if (strataErr) return { error: strataErr, code: 400 };
   }
 
+  // 落盘前校验 automationReadiness 枚举（防非法值写入 case.json 破坏 schema 契约）。
+  if (body.automationReadiness !== undefined && !isAutomationReadiness(body.automationReadiness)) {
+    return { error: `非法自动化准备度：${body.automationReadiness}`, code: 400 };
+  }
+
   const stimPatch: { hosted_pass_token?: string; notes?: string } = {};
   if (tokenProvided) stimPatch.hosted_pass_token = nextToken;
   if (body.notes !== undefined) stimPatch.notes = body.notes;
@@ -1097,6 +1103,10 @@ export async function createTask(
     return { error: `非法生命周期状态：${body.lifecycle}`, code: 400 };
   }
 
+  if (body.automationReadiness !== undefined && !isAutomationReadiness(body.automationReadiness)) {
+    return { error: `非法自动化准备度：${body.automationReadiness}`, code: 400 };
+  }
+
   const testSetId = (body.testSetId ?? '').trim();
   if (!testSetId) return { error: '请选择测试集', code: 400 };
   const testSet = getTestSet(project, testSetId);
@@ -1256,19 +1266,18 @@ export function deleteTask(
 
 // ── 生命周期状态机（第 1 期录题界面化）──
 
-/** 生命周期枚举（与 src/domain/types.ts CASE_LIFECYCLE 一致）。 */
-const LIFECYCLE_ORDER = [
-  'draft',
-  'candidate',
-  'reviewed',
-  'validated',
-  'released',
-  'deprecated',
-] as const;
-type LifecycleState = (typeof LIFECYCLE_ORDER)[number];
+/** 生命周期枚举（直接复用 src/domain/types.ts CASE_LIFECYCLE，避免两套口径）。 */
+type LifecycleState = (typeof CASE_LIFECYCLE)[number];
 
 function isLifecycleState(v: string): v is LifecycleState {
-  return (LIFECYCLE_ORDER as readonly string[]).includes(v);
+  return (CASE_LIFECYCLE as readonly string[]).includes(v);
+}
+
+/** 自动化准备度枚举（复用 src/domain/types.ts AUTOMATION_READINESS）。 */
+type AutomationReadinessState = (typeof AUTOMATION_READINESS)[number];
+
+function isAutomationReadiness(v: string): v is AutomationReadinessState {
+  return (AUTOMATION_READINESS as readonly string[]).includes(v);
 }
 
 /**
@@ -1280,8 +1289,8 @@ export function assertLifecycleTransition(from: string, to: string): string | un
   if (!isLifecycleState(to)) return `非法目标状态：${to}`;
   if (from === to) return undefined;
 
-  const fromIdx = LIFECYCLE_ORDER.indexOf(from);
-  const toIdx = LIFECYCLE_ORDER.indexOf(to);
+  const fromIdx = CASE_LIFECYCLE.indexOf(from);
+  const toIdx = CASE_LIFECYCLE.indexOf(to);
 
   // released 保护：仅可前进到 deprecated，其余一律拒绝（先于前进判断，保证文案精确）。
   if (from === 'released') {

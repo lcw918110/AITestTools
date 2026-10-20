@@ -91,6 +91,25 @@ describe('生命周期状态机（第 1 期录题界面化）', () => {
     }
   });
 
+  it('create 拒绝非法 automationReadiness 状态（红：当前无校验，非法值原样写入）', async () => {
+    root = seedProject();
+    const created = await createTask(
+      root,
+      {
+        taskId: 'PAIRED-TASK-99',
+        prompt: 'Reply with exactly Z.',
+        passToken: 'Z',
+        testSetId: 'calibrate',
+        automationReadiness: 'not-a-readiness',
+      },
+      { validate: okValidate },
+    );
+    expect('error' in created).toBe(true);
+    if ('error' in created) {
+      expect(created.error).toContain('非法自动化准备度');
+    }
+  });
+
   it('create 写入 expect.rubric 与 strata（红：当前不写 rubric/strata）', async () => {
     root = seedProject();
     const created = await createTask(
