@@ -1357,3 +1357,11 @@ env 切片收口后，按「不留技术债」维度清理既有缺陷，使 `co
 - Bugbot 两轮复审的 3 项发现（取消路径未建目录、L2 dispose 双调用、畸形编码 500）已全部修复并复测通过。
 
 **结论**：原阻断级 1 项、高危 1 项、无争议技术债 7 项全部闭环；剩余 `ISSUE-0003`（前端测试依赖选型）、`ISSUE-0008`（T4 用途字段）、`ISSUE-0009`（多后端隔离抽象）为需产品/架构决策的演进项，不属技术债。
+
+**6. 补记：构建-分发契约漏清理（`ISSUE-0016`，2026-10-23 02:55）**
+
+- **缺陷**：`build` 脚本只有 `tsc -p tsconfig.build.json`，而 `tsc` 不会删除「源码已删除」的旧产物；`package.json` 的 `files` 又把整个 `dist` 打进发布包。实测 `npm pack --dry-run` 带出 **24 个退役命令产物**（`item-resolve` / `item-migrate` / `item-retire` / `item-bump-rev` 的 js+map+d.ts 共 16 个，以及 `dist/run/opencode-plugin-export.*` 4 个错位副本等），包体 390 文件 / 212.1 kB。
+- **上一轮为何漏掉**：§40 只执行了 `npm run build` 重建，把「dist 陈旧」当成一次性状态问题；没识别出 `build` 不清理会导致**下次源码删除后同样复发**，属根因未修。
+- **修复**：`build` 改为 `npm run clean && tsc -p tsconfig.build.json`（clean 在 tsc 之前）；`prepublishOnly` 收敛为 `npm run build`，避免两处各写一遍 clean 造成口径漂移。
+- **护栏**：新增 `tests/build/dist-manifest.test.ts`，锁三条契约——build 必须含 clean 且 clean 在 tsc 之前、prepublishOnly 复用 build、bin 入口落在被分发的 `dist` 内。红测已证伪（还原旧脚本后 2 例失败）。
+- **验证**：重建后 `dist` 无源码对应产物 **0 个**；`npm pack --dry-run` 退役产物命中 **0**，包体降至 370 文件；`npm run verify` 73 文件 **402 例**全过，`validate` 318/318，build / smoke:offline / console:smoke 全部退出码 0。
