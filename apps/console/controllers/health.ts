@@ -8,33 +8,29 @@ import { validateBank } from '../bank.ts';
 import { loadEnvCatalog } from '../env-catalog.ts';
 import { listTestSets, testSetDetail } from '../test-sets.ts';
 import { collectReproManifest } from '../env-profile.ts';
+import {
+  defaultExamMode,
+  defaultRelease,
+  defaultTestSetId,
+  type ExperimentId,
+} from '../run-plan.ts';
 import { PROJECT, REPO_ROOT } from '../config.ts';
 
+function buildPreset(id: ExperimentId, label: string, description: string) {
+  return {
+    id,
+    label,
+    description,
+    defaultExamMode: defaultExamMode(id),
+    defaultRelease: defaultRelease(id),
+    defaultTestSetId: defaultTestSetId(id),
+  };
+}
+
 const PRESETS = [
-  {
-    id: 'model',
-    label: '测模型',
-    description: '同一 Agent、无插件、同一任务；换模型',
-    defaultExamMode: 'off' as const,
-    defaultRelease: 'paired-off' as const,
-    defaultTestSetId: 'full',
-  },
-  {
-    id: 'plugin',
-    label: '测万象术',
-    description: '同一 Agent、同一模型、同一批题目；只变有无插件',
-    defaultExamMode: 'both' as const,
-    defaultRelease: 'paired-off' as const,
-    defaultTestSetId: 'full',
-  },
-  {
-    id: 'agent',
-    label: '测 Agent',
-    description: '同一模型、无插件、同一任务',
-    defaultExamMode: 'off' as const,
-    defaultRelease: 'paired-off' as const,
-    defaultTestSetId: 'full',
-  },
+  buildPreset('model', '测模型', '同一 Agent、无插件、同一任务；换模型'),
+  buildPreset('plugin', '测万象术', '同一 Agent、同一模型、同一批题目；只变有无插件'),
+  buildPreset('agent', '测 Agent', '同一模型、无插件、同一任务'),
 ] as const;
 
 export async function health(): Promise<HttpResponse> {

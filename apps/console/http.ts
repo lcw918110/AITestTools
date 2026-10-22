@@ -9,11 +9,17 @@ export interface HttpResponse {
   body: unknown;
 }
 
+export const SECURITY_HEADERS: Readonly<Record<string, string>> = {
+  'x-content-type-options': 'nosniff',
+  'referrer-policy': 'no-referrer',
+};
+
 /** 写 JSON 响应（no-store，UTF-8，pretty-print 换行结尾） */
 export function json(res: ServerResponse, code: number, body: unknown): void {
   res.writeHead(code, {
     'content-type': 'application/json; charset=utf-8',
     'cache-control': 'no-store',
+    ...SECURITY_HEADERS,
   });
   res.end(`${JSON.stringify(body, null, 2)}\n`);
 }

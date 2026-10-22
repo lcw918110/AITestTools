@@ -5,7 +5,7 @@
 import type { IncomingMessage, ServerResponse } from 'node:http';
 import { join } from 'node:path';
 import { json } from './http.ts';
-import { readBody, parseJsonBody } from './request.ts';
+import { readBody, parseJsonBody, RequestBodyTooLargeError } from './request.ts';
 import { HOST, PORT, PUBLIC } from './config.ts';
 import { serveStatic } from './static-server.ts';
 import * as healthController from './controllers/health.ts';
@@ -40,7 +40,7 @@ import {
   runsTrend,
   runsView,
 } from './controllers/runs.ts';
-import { jobsGet } from './controllers/jobs.ts';
+import { jobsCancel, jobsGet } from './controllers/jobs.ts';
 import { run, type RunBody } from './controllers/run.ts';
 import {
   bankTaskCreate,
@@ -60,7 +60,110 @@ import {
 } from './controllers/model-pool.ts';
 import { triggerJudge, judgeAgreement, type TriggerJudgeBody } from './controllers/judge.ts';
 
+const LOOPBACK_HOSTS = new Set(['127.0.0.1', 'localhost', '[::1]']);
+
+/** 解码 URL 路径片段；畸形百分号编码返回 null，交由调用方映射为 404/400。 */
+function safeDecodeSegment(raw: string): string | null {
+  try {
+    return decodeURIComponent(raw);
+  } catch {
+    return null;
+  }
+}
+
+function parseHostname(hostHeader: string): string | null {
+  const trimmed = hostHeader.trim().toLowerCase();
+  if (!trimmed) return null;
+  if (trimmed.startsWith('[')) {
+    const end = trimmed.indexOf(']');
+    if (end === -1) return null;
+    return trimmed.slice(0, end + 1);
+  }
+  const colon = trimmed.indexOf(':');
+  return colon === -1 ? trimmed : trimmed.slice(0, colon);
+}
+
+/**
+ * 校验本地 Console 请求边界（REQ-CONSOLE-SEC-001）：
+ * 1. Host 头必须为本机回环地址（防 DNS Rebinding）
+ * 2. 状态变更请求（非 GET/HEAD/OPTIONS）若携带 Origin / Referer，必须为本机回环源（防跨站 CSRF）
+ */
+export function verifyRequestOriginAndHost(
+  req: IncomingMessage,
+): { ok: true } | { ok: false; status: number; error: string } {
+  const hostHeader = req.headers.host;
+  if (typeof hostHeader === 'string' && hostHeader.trim() !== '') {
+    const hostName = parseHostname(hostHeader);
+    if (!hostName || !LOOPBACK_HOSTS.has(hostName)) {
+      return { ok: false, status: 403, error: 'forbidden host' };
+    }
+  }
+
+  const method = (req.method ?? 'GET').toUpperCase();
+  if (method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS') {
+    const originHeader = req.headers.origin;
+    if (typeof originHeader === 'string' && originHeader.trim() !== '') {
+      try {
+        const originUrl = new URL(originHeader);
+        if (
+          (originUrl.protocol !== 'http:' && originUrl.protocol !== 'https:') ||
+          !LOOPBACK_HOSTS.has(originUrl.hostname.toLowerCase())
+        ) {
+          return { ok: false, status: 403, error: 'cross-origin write forbidden' };
+        }
+      } catch {
+        return { ok: false, status: 403, error: 'invalid origin header' };
+      }
+    }
+
+    const refererHeader = req.headers.referer;
+    if (typeof refererHeader === 'string' && refererHeader.trim() !== '') {
+      try {
+        const refUrl = new URL(refererHeader);
+        if (
+          (refUrl.protocol !== 'http:' && refUrl.protocol !== 'https:') ||
+          !LOOPBACK_HOSTS.has(refUrl.hostname.toLowerCase())
+        ) {
+          return { ok: false, status: 403, error: 'cross-origin referer forbidden' };
+        }
+      } catch {
+        return { ok: false, status: 403, error: 'invalid referer header' };
+      }
+    }
+
+    const secFetchSite = req.headers['sec-fetch-site'];
+    if (secFetchSite === 'cross-site') {
+      return { ok: false, status: 403, error: 'cross-site write forbidden' };
+    }
+  }
+
+  return { ok: true };
+}
+
 export async function handleRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
+  const sec = verifyRequestOriginAndHost(req);
+  if (!sec.ok) {
+    json(res, sec.status, { error: sec.error });
+    return;
+  }
+  try {
+    await dispatchRequest(req, res);
+  } catch (e) {
+    if (e instanceof RequestBodyTooLargeError) {
+      json(res, 413, { error: e.message });
+      return;
+    }
+    // 畸形百分号编码（如 %E0%A4%A）会让 decodeURIComponent 抛 URIError；
+    // 统一收口为结构化 400，避免 500 与内部错误文本外泄。
+    if (e instanceof URIError) {
+      json(res, 400, { error: 'invalid url encoding' });
+      return;
+    }
+    throw e;
+  }
+}
+
+async function dispatchRequest(req: IncomingMessage, res: ServerResponse): Promise<void> {
   const url = new URL(req.url ?? '/', `http://${HOST}:${PORT}`);
   const { pathname } = url;
 
@@ -254,10 +357,23 @@ export async function handleRequest(req: IncomingMessage, res: ServerResponse): 
     json(res, r.status, r.body);
     return;
   }
-  if (req.method === 'GET' && pathname.startsWith('/api/jobs/')) {
-    const id = pathname.slice('/api/jobs/'.length);
-    const r = await jobsGet(id);
-    json(res, r.status, r.body);
+  if (pathname.startsWith('/api/jobs/')) {
+    const id = safeDecodeSegment(pathname.slice('/api/jobs/'.length));
+    if (id === null) {
+      json(res, 404, { error: 'job not found' });
+      return;
+    }
+    if (req.method === 'GET') {
+      const r = await jobsGet(id);
+      json(res, r.status, r.body);
+      return;
+    }
+    if (req.method === 'DELETE') {
+      const r = await jobsCancel(id);
+      json(res, r.status, r.body);
+      return;
+    }
+    json(res, 405, { error: 'method not allowed' });
     return;
   }
   if (req.method === 'POST' && pathname === '/api/run') {

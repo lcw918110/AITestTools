@@ -459,12 +459,10 @@ export class L2Adapter implements ExecutionAdapter {
       }
     } catch (e) {
       const attr = e instanceof FakeHostError || e instanceof ScriptError ? 'HARNESS' : 'PROTOCOL';
-      if (this.disposeHooks) {
-        try {
-          await Promise.resolve(this.disposeHooks());
-        } catch {
-          /* ignore dispose errors on failure path */
-        }
+      try {
+        await this.releaseHooks();
+      } catch {
+        /* ignore dispose errors on failure path */
       }
       throw new AdapterError('submit_failed', attr, (e as Error).message, false, [
         fail(ctx.revision, attr, (e as Error).message),
@@ -558,9 +556,15 @@ export class L2Adapter implements ExecutionAdapter {
   }
 
   async cleanup(_ctx: AdapterContext, _prepared: PreparedState): Promise<{ ok: boolean }> {
-    if (this.disposeHooks) {
-      await Promise.resolve(this.disposeHooks());
-    }
+    await this.releaseHooks();
     return { ok: true };
+  }
+
+  /** 幂等释放插件 dispose 钩子：失败路径与 orchestrator 的 finally 可能各调用一次。 */
+  private async releaseHooks(): Promise<void> {
+    const dispose = this.disposeHooks;
+    if (dispose === undefined) return;
+    this.disposeHooks = undefined;
+    await Promise.resolve(dispose());
   }
 }

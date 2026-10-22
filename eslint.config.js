@@ -16,6 +16,8 @@ export default tseslint.config(
       'scripts/**',
       'apps/console/public/**',
       '.diagnostics/**',
+      '_审视/**',
+      'wanxiangshu/**',
     ],
   },
   js.configs.recommended,

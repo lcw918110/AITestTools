@@ -1,16 +1,14 @@
 /**
  * 提交运行任务 POST /api/run（controller）。
  */
-import { join } from 'node:path';
 import type { HttpResponse } from '../http.ts';
-import { PROJECT, JOBS_DIR } from '../config.ts';
+import { PROJECT } from '../config.ts';
 import { isExperimentId, resolveRunPlan } from '../run-plan.ts';
 import { getTestSet } from '../test-sets.ts';
 import { isVerified } from '../env-catalog.ts';
 import { assertSafeTaskId, listTasks } from '../bank.ts';
 import { getEvalTask } from '../eval-tasks.ts';
-import { writeJsonAtomic } from '../json-io.ts';
-import { executeJob, jobs, type Job } from '../job-queue.ts';
+import { executeJob, jobs, persistJob, type Job } from '../job-queue.ts';
 import { loadReleaseIndex } from '../project-reader.ts';
 
 export interface RunBody {
@@ -95,7 +93,7 @@ export async function run(body: RunBody): Promise<HttpResponse> {
     ...(evalTaskId !== undefined ? { evalTaskId } : {}),
   };
   jobs.set(id, job);
-  writeJsonAtomic(join(JOBS_DIR, `${id}.json`), job);
+  persistJob(job);
   executeJob(job, {
     experiment,
     live: Boolean(body.live),
@@ -111,7 +109,7 @@ export async function run(body: RunBody): Promise<HttpResponse> {
     job.finishedAt = job.finishedAt ?? new Date().toISOString();
     console.error(`executeJob ${job.id} 未捕获异常：`, e);
     try {
-      writeJsonAtomic(join(JOBS_DIR, `${job.id}.json`), job);
+      persistJob(job);
     } catch {
       /* 落盘失败仅记录，不再抛出 */
     }

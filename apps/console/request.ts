@@ -3,13 +3,50 @@
  */
 import type { IncomingMessage } from 'node:http';
 
-/** 读取请求体为 UTF-8 字符串 */
-export function readBody(req: IncomingMessage): Promise<string> {
+/** 默认请求体字节上限：1 MiB（REQ-CONSOLE-SEC-001） */
+export const MAX_REQUEST_BODY_BYTES = 1024 * 1024;
+
+export class RequestBodyTooLargeError extends Error {
+  readonly statusCode = 413;
+  constructor(maxBytes = MAX_REQUEST_BODY_BYTES) {
+    super(`payload too large (max ${maxBytes} bytes)`);
+    this.name = 'RequestBodyTooLargeError';
+  }
+}
+
+/** 读取请求体为 UTF-8 字符串（有界读取，超限抛出 RequestBodyTooLargeError） */
+export function readBody(req: IncomingMessage, maxBytes = MAX_REQUEST_BODY_BYTES): Promise<string> {
   return new Promise((resolveBody, reject) => {
+    const contentLength = Number(req.headers['content-length']);
+    if (Number.isFinite(contentLength) && contentLength > maxBytes) {
+      req.resume();
+      reject(new RequestBodyTooLargeError(maxBytes));
+      return;
+    }
     const chunks: Buffer[] = [];
-    req.on('data', (c) => chunks.push(c as Buffer));
-    req.on('end', () => resolveBody(Buffer.concat(chunks).toString('utf8')));
-    req.on('error', reject);
+    let totalBytes = 0;
+    let settled = false;
+    req.on('data', (c: Buffer) => {
+      if (settled) return;
+      totalBytes += c.length;
+      if (totalBytes > maxBytes) {
+        settled = true;
+        req.resume();
+        reject(new RequestBodyTooLargeError(maxBytes));
+        return;
+      }
+      chunks.push(c);
+    });
+    req.on('end', () => {
+      if (settled) return;
+      settled = true;
+      resolveBody(Buffer.concat(chunks).toString('utf8'));
+    });
+    req.on('error', (err) => {
+      if (settled) return;
+      settled = true;
+      reject(err);
+    });
   });
 }
 

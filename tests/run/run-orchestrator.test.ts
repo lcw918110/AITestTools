@@ -160,4 +160,46 @@ describe('RunOrchestrator 状态机（阶段 4b）', () => {
       'model-case.r1::r3',
     ]);
   });
+
+  it('executeCase 在 submit/collect 抛错时仍保证执行 adapter.cleanup 释放资源', async () => {
+    const orch = new RunOrchestrator();
+    orch.beginRun({});
+    orch.transitionRun('preflight');
+    orch.transitionRun('running');
+
+    let cleanupCalls = 0;
+    const failingAdapter = {
+      adapterId: 'failing-submit',
+      discover: async () => ({ resolved: {} }),
+      prepare: async () => ({ workspace: '/tmp/fake-ws' }),
+      submit: async () => {
+        throw new Error('simulated submit crash');
+      },
+      collect: async () => ({ output: {} }),
+      evaluate: async () => [],
+      cleanup: async () => {
+        cleanupCalls += 1;
+      },
+    };
+
+    const { caseExecutions, results } = await orch.executeCase(
+      {
+        case_id: 'crash-case',
+        case_revision_id: 'crash-case.r1',
+        revision_number: 1,
+        execution_profile: { mode: 'hosted' },
+        attribution_focus: 'TOOL',
+        stimulus: { ref: 'x' },
+        execution: { deadline_ms: 1000, requires_network: false, repeats: 1 },
+        expect: { oracles: [] },
+      } as never,
+      {} as never,
+      failingAdapter as never,
+      { projectRoot: '/tmp', models: [] },
+    );
+
+    expect(cleanupCalls).toBe(1);
+    expect(caseExecutions[0]?.execution_outcome).toBe('execution_failed');
+    expect(results[0]?.pass).toBe(false);
+  });
 });

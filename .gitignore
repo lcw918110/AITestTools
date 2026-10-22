@@ -19,6 +19,7 @@ apps/console/.jobs/
 
 # 事件诊断产物（一次性 incident 排查，不入库）
 .diagnostics/
+wanxiangshu/
 
 # 环境与密钥（profile 中的模型密钥只走环境变量）
 .env

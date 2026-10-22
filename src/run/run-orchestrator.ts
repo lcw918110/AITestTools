@@ -15,6 +15,7 @@ import type {
   ExecutionAdapter,
   ObservedFacts,
   ObservedFactsRecorder,
+  PreparedState,
 } from './execution-adapter.ts';
 import { AdapterError } from './execution-adapter.ts';
 import { resolveRepeats } from './repeats.ts';
@@ -244,7 +245,8 @@ export class RunOrchestrator {
       facts,
     };
 
-    // 8 阶段执行，捕获 AdapterError 映射终态。
+    // 8 阶段执行，捕获 AdapterError 映射终态，并确保 prepare 后的资源一定走 cleanup。
+    let prepared: PreparedState | undefined = undefined;
     try {
       attempt.attempt_status = 'running';
 
@@ -259,14 +261,10 @@ export class RunOrchestrator {
           );
         }
       }
-      const prepared = await adapter.prepare(ctx, discovered);
+      prepared = await adapter.prepare(ctx, discovered);
       const handle = await adapter.submit(ctx, prepared);
       const collected = await adapter.collect(ctx, handle);
       const results = await adapter.evaluate(ctx, collected);
-
-      if (adapter.cleanup !== undefined) {
-        await adapter.cleanup(ctx, prepared);
-      }
 
       attempt.attempt_status = 'completed';
       attempt.ended_at = new Date().toISOString();
@@ -306,6 +304,14 @@ export class RunOrchestrator {
           },
         ],
       };
+    } finally {
+      if (prepared !== undefined && adapter.cleanup !== undefined) {
+        try {
+          await adapter.cleanup(ctx, prepared);
+        } catch {
+          /* cleanup 异常不掩盖主流程结果 */
+        }
+      }
     }
   }
 

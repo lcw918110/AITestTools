@@ -4,7 +4,7 @@
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import type { ServerResponse } from 'node:http';
 import { safeUnder } from './bank.ts';
-import { json } from './http.ts';
+import { json, SECURITY_HEADERS } from './http.ts';
 import { PUBLIC } from './config.ts';
 
 const MIME_TYPES: Record<string, string> = {
@@ -27,6 +27,6 @@ export function serveStatic(res: ServerResponse, filePath: string): void {
     json(res, 404, { error: 'not found' });
     return;
   }
-  res.writeHead(200, { 'content-type': mimeTypeFor(abs) });
+  res.writeHead(200, { 'content-type': mimeTypeFor(abs), ...SECURITY_HEADERS });
   createReadStream(abs).pipe(res);
 }

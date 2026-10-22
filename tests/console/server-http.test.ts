@@ -184,4 +184,85 @@ describe('HTTP 层集成测试', () => {
     expect(body.id).toBe('job-test-lifecycle');
     expect(body.status).toBe('queued');
   });
+
+  it('安全响应头：API 与静态文件均附带 nosniff 与 no-referrer', async () => {
+    const apiRes = await request('/api/health');
+    expect(apiRes.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(apiRes.headers.get('referrer-policy')).toBe('no-referrer');
+
+    const staticRes = await request('/');
+    expect(staticRes.headers.get('x-content-type-options')).toBe('nosniff');
+    expect(staticRes.headers.get('referrer-policy')).toBe('no-referrer');
+  });
+
+  it('跨源防护：POST 携带外部 Origin 返回 403', async () => {
+    const res = await request('/api/run', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        origin: 'https://evil.example.com',
+      },
+      body: JSON.stringify({ experiment: 'model' }),
+    });
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toContain('cross-origin');
+  });
+
+  it('跨站点防护：POST 携带 Sec-Fetch-Site: cross-site 返回 403', async () => {
+    const res = await request('/api/run', {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/json',
+        'sec-fetch-site': 'cross-site',
+      },
+      body: JSON.stringify({ experiment: 'model' }),
+    });
+    expect(res.status).toBe(403);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toContain('cross-site');
+  });
+
+  it('请求体上限：POST 超过 1 MiB 返回 413 payload too large', async () => {
+    const hugeBody = JSON.stringify({ padding: 'x'.repeat(1024 * 1024 + 128) });
+    const res = await request('/api/test-sets', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: hugeBody,
+    });
+    expect(res.status).toBe(413);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toContain('payload too large');
+  });
+
+  it('作业取消：DELETE /api/jobs/:id 将 queued 作业转为 cancelled', async () => {
+    const job: Job = {
+      id: 'job-test-cancel-01',
+      experiment: 'model',
+      status: 'queued',
+      startedAt: new Date().toISOString(),
+      log: [],
+    };
+    jobs.set(job.id, job);
+    const res = await request('/api/jobs/job-test-cancel-01', {
+      method: 'DELETE',
+    });
+    expect(res.status).toBe(200);
+    const body = (await res.json()) as Job;
+    expect(body.status).toBe('cancelled');
+  });
+
+  it('作业 ID 校验：含非法路径字符的 job ID 返回 404', async () => {
+    const res = await request('/api/jobs/bad..id');
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('job not found');
+  });
+
+  it('畸形百分号编码：/api/jobs/:id 返回 404 而非 500', async () => {
+    const res = await fetch(`${baseUrl}/api/jobs/%E0%A4%A`);
+    expect(res.status).toBe(404);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toBe('job not found');
+  });
 });

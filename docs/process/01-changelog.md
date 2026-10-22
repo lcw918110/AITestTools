@@ -40,12 +40,12 @@
 
 ## 3. 任务（打开的）
 
-| ID     | 看板 / 位置 | 做什么                                                                                  | 不做                                           |
-| :----- | :---------- | :-------------------------------------------------------------------------------------- | :--------------------------------------------- |
-| **T4** | 测试任务    | 用途字段（效果对照 / 校准 / 回归）                                                      | 本刀不做                                       |
-| **T5** | 题库        | ~~向导可选任务类型~~ **已落地**；~~录题选测试集~~ **本刀落地**；难度字段仍打开          | 完整测试集编辑器；本刀不录入难度               |
-| **T6** | 效果实验    | **Grill 已对齐**（§6）：改 157–159，OFF 必挂、ON 有机会过；小规模对照；CONTEXT 不进结论 | 跑满 156 当效果；改万象术业务逻辑；本刀不做 T7 |
-| **T7** | 测试结果    | 经济四格（弱开 vs 强关）；以后的「看板」再观察多次测试                                  | 效果差出来之前不画空图                         |
+| ID     | 看板 / 位置 | 做什么                                                                                                                    | 不做                                           |
+| :----- | :---------- | :------------------------------------------------------------------------------------------------------------------------ | :--------------------------------------------- |
+| **T4** | 测试任务    | 用途字段（效果对照 / 校准 / 回归）                                                                                        | 本刀不做                                       |
+| **T5** | 题库        | ~~向导可选任务类型~~ **已落地**；~~录题选测试集~~ **已落地**；~~难度字段（`strata.difficulty_level`）~~ **已落地（§31）** | 完整测试集编辑器                               |
+| **T6** | 效果实验    | **Grill 已对齐**（§6）：改 157–159，OFF 必挂、ON 有机会过；小规模对照；CONTEXT 不进结论                                   | 跑满 156 当效果；改万象术业务逻辑；本刀不做 T7 |
+| **T7** | 测试结果    | 经济四格（弱开 vs 强关）；以后的「看板」再观察多次测试                                                                    | 效果差出来之前不画空图                         |
 
 ---
 
@@ -1318,3 +1318,42 @@ env 切片收口后，按「不留技术债」维度清理既有缺陷，使 `co
 - 流程审计发现 §31（录题界面化）与 §32（环境 Profile）两个改代码切片缺 S4 Bugbot 审查记录（其余 §26/§29/§30/§33–§37 均有记录）。
 - 补跑 Bugbot（natural language 方式，精确限定 §31/§32 改动文件）发现 **1 项 medium**：`automationReadiness` 在 `createTask`/`updateTask` 两条写路径均无枚举校验，非法值原样写入 `case.json` 破坏 schema 契约（`enum: not_assessed/manual_only/spec_incomplete/design_ready/blocked`）。
 - 已修复（提交 `0b5f677`）：新增 `isAutomationReadiness` 校验，两条写路径落盘前拒绝非法值；顺带消除 `LIFECYCLE_ORDER` 本地硬编码，改从 `src/domain/types.ts` 复用 `CASE_LIFECYCLE`/`AUTOMATION_READINESS` 权威枚举，避免两套口径。红测先证缺陷（Red）后转绿（Green），全量 391 测试通过。
+
+---
+
+## §40 全盘审视复审：Console 安全边界与作业生命周期收口（2026-10-23）
+
+对 `_审视/` 首轮（`RUN-20261022-2250-A1`）登记的 11 项问题做完整复审，**只修无争议缺陷与技术债，不触碰产品口径与万象术业务逻辑**，全部改动均带自动化用例。
+
+**1. Console 请求边界（`ISSUE-0001`，原阻断级）**
+
+- `router.ts` 新增 `verifyRequestOriginAndHost`：`Host` 必须为本机回环（防 DNS Rebinding）；写请求校验 `Origin` / `Referer` / `Sec-Fetch-Site`，跨源一律 403。
+- `request.ts` `readBody` 加 1 MiB 上限（`MAX_REQUEST_BODY_BYTES`），超限抛 `RequestBodyTooLargeError` → 413。
+- `http.ts` / `static-server.ts` 统一补 `x-content-type-options: nosniff`、`referrer-policy: no-referrer`。
+- 畸形百分号编码（`decodeURIComponent` 抛 `URIError`）收口为结构化 400；`/api/jobs/:id` 走 `safeDecodeSegment` 返回 404。
+
+**2. 作业队列生命周期（`ISSUE-0002`，原高危）**
+
+- `job-queue.ts` 支持 `PROCTOR_CONSOLE_JOB_TIMEOUT_MS`（默认 30 分钟）；POSIX 下 `detached: true` 建独立进程组，超时/取消用 `process.kill(-pid)` 回收整棵树，Windows 走 `taskkill /T /F`。
+- 新增 `cancelJob` 与 `DELETE /api/jobs/:id`，`JobStatus` 增加 `cancelled`；作业落盘统一走 `persistJob`（自动 `mkdirSync(JOBS_DIR)`），不再依赖 `server.ts` 预建目录。
+
+**3. 执行生命周期资源回收（`ISSUE-0012`，本轮全量审读新发现）**
+
+- `run-orchestrator.ts` 把 `adapter.cleanup` 移入 `finally`：只要 `prepare` 成功，`submit/collect/evaluate` 任一步抛错都必定清理。
+- `c-runner.ts` 补 `cleanup`，删除 `tmpdir()` 下 `proctor-c-ws-*` 临时工作区，返回 `CleanupResult`。
+- `l2-runner.ts` 抽出幂等 `releaseHooks`：`submit` 失败路径与 orchestrator 的 `finally` 各调一次也不会重复 dispose 插件。
+
+**4. 其余无争议项**
+
+- `controllers/jobs.ts`：`isSafeJobId` + `parseJsonObject`，损坏 job 文件不再裸抛 500。
+- `public/env.js`：全仓最后一处动态 `innerHTML` 改 `createElement` + `textContent`。
+- `controllers/health.ts`：`PRESETS` 复用 `run-plan.ts` 的 `defaultExamMode` / `defaultRelease` / `defaultTestSetId`，消除死导出。
+- `.gitignore` / `.prettierignore` / `eslint.config.js` 纳入 `wanxiangshu/`、`_审视/`；`vitest.config.ts` 覆盖率口径扩到 `apps/console/**/*.ts`；`dist/` 重新构建。
+
+**5. 验证**
+
+- `npm run verify`：72 文件 **399 例**全过（新增跨源 403、超限 413、安全响应头、作业取消、异常 cleanup、畸形编码 6 类断言）；`validate:examples` 318/318。
+- `npm run build`、`npm run smoke:offline`（6 组离线冒烟）、`npm run console:smoke`（L0）全部退出码 0。
+- Bugbot 两轮复审的 3 项发现（取消路径未建目录、L2 dispose 双调用、畸形编码 500）已全部修复并复测通过。
+
+**结论**：原阻断级 1 项、高危 1 项、无争议技术债 7 项全部闭环；剩余 `ISSUE-0003`（前端测试依赖选型）、`ISSUE-0008`（T4 用途字段）、`ISSUE-0009`（多后端隔离抽象）为需产品/架构决策的演进项，不属技术债。

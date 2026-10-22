@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -8,6 +8,7 @@ import { fail, applyMetricThresholdPass } from './runner-shared.ts';
 import { deepEqual } from '../oracles/deep-equal.ts';
 import type {
   AdapterContext,
+  CleanupResult,
   CollectedOutput,
   DiscoveredInput,
   ExecutionAdapter,
@@ -298,5 +299,13 @@ export class CAdapter implements ExecutionAdapter {
     if (!pass) result.attribution = focus ?? 'TOOL';
     if (ctx.artifactDir !== undefined) result.artifact_dir = ctx.artifactDir;
     return [result];
+  }
+
+  async cleanup(_ctx: AdapterContext, prepared: PreparedState): Promise<CleanupResult> {
+    const { workspace } = prepared as unknown as CPrepared;
+    if (typeof workspace === 'string' && workspace.length > 0) {
+      rmSync(workspace, { recursive: true, force: true });
+    }
+    return { ok: true };
   }
 }

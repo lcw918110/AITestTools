@@ -5,8 +5,8 @@ export default defineConfig({
     include: ['tests/**/*.test.ts', 'src/**/*.test.ts'],
     coverage: {
       provider: 'v8',
-      include: ['src/**/*.ts'],
-      exclude: ['src/**/*.test.ts', 'src/cli/main.ts'],
+      include: ['src/**/*.ts', 'apps/console/**/*.ts'],
+      exclude: ['src/**/*.test.ts', 'src/cli/main.ts', 'apps/console/server.ts'],
       reporter: ['text', 'lcov'],
     },
   },

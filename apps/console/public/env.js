@@ -300,7 +300,11 @@ async function loadReproManifest() {
       host.appendChild(li);
     }
   } catch (e) {
-    host.innerHTML = `<li class="muted">复现清单采集失败：${String(e.message || e)}</li>`;
+    host.textContent = '';
+    const li = document.createElement('li');
+    li.className = 'muted';
+    li.textContent = `复现清单采集失败：${String(e.message || e)}`;
+    host.appendChild(li);
   }
 }
 
