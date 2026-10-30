@@ -37,3 +37,5 @@ npm-debug.log*
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+_审视/
