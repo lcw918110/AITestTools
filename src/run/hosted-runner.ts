@@ -975,9 +975,10 @@ async function runHostedWithReap(
       forceKillTimer = setTimeout(() => {
         reapTree(child, 'SIGKILL');
       }, 500);
-      forceKillTimer.unref();
+      // deadline 兜底必须 ref 持有：unref 的事件循环里若其余句柄（如挂起的
+      // mux 排水）恰好都不再驱动循环，定时器可能永远不触发，deadline 失守。
     }, opts.timeoutMs);
-    timer.unref();
+    timer.ref();
 
     child.stdout?.on('data', (buf: Buffer) => {
       stdout += buf.toString('utf8');

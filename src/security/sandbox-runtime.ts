@@ -56,16 +56,30 @@ export async function wrapHostCommand(input: {
   // 已在 spawn 时固化旧端口 —— 并发跑到这里会让在跑的 case 出站全断（或串用他人的
   // allowedDomains）。因此 reset→initialize→wrap 必须整体串行；wrap 之后才放锁，
   // 使后一个 case 不会在本次会话仍在使用时替换掉配置。
+  //
+  // 兜底超时：SandboxManager.reset() 内部 await 各 server.close() 回调，若上一题
+  // 沙箱子进程经 mux 代理留下的 in-flight 连接半开（对端不回 FIN），close 回调可能
+  // 永不触发，整条 reset→initialize→wrap 链随之永久挂起（实测 ON 侧全量跑第 72 题
+  // 卡死 80+ 分钟，deadline 兜底因卡在 submit 内层而不生效）。这里给整链加
+  // SANDBOX_WRAP_TIMEOUT_MS（默认 60s）硬上限：超时后按 HARNESS 故障抛出，由上层
+  // 归因为 HARNESS 并继续跑后续试题，绝不无限等待。
   const release = await acquireWrapLock();
   try {
-    await SandboxManager.reset().catch(() => undefined);
-    await SandboxManager.initialize(config);
-    const wrapped = await SandboxManager.wrapWithSandboxArgv(
-      command,
-      undefined,
-      undefined,
-      undefined,
-      input.cwd,
+    const wrapTimeoutMs = Number(process.env.SANDBOX_WRAP_TIMEOUT_MS ?? 60_000);
+    const wrapped = await withTimeout(
+      (async () => {
+        await SandboxManager.reset().catch(() => undefined);
+        await SandboxManager.initialize(config);
+        return SandboxManager.wrapWithSandboxArgv(
+          command,
+          undefined,
+          undefined,
+          undefined,
+          input.cwd,
+        );
+      })(),
+      wrapTimeoutMs,
+      'SandboxManager reset→initialize→wrap',
     );
     const bin = wrapped.argv[0];
     if (bin === undefined) {
@@ -75,6 +89,26 @@ export async function wrapHostCommand(input: {
   } finally {
     release();
   }
+}
+
+/** 给 Promise 加硬超时；超时抛 Error（上层按 HARNESS 故障归因）。 */
+function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      reject(new Error(`${label} 超过 ${ms}ms 未完成（疑似沙箱代理连接排水挂起），已按超时失败处理`));
+    }, ms);
+    timer.unref();
+    p.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e: unknown) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
 }
 
 /** 进程内串行队列：保证同一时刻只有一个调用在改全局 SandboxManager 配置。 */

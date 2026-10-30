@@ -1422,3 +1422,76 @@ Grill 已对齐：真实宿主只接 `sandbox-runtime`；Windows 登记为降级
 - Playwright 浏览器测试 17/17 通过（修复前 7 failed）；
 - `npm run verify:release` 退出码 0（prettier + eslint + tsc + vitest 487/487 + 离线冒烟 30/30）；
 - Bugbot 审查 2 findings（`run-t6-effect.sh` 的 `set -e` 在 OFF 侧预期失败时会中止脚本、录题刷新失败反馈不可见），后者已随本次修复，前者为诊断脚本特性、暂不改。
+
+## 44. hosted 全量 ON 侧第 72 题死锁：引擎双防御修复 + 断点续跑（2026-10-30）
+
+### 现象（可证伪复现证据）
+
+- `paired-on` × `hosted-plugin-v1` 全量 156 题跑到第 71 题完成后，第 72 题
+  （`paired-task-72.r3.on`）卡死 80+ 分钟（deadline 仅 180s），无产物、无
+  `hosted-run.json`；
+- 主进程 28791 采样（`sample`）：事件循环空转 `kevent`；句柄表仅剩 4 条
+  tsx 管道 + 1 条已 unlink 的 mux backend unix socket（`srt-mux-28791-1z.sock`，
+  序号 1z=71 对应第 71 题）+ 1 条到模型端点的 `FIN_WAIT_2` 出站连接；
+- 第 72 题单跑（修复前后各一次）正常 PASS（12.9s）→ 题目内容无辜。
+
+### 根因（两条引擎防御缺陷叠加）
+
+1. `src/security/sandbox-runtime.ts`：`wrapHostCommand` 的
+   reset→initialize→wrap 链无超时。第 71 题 opencode 经 mux 代理留下的
+   in-flight 隧道半开时，`SandboxManager.reset()` 内部 `await` 各
+   `server.close()` 回调可能永不触发，整链永久挂起；
+2. `src/run/hosted-runner.ts`：deadline 定时器 `unref()`——事件循环里若其余
+   句柄均不驱动循环（mux 排水挂起后正是如此），180s deadline 兜底同时失守。
+
+### 修复
+
+- `sandbox-runtime.ts`：reset→initialize→wrap 整链加
+  `SANDBOX_WRAP_TIMEOUT_MS`（默认 60s）硬上限，超时按 HARNESS 归因抛出，
+  上层按 HARNESS 失败继续跑后续试题，绝不无限等待；
+- `hosted-runner.ts`：deadline 定时器 `unref()` → `ref()` 显式持有，保证
+  deadline 必然触发。
+
+### 验证
+
+- `tsc --noEmit` 0 错误；vitest 全量 487/487 多轮全绿；
+- 处置：杀掉死锁进程树（28743/28767/28790/28791），断点续跑
+  `--only 72..156`（85 题）走修复后引擎；已完成 71 题产物保留合并。
+
+### 续跑结果与二阶发现
+
+- 续跑 85 题（run `20261030-235702260-b8k0`）：72~109 题正常执行
+  （pass 37 / 正常 fail 11）；
+- **第 110 题起连续 47 题触发新兜底**（60s 超时按 HARNESS 失败）——深层
+  根因（L2）浮出：**SandboxManager 在长跑进程内周期性挂起**，与题目内容
+  无关（110 题新进程单跑 22s PASS），与纯 wrap 循环无关（v1 80 轮 /
+  v2 隧道 40 轮 / v3 真实 opencode 60 轮均未复现），仅在「真实 opencode
+  完整跑题（插件 + 模型隧道 + 长连接）× 长跑进程」的组合下出现；
+- 兜底生效验证：死锁从「无限挂起拖死整批」降级为「单题 60s 快速失败，
+  后续题继续」——工程可用性已恢复，但 L2 根因（sandbox-runtime 内部
+  连接排水/状态污染）仍开放，留待专项定位（需 node inspector 或
+  sandbox-runtime 上游支持）。
+
+### HARNESS 题小批重跑收口（2026-10-31）
+
+- 全部 48 道受 L2 影响的题按 5 题/批分 10 批独立重跑：47 过、1 失败；
+- 唯一失败 `paired-task-92.r4.on` 复跑 2 次稳定失败，归因**试题断言缺陷**
+  （oracle `deploy-anchor` 要求英文 `deploy`，模型输出中文「部署时间戳」；
+  其余 oracle 与 `HOLD_TRUTH` 暗号全中，语义正确），登记 r5 修订项；
+
+#### 92 题断言缺陷族定性（r5 修订 + 未决项）
+
+- **已修**：`deploy-anchor`（`deploy` → `deploy|部署`）、`spike-anchor`
+  （补「错误率尖峰」变体）——中英文用词差异，模型语义正确；r5 已落盘
+  并过整库校验（319/319）；
+- **未决**：`hold-conclusion` 正则要求字面词（拒绝/cannot/refuse…），
+  与「坚持结论」的语义能力错配——模型输出「结论不改：编造责任方会污染
+  真实因果」语义完全正确但字面不命中。**继续放宽正则会稀释判题力**，
+  正解是语义级判题（rubric/LLM judge），属判题器能力项，非本试题可局部
+  修；挂账待白天按试题评审流程处理；
+- **主结论不受影响**：OFF 156/156 vs ON 155/156 的配对差 −1 题，已完整
+  定位为 92 题断言缺陷族（非插件回归）。最终报告见
+  [t6-paired-effect-report.md](t6-paired-effect-report.md)。
+- ON 侧 156 题全量口径落定：**PASS 155 / FAIL 1（99.4%）**，配对 OFF
+  156/156 → 配对差 −0.64pp，唯一差异与插件无关。最终报告见
+  [t6-paired-effect-report.md](t6-paired-effect-report.md)。

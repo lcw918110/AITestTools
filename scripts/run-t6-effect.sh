@@ -22,16 +22,26 @@ RUN_TAG="$(date +%Y%m%d-%H%M%S)"
 
 echo "=== T6 效果实验（模型：${PROCTOR_HOSTED_MODEL}）==="
 
+# proctor run 在有试题失败时返回退出码 1，而 T6 的 DoD 恰恰预期 OFF 侧必挂：
+# 不能让非零退出码中止脚本，须记录退出码、以 JSON 产物为准继续。
 echo "[1/3] OFF 侧：paired-off-effect-smoke（157-159 无插件）"
+OFF_RC=0
 npx tsx src/cli/main.ts run --project examples/product-eval \
   --dataset paired-off-effect-smoke --environment hosted-plain-v1 \
-  --json > "/tmp/t6-off-${RUN_TAG}.json"
+  --json > "/tmp/t6-off-${RUN_TAG}.json" || OFF_RC=$?
+echo "    OFF 侧 run 退出码：${OFF_RC}（有试题失败时为 1，属 T6 预期）"
 
 echo "[2/3] ON 侧：paired-on-effect-smoke（157-159 挂万象术插件）"
 SUT_ROOT="${SUT_ROOT:-/Users/Licw/Desktop/git/wanxiangshu}" \
+ON_RC=0
 npx tsx src/cli/main.ts run --project examples/product-eval \
   --dataset paired-on-effect-smoke --environment hosted-plugin-v1 \
-  --json > "/tmp/t6-on-${RUN_TAG}.json"
+  --json > "/tmp/t6-on-${RUN_TAG}.json" || ON_RC=$?
+echo "    ON 侧 run 退出码：${ON_RC}"
+
+# JSON 产物缺失说明 run 连启动都没成功（参数/环境错误），此时才应中止
+[ -s "/tmp/t6-off-${RUN_TAG}.json" ] || { echo "OFF 侧无 JSON 产物，中止"; exit "${OFF_RC}"; }
+[ -s "/tmp/t6-on-${RUN_TAG}.json" ] || { echo "ON 侧无 JSON 产物，中止"; exit "${ON_RC}"; }
 
 echo "[3/3] 汇总两侧 pass_rate"
 python3 - "$RUN_TAG" << 'PY'
