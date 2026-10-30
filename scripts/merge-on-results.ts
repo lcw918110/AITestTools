@@ -1,20 +1,24 @@
 /**
- * 合并今晚全部 ON 侧行的逐题结果，按 item_id 取「最后一次真实执行」为权威值，
- * 生成 156 题完整配对结果（paired-off 全量 + paired-on 72..156 分段）。
+ * 合并全部 ON 侧行的逐题结果，按 item_id 取「最后一次真实执行」为权威值，
+ * 生成 156 题完整配对结果。
  *
- * 选取规则（优先级从高到低）：
- * 1. 最新 run 里的结果（重跑批次 > 首次续跑 > 首次全量）；
- * 2. 同题多份时取 pass=true 的（HARNESS 超时是环境故障，单题重跑已证可过）；
- * 3. 全 HARNESS 的题保留 HARNESS 归因并如实标注。
+ * 数据源与合并语义：
+ * 1. /tmp/first-run-verdicts.json — 首跑 1-72 题判定重建（首跑被 kill 无
+ *    results.ndjson，从 artifacts 的 workspace/host 观测重建，零假阳校验过）；
+ * 2. 全部 run 的 results.ndjson — 按 run 目录名（时间戳）升序遍历，
+ *    后者恒覆盖前者（越新越权威，判定缺陷信号保留 FAIL）；
+ * 3. 数据集 release 对齐 — 只保留当前 paired-on 引用的 case_revision_id，
+ *    旧版本 id（如 92.r4.on）不参与统计。
  *
  * 运行：npx tsx scripts/merge-on-results.ts
  */
-import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const RUNS_ROOT = 'examples/product-eval/runs';
+const FIRST_RUN_VERDICTS = '/tmp/first-run-verdicts.json';
 
-/** 今晚（10-30/31）产生的 ON 侧 run，按时间升序 = 权威级从低到高。 */
+/** 10-30/31 产生的 ON 侧 run，按时间升序 = 权威级从低到高。 */
 const onRuns = readdirSync(RUNS_ROOT)
   .filter((d) => /^2026103[01]/.test(d))
   .sort();
@@ -62,19 +66,28 @@ function loadOnIds(): string[] {
 const onIds = loadOnIds();
 console.log(`paired-on 数据集共 ${onIds.length} 题；候选 run ${onRuns.length} 个`);
 
-/** 按题合并，语义：run 按时间升序遍历，后者恒覆盖前者（越新越权威）。
- *  判定可信度约束（缺一不可，否则新失败被旧通过掩盖）：
- *  - 唯有「较新记录真实失败」才允许覆盖旧通过——旧 HARNESS（沙箱挂起）
- *    不覆盖新通过，但新失败也不能被旧通过顶回（单题重跑已证 92 题可过，
- *    但那是同一题同环境的新证据，跨环境结果不互斥）；
- *  - 纯 wrap 循环里 prev===undefined 时直接采纳。 */
 const merged = new Map<string, ItemResult & { _run: string }>();
+
+// 源 1：首跑判定重建（1-72 题，首跑被 kill 无 ndjson）
+try {
+  const firstVerdicts = JSON.parse(
+    readFileSync(FIRST_RUN_VERDICTS, 'utf8'),
+  ) as Array<{ item_id: string; pass: boolean; attribution?: string }>;
+  for (const v of firstVerdicts) {
+    merged.set(v.item_id, { ...v, _run: '20261030-211930219-cpwt(重建)' });
+  }
+  console.log(`首跑重建补源: ${firstVerdicts.length} 题`);
+} catch {
+  console.warn(`⚠ ${FIRST_RUN_VERDICTS} 缺失，跳过首跑补源`);
+}
+
+// 源 2：全部 run 的 results.ndjson（时间升序，后者恒覆盖前者）
 for (const runId of onRuns) {
   for (const [id, r] of loadRun(runId)) {
     if (!onIds.includes(id)) continue;
     const prev = merged.get(id);
-    // 旧通过 + 新失败：以真实执行为准——这是判定缺陷信号，必须保留 FAIL
-    if (prev === undefined || (prev.pass === false && r.pass === false)) {
+    // 纯通过→纯通过/失败：越新越权威；旧通过+新失败：保留 FAIL（判定缺陷信号）
+    if (prev === undefined || !prev.pass || !r.pass) {
       merged.set(id, { ...r, _run: runId });
     }
   }
@@ -96,7 +109,9 @@ for (const r of fail) {
   byAttr.set(a, (byAttr.get(a) ?? 0) + 1);
 }
 
-console.log(`\nON 侧全量（${items.length} 题）：PASS ${pass.length} / FAIL ${fail.length}，通过率 ${((pass.length / items.length) * 100).toFixed(1)}%`);
+console.log(
+  `\nON 侧全量（${items.length} 题）：PASS ${pass.length} / FAIL ${fail.length}，通过率 ${((pass.length / items.length) * 100).toFixed(1)}%`,
+);
 console.log('FAIL 归因分布：', Object.fromEntries(byAttr));
 for (const r of fail) {
   const msg = r.oracle_failures?.[0]?.message ?? '';
