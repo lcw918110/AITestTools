@@ -93,6 +93,22 @@ test('用户卡点修复：切换无跑次任务清理旧跑次，运行中作�
   await page.route('**/api/run', (route) =>
     route.fulfill({ status: 202, json: { jobId: 'job-cancel-ui' } }),
   );
+  await page.route('**/api/jobs/job-cancel-ui/**', async (route) => {
+    if (route.request().method() === 'DELETE') {
+      jobStatus = 'cancelled';
+      await route.fulfill({ json: { id: 'job-cancel-ui', status: 'cancelled' } });
+      return;
+    }
+    await route.fulfill({
+      json: {
+        id: 'job-cancel-ui',
+        status: jobStatus,
+        lines: ['正在执行…'],
+        nextOffset: 0,
+        error: '用户取消作业',
+      },
+    });
+  });
   await page.route('**/api/jobs/job-cancel-ui', async (route) => {
     if (route.request().method() === 'DELETE') {
       jobStatus = 'cancelled';

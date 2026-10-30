@@ -31,7 +31,7 @@
 - **沙箱内真跑打通（macOS Seatbelt）**：修复六处使 hosted 评测能在沙箱内真实跑通 —— ①`SandboxManager` 是进程级单例，`initialize()` 在 `initializationPromise` 已存在时静默返回并忽略新配置，批量跑卷会导致只有首个 case 的路径生效、其余全部 EPERM，改为每次包裹前 `reset()`→`initialize()` 并用进程内串行锁包住（避免并发 case 互相关掉代理）；②子进程 `stdin` 由默认 pipe 改为 `ignore`（opencode 检测到常开管道会一直等输入，停在 `init` 直到 deadline）；③`workDir` 与隔离 HOME 用 `realpathSync` 归一（`/var` 是 `/private/var` 符号链接，Seatbelt 按真实路径判定）；④`allowedWrite` 每个根补 `/**` 并对依赖路径预建目录（opencode 会逐层建 `.local/share/opencode/log` 等）；⑤`allowedDomains` 并入 provider 声明的模型端点 host（保留非默认端口），否则沙箱代理以 403 拒绝模型请求；⑥环境变量里的 `http(s)_proxy`/`all_proxy`/`no_proxy` 在隔离执行时剥离。实测 OFF 全量 10/10 通过、零超时、`sandbox_bypassed=false`。
 - **沙箱旁路开关（仅诊断）**：`PROCTOR_SANDBOX_BYPASS=1` 时跳过 Seatbelt 包裹直接执行宿主命令；隔离门禁（`evaluateIsolationGate`，进程级缓存只探测一次）仍必须通过。产物 `hosted-run.json` 的 `sandbox_bypassed`、`sandbox_allowed_domains` 字段如实标注，报告读取方据此区分证据等级。
 - **EventStore 路径对齐万象术 0.8+**：插件实际把事件写到 `<worktree>/.Herdchestra/wanxiangshu/events/*.ndjson`（`RuntimePath.stateRoot` 的实现，要求 `.Herdchestra` 是真目录且含排除全部运行时数据的 `.gitignore`），旧路径 `<git-dir>/wanxiang/events` 与 `refs/wanxiang/store` 已不再是写入面。引擎 `readPendingEventNdjson` 需优先读 `.Herdchestra` 路径，否则 ON 侧永远 `no-store-ref`、协议探针必然缺失。
-- **已知未闭环**：opencode 自身在 Seatbelt 内报 `failed to subscribe ... Error starting FSEvents stream`（其内置文件监视器，非万象术插件）；不影响模型输出与 `.Herdchestra` 事件落盘，但会刷 ERROR 日志，需单独立项。
+- **已知已定性（非阻塞）**：opencode 自身在 Seatbelt 内报 `failed to subscribe ... Error starting FSEvents stream`。四象限对照（node/bun × 沙箱内外）证明 FSEvents 本身在沙箱内可用，报错源自 opencode 自身 Bun 制品的 watcher 初始化路径，**不影响模型输出、事件落盘与退出码**（退出码 0）。属上游噪音，本仓不修，等 opencode 上游。
 - **运行时模型切换（PROCTOR_HOSTED_MODEL）**：真跑可用 `PROCTOR_HOSTED_MODEL=provider/model` 临时指定宿主模型（`model_source: env`，如实落盘）。原计划 `ctyun/deepseek-v4-pro-0813-oc` 因 Coding Plan 额度耗尽（curl 实测返回额度告警），本次 10+10 配对改用 `kw92.cyou/lazy/task` 执行；结论引用时须注明非原定模型，证据等级为参考。
 - 题库工作台：录/改/删/检查；新题挂校准卷；禁 Text-only 题干
 - 选题：按测试集筛题目、测万象术整次有无插件三选一；勾选不写回测试集
@@ -1402,3 +1402,23 @@ Grill 已对齐：真实宿主只接 `sandbox-runtime`；Windows 登记为降级
 
 - DevOps 席位暂处于 `assessment-pending-for-devops` 状态，待环境席位恢复后复跑自动化测试；
 - 真实 OS 隔离后端（ISSUE-0009）与万象术插件内部 Agent commission 路由（T6/T7）持续作为外部/架构阻断项追踪。
+
+## 43. 界面级端到端测试真实跑通与提示时序修复（2026-10-30）
+
+### 背景
+
+§42 加入的 `tests/browser/` 套件在提交时 Chromium 尚未安装，从未真实执行。本次首次安装 Chromium（1.64.1）真实跑通，暴露 7 个失败并全部修复。
+
+### 落地事实
+
+1. **测试基建（mock 缺口）**：6 个用例只 mock `GET /api/test-sets` 列表接口，前端 `initDatasets()` / `initBank()` 会进一步请求详情接口 `GET /api/test-sets/:id`，穿透到真后端报 400「未知测试集」。已为各用例补 `**/api/test-sets/**` 详情 mock（set-a / ts-core / ts-extended）。
+2. **作业轮询 mock 路径**：取消作业用例 mock 的 `**/api/jobs/job-cancel-ui` 未覆盖前端真实调用的 `/logs` 子路径，扩为 `**/api/jobs/job-cancel-ui/**` 并按真实契约返回 `lines`/`nextOffset` 字段。
+3. **断言与实现错位**：「数据集列表」用例期望 strata=null 的题目渲染「（未分层）」，但实现按 `bits.join(' · ') || '（未分层）'` 兜底——该题有 lifecycle=candidate 时渲染为 `candidate`。断言改为与现行实现一致。
+4. **旧枚举值**：`automationReadiness` 从已废弃的 `ready_automated` 改为现行枚举 `design_ready`（`src/domain/types.ts` AUTOMATION_READINESS）。
+5. **产品 bug（提示被覆盖）**：`bank.js` 录题提交与保存均为先 `setBankStatus('已保存…')` 再 `await loadTask()`，而 `loadTask` 末尾会把状态覆盖为「已加载」，成功提示用户根本看不到。修复：先刷新列表/表单再报成功；录题提交的刷新失败改报页面级 `bankStatus`（原 catch 写进已关闭弹窗内不可见的 `wizardError`）。
+
+### 验证
+
+- Playwright 浏览器测试 17/17 通过（修复前 7 failed）；
+- `npm run verify:release` 退出码 0（prettier + eslint + tsc + vitest 487/487 + 离线冒烟 30/30）；
+- Bugbot 审查 2 findings（`run-t6-effect.sh` 的 `set -e` 在 OFF 侧预期失败时会中止脚本、录题刷新失败反馈不可见），后者已随本次修复，前者为诊断脚本特性、暂不改。

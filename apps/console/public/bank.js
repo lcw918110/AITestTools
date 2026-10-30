@@ -444,9 +444,15 @@ function wireBank() {
         body: JSON.stringify(body),
       });
       document.getElementById('createWizard').close();
-      setBankStatus(`已录入 ${d.taskId}`, 'ok');
-      await refreshTasks();
-      await loadTask(d.taskId);
+      try {
+        await refreshTasks();
+        await loadTask(d.taskId);
+        // 先刷新列表与表单再报成功，避免被 loadTask 的「已加载」覆盖录入提示
+        setBankStatus(`已录入 ${d.taskId}`, 'ok');
+      } catch (e) {
+        // 弹窗已关：错误须落到页面级 bankStatus，写回已隐藏的 wizardError 用户看不见
+        setBankStatus(`录入后刷新失败：${String(e.message || e)}`, 'err');
+      }
     } catch (e) {
       errEl.textContent = String(e.message || e);
       errEl.hidden = false;
@@ -489,8 +495,9 @@ function wireBank() {
         headers: { 'content-type': 'application/json' },
         body: JSON.stringify(body),
       });
-      setBankStatus('已保存并升版本', 'ok');
       await loadTask(selectedTask);
+      // 先刷新表单再报成功，避免被 loadTask 的「已加载」覆盖保存提示
+      setBankStatus('已保存并升版本', 'ok');
     } catch (e) {
       setBankStatus(String(e.message || e), 'err');
     }

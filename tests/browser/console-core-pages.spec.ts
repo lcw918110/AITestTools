@@ -20,6 +20,36 @@ test.describe('控制台核心页面端到端交互测试 (GAP-3, ISSUE-0003)', 
           },
         }),
       );
+      await page.route('**/api/test-sets/**', (route) =>
+        route.fulfill({
+          json: {
+            id: 'set-a',
+            label: '基础测试集 A',
+            offRelease: 'paired-off-set-a',
+            onRelease: 'paired-on-set-a',
+            taskIds: ['PAIRED-TASK-01', 'PAIRED-TASK-02'],
+            coverage: {
+              matrix: { coding: { L1: 2 } },
+              missing: [],
+              unreadable: [],
+            },
+            tasks: [
+              {
+                taskId: 'PAIRED-TASK-01',
+                strata: { task_type: 'coding', difficulty_level: 'L1' },
+                lifecycle: 'active',
+                tags: ['coding'],
+              },
+              {
+                taskId: 'PAIRED-TASK-02',
+                strata: { task_type: 'coding', difficulty_level: 'L1' },
+                lifecycle: 'active',
+                tags: ['coding'],
+              },
+            ],
+          },
+        }),
+      );
       await page.route('**/api/bank/tasks', (route) =>
         route.fulfill({
           json: {
@@ -57,7 +87,7 @@ test.describe('控制台核心页面端到端交互测试 (GAP-3, ISSUE-0003)', 
             contains: 'TOKEN_ALPHA',
             notContains: 'ERROR',
             strata: { task_type: 'coding', difficulty_level: 'L2' },
-            automationReadiness: 'ready_automated',
+            automationReadiness: 'design_ready',
             lifecycle: 'active',
             lifecycleHistory: [
               { from: 'draft', to: 'active', reason: '审核通过', at: '2026-10-20' },
@@ -108,7 +138,7 @@ test.describe('控制台核心页面端到端交互测试 (GAP-3, ISSUE-0003)', 
       await expect(page.locator('#taskToken')).toHaveValue('TOKEN_ALPHA');
       await expect(page.locator('#taskStrataType')).toHaveValue('coding');
       await expect(page.locator('#taskStrataDifficulty')).toHaveValue('L2');
-      await expect(page.locator('#taskReadiness')).toHaveValue('ready_automated');
+      await expect(page.locator('#taskReadiness')).toHaveValue('design_ready');
       await expect(page.locator('#taskLifecycle')).toHaveText('active');
       await expect(page.locator('#taskIdsReadonly')).toContainText('EVAL-B-01-OFF');
       await expect(page.locator('#lifecycleHistory')).toContainText('draft → active（审核通过）');
@@ -126,6 +156,26 @@ test.describe('控制台核心页面端到端交互测试 (GAP-3, ISSUE-0003)', 
           json: { testSets: [{ id: 'set-a', label: '测试集 A', taskIds: ['PAIRED-TASK-01'] }] },
         }),
       );
+      await page.route('**/api/test-sets/**', (route) =>
+        route.fulfill({
+          json: {
+            id: 'set-a',
+            label: '测试集 A',
+            offRelease: 'paired-off-set-a',
+            onRelease: 'paired-on-set-a',
+            taskIds: ['PAIRED-TASK-01'],
+            coverage: { matrix: { coding: { L1: 1 } }, missing: [], unreadable: [] },
+            tasks: [
+              {
+                taskId: 'PAIRED-TASK-01',
+                strata: { task_type: 'coding', difficulty_level: 'L1' },
+                lifecycle: 'active',
+                tags: [],
+              },
+            ],
+          },
+        }),
+      );
       await page.route('**/api/bank/tasks', (route) =>
         route.fulfill({
           json: {
@@ -141,30 +191,29 @@ test.describe('控制台核心页面端到端交互测试 (GAP-3, ISSUE-0003)', 
           },
         }),
       );
-      await page.route('**/api/bank/tasks/PAIRED-TASK-01', (route) =>
-        route.fulfill({
-          json: {
-            taskId: 'PAIRED-TASK-01',
-            prompt: '原题干 TOKEN_ALPHA',
-            passToken: 'TOKEN_ALPHA',
-            complete: true,
-            lifecycle: 'active',
-            rubric: {
-              dimensions: [{ name: '维度1', scale: '1-5', weight: 1.0 }],
-            },
-          },
-        }),
-      );
-
       let savedPayload: Record<string, unknown> | null = null;
+      // 有状态 mock：PUT 后的 GET 返回已保存内容（模拟后端持久化）
+      let storedDetail: Record<string, unknown> = {
+        taskId: 'PAIRED-TASK-01',
+        prompt: '原题干 TOKEN_ALPHA',
+        passToken: 'TOKEN_ALPHA',
+        complete: true,
+        lifecycle: 'active',
+        rubric: {
+          dimensions: [{ name: '维度1', scale: '1-5', weight: 1.0 }],
+        },
+      };
       await page.route('**/api/bank/tasks/PAIRED-TASK-01', (route) => {
         if (route.request().method() === 'PUT') {
           savedPayload = route.request().postDataJSON() as Record<string, unknown>;
+          storedDetail = {
+            ...storedDetail,
+            ...(savedPayload as Record<string, unknown>),
+          };
           return route.fulfill({ json: { ok: true, taskId: 'PAIRED-TASK-01' } });
         }
-        return route.fulfill({ json: { taskId: 'PAIRED-TASK-01', complete: true } });
+        return route.fulfill({ json: storedDetail });
       });
-
       await page.goto('/#bank');
       await page.locator('#taskList button').first().click();
       await expect(page.locator('#taskTitle')).toHaveText('PAIRED-TASK-01');
@@ -210,6 +259,19 @@ test.describe('控制台核心页面端到端交互测试 (GAP-3, ISSUE-0003)', 
           json: { testSets: [{ id: 'set-main', label: '主流程集', taskIds: [] }] },
         }),
       );
+      await page.route('**/api/test-sets/**', (route) =>
+        route.fulfill({
+          json: {
+            id: 'set-main',
+            label: '主流程集',
+            offRelease: 'paired-off-set-main',
+            onRelease: 'paired-on-set-main',
+            taskIds: [],
+            coverage: { matrix: {}, missing: [], unreadable: [] },
+            tasks: [],
+          },
+        }),
+      );
       await page.route('**/api/bank/tasks', (route) => {
         if (route.request().method() === 'POST') {
           return route.fulfill({
@@ -253,16 +315,23 @@ test.describe('控制台核心页面端到端交互测试 (GAP-3, ISSUE-0003)', 
       await expect(page.locator('#wizardError')).toBeVisible();
       await expect(page.locator('#wizardError')).toContainText('题干禁止 Text-only');
 
-      // 输入合法题干
-      await page.locator('#wizPrompt').fill('请编写脚本并输出 TOKEN_FRESH 结束。');
+      // 输入含被占用终态词的题干（供第 3 步占用校验用）
+      await page.locator('#wizPrompt').fill('请编写脚本并输出 OCCUPIED_TOKEN 结束。');
       await page.locator('#wizNext').click();
 
       // 第 3 步：终态词校验
       await expect(page.locator('#wizardStepLabel')).toContainText('第 3 / 4 步 · 怎样算对');
-      // 边界 A：被占用的终态词
+      // 边界 A：题干（第 2 步已含 OCCUPIED_TOKEN）+ 被占用终态词 → 触发占用校验
       await page.locator('#wizToken').fill('OCCUPIED_TOKEN');
       await page.locator('#wizNext').click();
       await expect(page.locator('#wizardError')).toContainText('已被 PAIRED-TASK-01 占用');
+
+      // 回第 2 步换回合法题干（第 3 步题干框隐藏，不可直接 fill）
+      await page.locator('#wizBack').click();
+      await expect(page.locator('#wizardStepLabel')).toContainText('第 2 / 4 步 · 题干');
+      await page.locator('#wizPrompt').fill('请编写脚本并输出 TOKEN_FRESH 结束。');
+      await page.locator('#wizNext').click();
+      await expect(page.locator('#wizardStepLabel')).toContainText('第 3 / 4 步 · 怎样算对');
 
       // 边界 B：终态词未包含在题干中
       await page.locator('#wizToken').fill('TOKEN_NOT_IN_PROMPT');
@@ -292,6 +361,26 @@ test.describe('控制台核心页面端到端交互测试 (GAP-3, ISSUE-0003)', 
       await page.route('**/api/test-sets', (route) =>
         route.fulfill({
           json: { testSets: [{ id: 'set-a', label: '测试集 A', taskIds: ['PAIRED-TASK-01'] }] },
+        }),
+      );
+      await page.route('**/api/test-sets/**', (route) =>
+        route.fulfill({
+          json: {
+            id: 'set-a',
+            label: '测试集 A',
+            offRelease: 'paired-off-set-a',
+            onRelease: 'paired-on-set-a',
+            taskIds: ['PAIRED-TASK-01'],
+            coverage: { matrix: { coding: { L1: 1 } }, missing: [], unreadable: [] },
+            tasks: [
+              {
+                taskId: 'PAIRED-TASK-01',
+                strata: { task_type: 'coding', difficulty_level: 'L1' },
+                lifecycle: 'active',
+                tags: [],
+              },
+            ],
+          },
         }),
       );
       let taskList = [{ taskId: 'PAIRED-TASK-01', complete: true, testSetIds: ['set-a'] }];
@@ -472,7 +561,8 @@ test.describe('控制台核心页面端到端交互测试 (GAP-3, ISSUE-0003)', 
       await expect(taskItems.nth(0)).toContainText('PAIRED-TASK-01');
       await expect(taskItems.nth(0)).toContainText('类型 coding · 难度 L1 · active · 基础');
       await expect(taskItems.nth(1)).toContainText('PAIRED-TASK-02');
-      await expect(taskItems.nth(1)).toContainText('（未分层）');
+      // PAIRED-TASK-02 无 strata，仅 lifecycle=candidate：渲染为「candidate」而非「（未分层）」
+      await expect(taskItems.nth(1)).toContainText('candidate');
 
       // 切换到第二个数据集
       const datasetBtns = page.locator('#datasetList button');
@@ -650,7 +740,7 @@ test.describe('控制台核心页面端到端交互测试 (GAP-3, ISSUE-0003)', 
 
       // 验证表单初始值
       await expect(card.locator('label:has-text("模型") input')).toHaveValue('model-a');
-      await expect(card.locator('label:has-text("Agent") input')).toHaveValue('agent-a');
+      await expect(card.locator('label:has-text("Agent") input').first()).toHaveValue('agent-a');
       await expect(card.locator('label:has-text("插件") input')).toHaveValue('plugins/core');
       await expect(card.locator('label:has-text("托管 Agent") input')).toHaveValue('sub-agent-1');
       await expect(card.locator('label:has-text("工作区") select')).toHaveValue('isolated');
