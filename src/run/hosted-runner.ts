@@ -1,8 +1,16 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawnSync } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import {
   diagnoseHostedFailure,
   resolveHostedAttribution,
@@ -34,6 +42,12 @@ import { resolvePluginPath } from './plugin-path.ts';
 import { seedStimulusMaterials } from './seed-stimulus-materials.ts';
 import { materialsMutated, snapshotSeededFiles } from './hosted-workspace-state.ts';
 import { buildCanaryInjection, detectCanaryLeak } from '../security/canary.ts';
+import { evaluateIsolationGate, type IsolationGateResult } from '../security/isolation-backend.ts';
+import {
+  allowedDomainsFromEnv,
+  modelEndpointHost,
+  wrapHostCommand,
+} from '../security/sandbox-runtime.ts';
 
 /**
  * B-hosted adapter：真拉起本机 opencode。
@@ -81,6 +95,10 @@ export class HostedAdapter implements ExecutionAdapter {
   private runArgs: string[] = [];
   private canarySecret: string | undefined;
   private canaryLeak: { leaked: boolean; locations: string[] } | undefined;
+  private isolationGate: IsolationGateResult | undefined;
+  private sandboxBypassed = false;
+  private inheritedProvider: unknown;
+  private allowedDomains: string[] = [];
 
   async discover(ctx: AdapterContext): Promise<DiscoveredInput> {
     this.pairKey = ctx.pairKey;
@@ -135,6 +153,18 @@ export class HostedAdapter implements ExecutionAdapter {
         ],
       );
     }
+    // 驱动标签不是隔离证明；本机探测未通过时不允许任何宿主执行。
+    const gate = await evaluateIsolationGate();
+    this.isolationGate = gate;
+    if (!gate.allowed) {
+      const msg = `当前缺少经验证的操作系统级隔离后端，已拒绝启动真实宿主任务：${gate.reason}`;
+      throw new AdapterError('preflight_failed', 'HARNESS', msg, false, [
+        fail(ctx.revision, 'HARNESS', msg, {
+          artifactDir: ctx.artifactDir,
+          effectPair: this.pairKey,
+        }),
+      ]);
+    }
     return { ok: true };
   }
 
@@ -177,8 +207,10 @@ export class HostedAdapter implements ExecutionAdapter {
       recorderPlugin !== undefined;
 
     this.wantIsolated = wantDurable || ctx.environment.recipe.isolation_profile === 'isolated';
+    // 工作目录取真实路径：macOS 的 /var 是 /private/var 的符号链接，
+    // Seatbelt 按真实路径授权，若这里留 /var/... 就会与授权路径不一致而 EPERM。
     this.workDir = this.wantIsolated
-      ? mkdtempSync(join(tmpdir(), 'proctor-hosted-'))
+      ? realpathSync(mkdtempSync(join(tmpdir(), 'proctor-hosted-')))
       : ctx.projectRoot;
 
     const cassetteOutDir =
@@ -244,12 +276,26 @@ export class HostedAdapter implements ExecutionAdapter {
     const managedAgents = Array.isArray(managedAgentsRaw) ? managedAgentsRaw.map(String) : [];
     const hostConfig = prepareIsolatedHostConfig({ managedAgents, model: hostModel });
     this.isolatedHome = hostConfig.home;
+    // 模型端点域名要并入沙箱放行名单，故记下本次实际继承的 provider 段。
+    this.inheritedProvider = inheritedProviderConfig().provider;
+    // 代理变量必须剥掉：IDE 沙箱注入的 http(s)_proxy 会拦下 opencode 的模型请求
+    // （ERR_PROXY_TUNNEL 403），client-server 架构下 server 端静默重试直到超时，
+    // 表象是 stderr 停在 init 无模型流。隔离环境一律直连模型端点。
+    const proxyStripped: NodeJS.ProcessEnv = { ...process.env };
+    for (const key of Object.keys(proxyStripped)) {
+      if (/^(https?_proxy|all_proxy|no_proxy)$/i.test(key)) delete proxyStripped[key];
+    }
     const runEnv: NodeJS.ProcessEnv = {
-      ...process.env,
+      ...proxyStripped,
       CI: '1',
       WANXIANGSHU_TEST: 'true',
       HOME: hostConfig.home,
       XDG_CONFIG_HOME: hostConfig.configHome,
+      // opencode 日志等数据目录若未重定向，会回退到真实 HOME（沙箱内不可写）导致 FileSystem.open 崩溃。
+      // 全部收进隔离 HOME，与 allowedWrite 白名单一致。
+      XDG_DATA_HOME: join(hostConfig.home, '.local', 'share'),
+      XDG_STATE_HOME: join(hostConfig.home, '.local', 'state'),
+      XDG_CACHE_HOME: join(hostConfig.home, '.cache'),
     };
     if (journalPath !== undefined && recordId) {
       runEnv.PROCTOR_CASSETTE_JOURNAL = journalPath;
@@ -279,12 +325,58 @@ export class HostedAdapter implements ExecutionAdapter {
       deadline: number;
       runEnv: NodeJS.ProcessEnv;
     };
+    if (this.isolationGate !== undefined && this.isolationGate.allowed !== true) {
+      throw new AdapterError(
+        'preflight_failed',
+        'HARNESS',
+        '真实宿主未经过已通过的隔离探测，已拒绝启动',
+        false,
+      );
+    }
     const startedAt = Date.now();
-    const run = spawnSync(this.hostBin, p.runArgs, {
-      encoding: 'utf8',
-      timeout: p.deadline,
-      env: p.runEnv,
+    // 沙箱旁路：PROCTOR_SANDBOX_BYPASS=1 时跳过 Seatbelt 包裹（如 opencode client-server 在
+    // 沙箱内 listen/init 挂起问题）。仅用于诊断与链路打通；隔离门禁仍必须通过，
+    // 产物里如实标注 sandbox_bypassed，报告读取方据此区分证据等级。
+    const sandboxBypass = process.env.PROCTOR_SANDBOX_BYPASS === '1';
+    this.sandboxBypassed = sandboxBypass;
+    let execArgv: string[];
+    let sandboxEnv: NodeJS.ProcessEnv = {};
+    if (sandboxBypass) {
+      execArgv = [this.hostBin, ...p.runArgs];
+    } else {
+      // 模型端点域名来自本机受控 provider 配置（不是被测对象输入），必须一并放行，
+      // 否则沙箱代理会以 403 拒绝 opencode 的模型请求。
+      const endpointHost = modelEndpointHost(this.inheritedProvider, this.hostModel);
+      const allowedDomains = allowedDomainsFromEnv(p.runEnv);
+      if (endpointHost !== undefined && !allowedDomains.includes(endpointHost)) {
+        allowedDomains.push(endpointHost);
+      }
+      this.allowedDomains = allowedDomains;
+      const wrapped = await wrapHostCommand({
+        bin: this.hostBin,
+        args: p.runArgs,
+        cwd: this.workDir,
+        allowedWrite: [
+          this.workDir,
+          ...(this.isolatedHome !== undefined ? [this.isolatedHome] : []),
+        ],
+        allowedDomains,
+      });
+      const command = wrapped.argv[0];
+      if (command === undefined) {
+        throw new AdapterError('submit_failed', 'HARNESS', '隔离后端没有返回可执行命令', false);
+      }
+      execArgv = wrapped.argv;
+      sandboxEnv = wrapped.env;
+    }
+    const execBin = execArgv[0];
+    if (execBin === undefined) {
+      throw new AdapterError('submit_failed', 'HARNESS', '宿主命令缺少可执行文件', false);
+    }
+    const run = await runHostedWithReap(execBin, execArgv.slice(1), {
+      env: { ...p.runEnv, ...sandboxEnv },
       cwd: this.workDir,
+      timeoutMs: p.deadline,
     });
     const durationMs = Date.now() - startedAt;
     this.hostObs = observeHostExit(run);
@@ -373,6 +465,10 @@ export class HostedAdapter implements ExecutionAdapter {
     };
 
     this.runLog = {
+      sandbox_bypassed: this.sandboxBypassed,
+      sandbox_allowed_domains: this.allowedDomains,
+      isolation_gate_status: this.isolationGate?.status ?? null,
+      isolation_gate_reason: this.isolationGate?.reason ?? null,
       status: h.run.status,
       duration_ms: h.durationMs,
       deadline_ms: this.deadline,
@@ -706,11 +802,29 @@ function prepareIsolatedHostConfig(opts: { managedAgents: string[]; model?: stri
   managedAgents: string[];
   schedulerModel: string | null;
 } {
-  const home = mkdtempSync(join(tmpdir(), 'proctor-opencode-home-'));
+  // 隔离 HOME 同样取真实路径，理由与 workDir 相同（/var → /private/var）。
+  const home = realpathSync(mkdtempSync(join(tmpdir(), 'proctor-opencode-home-')));
   try {
     const configHome = join(home, '.config');
     const dir = join(configHome, 'opencode');
     mkdirSync(dir, { recursive: true });
+    // opencode 启动时会在 XDG 目录下逐层 mkdir（.local/share/opencode/log、
+    // .local/share/opencode/repos、.cache/opencode/bin 等）。Seatbelt 的写入授权
+    // 不覆盖运行期新建目录，按已知清单预建，避免 EPERM mkdir。
+    for (const sub of [
+      join(home, '.local'),
+      join(home, '.local', 'share'),
+      join(home, '.local', 'share', 'opencode'),
+      join(home, '.local', 'share', 'opencode', 'log'),
+      join(home, '.local', 'share', 'opencode', 'repos'),
+      join(home, '.local', 'state'),
+      join(home, '.local', 'state', 'opencode'),
+      join(home, '.cache'),
+      join(home, '.cache', 'opencode'),
+      join(home, '.cache', 'opencode', 'bin'),
+    ]) {
+      mkdirSync(sub, { recursive: true });
+    }
 
     const inherited = inheritedProviderConfig();
     const cfg: Record<string, unknown> = {
@@ -803,4 +917,144 @@ function attachHostedObs(
     workspace_ok,
     materials_mutated,
   };
+}
+
+/**
+ * 运行真实宿主命令，超时或异常时递归清理整棵进程树。
+ *
+ * 与探测阶段的 process_tree_reaped 保持一致：detached 起独立进程组，
+ * 超时先 SIGTERM 再 SIGKILL，并逐层 pgrep 收集后代（含自行换组的孙进程）
+ * 兜底清理，避免 opencode 内部 spawn 的孙进程在超时后残留。
+ * 返回形状兼容 spawnSync（status / signal / error / stdout / stderr），
+ * 供 observeHostExit 与 collect 阶段沿用。
+ */
+async function runHostedWithReap(
+  command: string,
+  args: string[],
+  opts: { env: NodeJS.ProcessEnv; cwd: string; timeoutMs: number },
+): Promise<{
+  status: number | null;
+  signal: NodeJS.Signals | null;
+  error: NodeJS.ErrnoException | null;
+  stdout: string;
+  stderr: string;
+}> {
+  const isPosix = process.platform !== 'win32';
+  return new Promise((resolve) => {
+    const child = spawn(command, args, {
+      cwd: opts.cwd,
+      env: opts.env,
+      shell: false,
+      detached: isPosix,
+      // stdin 必须是 ignore：opencode 检测到 stdin 是常开管道时会一直等输入，
+      // 表现为停在日志 init 之后、stdout 为空、永不退出，只能等 deadline 杀进程。
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+
+    let stdout = '';
+    let stderr = '';
+    let settled = false;
+    let timedOut = false;
+    let forceKillTimer: ReturnType<typeof setTimeout> | undefined;
+
+    const finish = (
+      status: number | null,
+      signal: NodeJS.Signals | null,
+      error: NodeJS.ErrnoException | null,
+    ) => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timer);
+      if (forceKillTimer !== undefined) clearTimeout(forceKillTimer);
+      resolve({ status, signal, error, stdout, stderr });
+    };
+
+    const timer = setTimeout(() => {
+      timedOut = true;
+      reapTree(child, 'SIGTERM');
+      forceKillTimer = setTimeout(() => {
+        reapTree(child, 'SIGKILL');
+      }, 500);
+      forceKillTimer.unref();
+    }, opts.timeoutMs);
+    timer.unref();
+
+    child.stdout?.on('data', (buf: Buffer) => {
+      stdout += buf.toString('utf8');
+    });
+    child.stderr?.on('data', (buf: Buffer) => {
+      stderr += buf.toString('utf8');
+    });
+    child.on('error', (err) => {
+      finish(null, null, err as NodeJS.ErrnoException);
+    });
+    child.on('close', (code, signal) => {
+      const timedOutErr: NodeJS.ErrnoException | null = timedOut
+        ? Object.assign(new Error('ETIMEDOUT'), { code: 'ETIMEDOUT' })
+        : null;
+      finish(code, signal ?? null, timedOutErr);
+    });
+  });
+}
+
+/** 终止子进程及其进程树（POSIX 负 PID 杀进程组 + pgrep 后代遍历兜底；Windows taskkill /T /F）。 */
+function reapTree(child: ReturnType<typeof spawn>, signal: NodeJS.Signals): void {
+  const pid = child.pid;
+  if (pid === undefined) return;
+  if (process.platform === 'win32') {
+    try {
+      spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore' });
+    } catch {
+      try {
+        child.kill(signal);
+      } catch {
+        /* ignore */
+      }
+    }
+    return;
+  }
+  try {
+    process.kill(-pid, signal);
+  } catch {
+    try {
+      child.kill(signal);
+    } catch {
+      /* ignore */
+    }
+  }
+  // 兜底：逐层收集自行换组的后代并单独终止
+  for (const descendant of collectDescendantPids(pid)) {
+    try {
+      process.kill(descendant, signal);
+    } catch {
+      /* 已退出，忽略 */
+    }
+  }
+}
+
+/** 通过 pgrep -P 逐层收集后代 PID（含自行 detach 换组的后代），限制深度防环。 */
+function collectDescendantPids(rootPid: number): number[] {
+  if (process.platform === 'win32') return [];
+  const result: number[] = [];
+  const visited = new Set<number>([rootPid]);
+  let frontier = [rootPid];
+  for (let depth = 0; depth < 8 && frontier.length > 0; depth++) {
+    const next: number[] = [];
+    for (const pid of frontier) {
+      const probe = spawnSync('pgrep', ['-P', String(pid)], {
+        encoding: 'utf8',
+        timeout: 1000,
+      });
+      if (probe.error || probe.status !== 0) continue;
+      for (const line of probe.stdout.split(/\r?\n/)) {
+        const childPid = Number.parseInt(line, 10);
+        if (!Number.isInteger(childPid) || childPid <= 1 || visited.has(childPid)) continue;
+        visited.add(childPid);
+        result.push(childPid);
+        next.push(childPid);
+      }
+    }
+    frontier = next;
+  }
+  return result;
 }

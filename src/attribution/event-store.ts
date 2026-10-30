@@ -109,29 +109,42 @@ export function collectEventStoreKinds(events: CanonicalEvent[]): string[] {
   return [...set].sort();
 }
 
-/** 运行时未收敛的事件：`<git-dir>/wanxiang/events/*.ndjson`，每行一个 CanonicalEvent。 */
-export function readPendingEventNdjson(workTree: string): CanonicalEvent[] {
+/**
+ * 运行时未收敛的事件目录，每行一个 CanonicalEvent。
+ *
+ * 万象术 0.8+ 把运行时状态放在 `<worktree>/.Herdchestra/wanxiangshu/` 下
+ * （`RuntimePath.stateRoot`：要求 `.Herdchestra` 为真目录、内含排除全部运行时数据的
+ * `.gitignore`），事件落在其 `events/*.ndjson`。旧版 `<git-dir>/wanxiang/events`
+ * 已不是写入面，仅作兼容回退保留。
+ */
+function pendingEventDirs(workTree: string): string[] {
+  const dirs = [join(workTree, '.Herdchestra', 'wanxiangshu', 'events')];
   const dirOut = git(workTree, ['rev-parse', '--path-format=absolute', '--git-dir']);
-  if (dirOut.status !== 0) return [];
-  const gitDir = dirOut.stdout.trim();
-  if (gitDir.length === 0) return [];
+  const gitDir = dirOut.status === 0 ? dirOut.stdout.trim() : '';
+  if (gitDir.length > 0) dirs.push(join(gitDir, 'wanxiang', 'events'));
+  return dirs;
+}
 
-  const eventsDir = join(gitDir, 'wanxiang', 'events');
-  if (!existsSync(eventsDir)) return [];
-
+export function readPendingEventNdjson(workTree: string): CanonicalEvent[] {
   const events: CanonicalEvent[] = [];
-  for (const name of readdirSync(eventsDir)) {
-    if (!name.endsWith('.ndjson')) continue;
-    let text: string;
-    try {
-      text = readFileSync(join(eventsDir, name), 'utf8');
-    } catch {
-      continue;
-    }
-    for (const line of text.split(/\r?\n/)) {
-      if (line.trim().length === 0) continue;
-      const parsed = parseCanonicalEventText(line);
-      if (parsed) events.push(parsed);
+  const seen = new Set<string>();
+  for (const eventsDir of pendingEventDirs(workTree)) {
+    if (!existsSync(eventsDir)) continue;
+    for (const name of readdirSync(eventsDir)) {
+      if (!name.endsWith('.ndjson')) continue;
+      let text: string;
+      try {
+        text = readFileSync(join(eventsDir, name), 'utf8');
+      } catch {
+        continue;
+      }
+      for (const line of text.split(/\r?\n/)) {
+        if (line.trim().length === 0) continue;
+        const parsed = parseCanonicalEventText(line);
+        if (parsed === undefined || seen.has(parsed.event_id)) continue;
+        seen.add(parsed.event_id);
+        events.push(parsed);
+      }
     }
   }
   return events;
@@ -214,9 +227,16 @@ export function ensureHostedGitRepo(workTree: string): { ok: boolean; error?: st
   if (init.status !== 0) {
     return { ok: false, error: (init.stderr || init.stdout).slice(0, 200) };
   }
-  const hooksPath = git(workTree, ['rev-parse', '--path-format=absolute', '--git-path', 'hooks']);
-  if (hooksPath.status === 0) {
-    const dir = hooksPath.stdout.trim();
+  // 宿主可能有全局 core.hooksPath（如 ~/.git-templates/hooks）。它会被新仓继承，
+  // 使被测插件把 hook 装到隔离工作区之外：沙箱内写入被拒、且污染宿主全局模板。
+  // 显式把 hooksPath 归位到本仓 .git/hooks，保证 hook 落在隔离边界内。
+  const hooksPath = git(workTree, ['config', 'core.hooksPath', '.git/hooks']);
+  if (hooksPath.status !== 0) {
+    return { ok: false, error: (hooksPath.stderr || hooksPath.stdout).slice(0, 200) };
+  }
+  const hooksDir = git(workTree, ['rev-parse', '--path-format=absolute', '--git-path', 'hooks']);
+  if (hooksDir.status === 0) {
+    const dir = hooksDir.stdout.trim();
     if (dir.length > 0) mkdirSync(dir, { recursive: true });
   }
   git(workTree, ['config', 'user.email', 'proctor@test']);

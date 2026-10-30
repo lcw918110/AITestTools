@@ -121,6 +121,49 @@ describe('EventStore 只读解析', () => {
     }
   });
 
+  /**
+   * 万象术 0.8+ 把运行时事件写到 <worktree>/.Herdchestra/wanxiangshu/events/*.ndjson
+   * （RuntimePath.stateRoot），不再写 <git-dir>/wanxiang/events。只读旧路径会让
+   * ON 侧永远 no-store-ref，把「插件已落盘」误判成「插件没挂上」。
+   */
+  it('认 0.8+ 的 .Herdchestra/wanxiangshu/events 运行时事件', () => {
+    const dir = mkdtempSync(join(process.cwd(), 'tests/fixtures', 'proctor-es-herdchestra-'));
+    try {
+      const inited = ensureHostedGitRepo(dir);
+      expect(inited, inited.error ?? 'git init').toMatchObject({ ok: true });
+      const eventsDir = join(dir, '.Herdchestra', 'wanxiangshu', 'events');
+      mkdirSync(eventsDir, { recursive: true });
+      writeFileSync(join(eventsDir, 'rt-l1-0000.ndjson'), journalEnvelopeLine());
+
+      const read = readWanxiangEventStore(dir);
+      expect(read.present).toBe(true);
+      expect(read.source).toBe('pending');
+      expect(read.kinds).toEqual(['JournalEnvelope', 'Runtime', 'RuntimeStarted']);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('0.8+ 路径与旧路径同时存在时都读、按 event_id 去重', () => {
+    const dir = mkdtempSync(join(process.cwd(), 'tests/fixtures', 'proctor-es-herd-both-'));
+    try {
+      const inited = ensureHostedGitRepo(dir);
+      expect(inited, inited.error ?? 'git init').toMatchObject({ ok: true });
+      const modern = join(dir, '.Herdchestra', 'wanxiangshu', 'events');
+      const legacy = join(dir, '.git', 'wanxiang', 'events');
+      mkdirSync(modern, { recursive: true });
+      mkdirSync(legacy, { recursive: true });
+      writeFileSync(join(modern, 'rt-l1-0000.ndjson'), journalEnvelopeLine());
+      writeFileSync(join(legacy, 'rt-l1.ndjson'), journalEnvelopeLine());
+
+      const read = readWanxiangEventStore(dir);
+      expect(read.present).toBe(true);
+      expect(read.events).toHaveLength(1);
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
   it('ref 与 pending 同时存在时按 event_id 去重', () => {
     const dir = mkdtempSync(join(process.cwd(), 'tests/fixtures', 'proctor-es-both-'));
     try {
