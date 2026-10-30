@@ -575,7 +575,8 @@ test.describe('控制台核心页面端到端交互测试 (GAP-3, ISSUE-0003)', 
     });
 
     test('添加模型与添加 Agent 交互', async ({ page }) => {
-      let catalog = { models: [], agents: [] };
+      type Catalog = { models: Array<{ id: string; verifiedAt: string | null }>; agents: string[] };
+      let catalog: Catalog = { models: [], agents: [] };
       await page.route('**/api/env/catalog', (route) => route.fulfill({ json: catalog }));
       await page.route('**/api/env/environments', (route) =>
         route.fulfill({ json: { environments: [] } }),

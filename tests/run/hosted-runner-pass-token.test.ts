@@ -10,8 +10,8 @@ const hostedIO = vi.hoisted(() => ({ stdout: '', status: 0 as number | null }));
 
 vi.mock('node:child_process', async (importOriginal) => {
   const actual = (await importOriginal()) as {
-    spawnSync: (command: string, args?: readonly string[], options?: object) => unknown;
-    spawn: (command: string, args?: readonly string[], options?: object) => unknown;
+    spawnSync: (...args: readonly unknown[]) => unknown;
+    spawn: (...args: readonly unknown[]) => unknown;
   };
   const fakeSpawn = (command: string, args?: readonly string[], _options?: object) => {
     const bin = String(command);
@@ -20,20 +20,20 @@ vi.mock('node:child_process', async (importOriginal) => {
     const isRun = head === 'run' || args?.includes('run');
     const stdout = isHost && isRun ? hostedIO.stdout : '';
     const status = isHost && isRun ? hostedIO.status : 0;
-    const listeners: Record<string, Array<(arg?: unknown) => void>> = {};
+    const listeners: Record<string, Array<(...args: unknown[]) => void>> = {};
     const child = {
       pid: 1,
       stdout: {
-        on: (ev: string, cb: (arg?: unknown) => void) => {
+        on: (ev: string, cb: (...args: unknown[]) => void) => {
           (listeners[`stdout:${ev}`] ??= []).push(cb);
         },
       },
       stderr: {
-        on: (ev: string, cb: (arg?: unknown) => void) => {
+        on: (ev: string, cb: (...args: unknown[]) => void) => {
           (listeners[`stderr:${ev}`] ??= []).push(cb);
         },
       },
-      on: (ev: string, cb: (arg?: unknown) => void) => {
+      on: (ev: string, cb: (...args: unknown[]) => void) => {
         (listeners[ev] ??= []).push(cb);
       },
       kill: () => true,

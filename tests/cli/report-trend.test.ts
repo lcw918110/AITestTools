@@ -129,13 +129,13 @@ describe('report trend', () => {
     const smokePoints = collectTrendPoints({ project, dataset, purpose: 'smoke' });
     expect(smokePoints).toHaveLength(2);
     expect(smokePoints.every((p) => p.purpose === 'smoke')).toBe(true);
-    expect(smokePoints[0].aggregates.a_case_pass_rate).toBe(0.8);
-    expect(smokePoints[1].aggregates.a_case_pass_rate).toBe(0.9);
+    expect(smokePoints[0]?.aggregates.a_case_pass_rate).toBe(0.8);
+    expect(smokePoints[1]?.aggregates.a_case_pass_rate).toBe(0.9);
 
     // 指定 purpose='acceptance' 时仅提取 acceptance 跑次
     const accPoints = collectTrendPoints({ project, dataset, purpose: 'acceptance' });
     expect(accPoints).toHaveLength(1);
-    expect(accPoints[0].purpose === 'acceptance').toBe(true);
+    expect(accPoints[0]?.purpose === 'acceptance').toBe(true);
   });
 
   it('支持按 unannotated 筛选多用途数据集中的未标注历史跑次', () => {
@@ -145,7 +145,7 @@ describe('report trend', () => {
 
     const unannotatedPoints = collectTrendPoints({ project, dataset, purpose: 'unannotated' });
     expect(unannotatedPoints).toHaveLength(1);
-    expect(unannotatedPoints[0].purpose).toBeUndefined();
+    expect(unannotatedPoints[0]?.purpose).toBeUndefined();
   });
 
   it('非法用途参数被严格拒绝，抛出明确错误', () => {
@@ -168,17 +168,17 @@ describe('report trend', () => {
     const buckets = collectTrendBuckets({ project, dataset });
     expect(Object.keys(buckets).sort()).toEqual(['acceptance', 'smoke', 'unannotated']);
 
-    expect(buckets.smoke.purpose).toBe('smoke');
-    expect(buckets.smoke.points).toHaveLength(1);
-    expect(buckets.smoke.points[0].purpose).toBe('smoke');
+    expect(buckets.smoke?.purpose).toBe('smoke');
+    expect(buckets.smoke?.points).toHaveLength(1);
+    expect(buckets.smoke?.points[0]?.purpose).toBe('smoke');
 
-    expect(buckets.acceptance.purpose).toBe('acceptance');
-    expect(buckets.acceptance.points).toHaveLength(1);
-    expect(buckets.acceptance.points[0].purpose).toBe('acceptance');
+    expect(buckets.acceptance?.purpose).toBe('acceptance');
+    expect(buckets.acceptance?.points).toHaveLength(1);
+    expect(buckets.acceptance?.points[0]?.purpose).toBe('acceptance');
 
-    expect(buckets.unannotated.purpose).toBeNull();
-    expect(buckets.unannotated.notice).toContain('仅供诊断');
-    expect(buckets.unannotated.points).toHaveLength(1);
+    expect(buckets.unannotated?.purpose).toBeNull();
+    expect(buckets.unannotated?.notice).toContain('仅供诊断');
+    expect(buckets.unannotated?.points).toHaveLength(1);
   });
 
   it('CLI runReportTrend 支持 --purpose 筛选与 --bucket 分桶输出', () => {

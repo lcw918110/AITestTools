@@ -48,8 +48,8 @@ describe('Console runsTrend controller (GAP-4)', () => {
     expect(body.purpose).toBe('regression');
     expect(body.metric).toBe('a_case_pass_rate');
     expect(body.points).toHaveLength(2);
-    expect(body.points[0].value).toBe(0.95);
-    expect(body.points[1].value).toBe(1.0);
+    expect(body.points[0]?.value).toBe(0.95);
+    expect(body.points[1]?.value).toBe(1.0);
   });
 
   it('未指定用途且包含多用途时，严格拒绝并返回 400 与可用用途列表，严禁混算', async () => {
@@ -92,7 +92,7 @@ describe('Console runsTrend controller (GAP-4)', () => {
     };
     expect(accBody.purpose).toBe('acceptance');
     expect(accBody.points).toHaveLength(1);
-    expect(accBody.points[0].value).toBe(0.9);
+    expect(accBody.points[0]?.value).toBe(0.9);
   });
 
   it('支持筛选 unannotated 未标注历史跑次，并标注仅供诊断', async () => {
@@ -110,7 +110,7 @@ describe('Console runsTrend controller (GAP-4)', () => {
     expect(body.purpose).toBeNull();
     expect(body.notice).toContain('仅供诊断');
     expect(body.points).toHaveLength(1);
-    expect(body.points[0].value).toBe(0.6);
+    expect(body.points[0]?.value).toBe(0.6);
   });
 
   it('传入非法用途参数时直接返回 400', async () => {
@@ -146,21 +146,22 @@ describe('Console runsTrend controller (GAP-4)', () => {
     };
     expect(body.bucketed).toBe(true);
     expect(body.available_purposes.sort()).toEqual(['diagnostic', 'smoke', 'unannotated']);
+    const buckets = body.buckets;
 
     // smoke 桶
-    expect(body.buckets.smoke.purpose).toBe('smoke');
-    expect(body.buckets.smoke.points).toHaveLength(1);
-    expect(body.buckets.smoke.points[0].value).toBe(0.75);
+    expect(buckets.smoke?.purpose).toBe('smoke');
+    expect(buckets.smoke?.points).toHaveLength(1);
+    expect(buckets.smoke?.points[0]?.value).toBe(0.75);
 
     // diagnostic 桶
-    expect(body.buckets.diagnostic.purpose).toBe('diagnostic');
-    expect(body.buckets.diagnostic.points).toHaveLength(1);
-    expect(body.buckets.diagnostic.points[0].value).toBe(0.88);
+    expect(buckets.diagnostic?.purpose).toBe('diagnostic');
+    expect(buckets.diagnostic?.points).toHaveLength(1);
+    expect(buckets.diagnostic?.points[0]?.value).toBe(0.88);
 
     // unannotated 桶
-    expect(body.buckets.unannotated.purpose).toBeNull();
-    expect(body.buckets.unannotated.notice).toContain('仅供诊断');
-    expect(body.buckets.unannotated.points).toHaveLength(1);
-    expect(body.buckets.unannotated.points[0].value).toBe(0.5);
+    expect(buckets.unannotated?.purpose).toBeNull();
+    expect(buckets.unannotated?.notice).toContain('仅供诊断');
+    expect(buckets.unannotated?.points).toHaveLength(1);
+    expect(buckets.unannotated?.points[0]?.value).toBe(0.5);
   });
 });
