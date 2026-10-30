@@ -32,7 +32,7 @@ npx tsx src/cli/main.ts run --project examples/product-eval \
 echo "    OFF 侧 run 退出码：${OFF_RC}（有试题失败时为 1，属 T6 预期）"
 
 echo "[2/3] ON 侧：paired-on-effect-smoke（157-159 挂万象术插件）"
-SUT_ROOT="${SUT_ROOT:-/Users/Licw/Desktop/git/wanxiangshu}" \
+export SUT_ROOT="${SUT_ROOT:-/Users/Licw/Desktop/git/wanxiangshu}"
 ON_RC=0
 npx tsx src/cli/main.ts run --project examples/product-eval \
   --dataset paired-on-effect-smoke --environment hosted-plugin-v1 \

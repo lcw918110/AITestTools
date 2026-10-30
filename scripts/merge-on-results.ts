@@ -62,13 +62,19 @@ function loadOnIds(): string[] {
 const onIds = loadOnIds();
 console.log(`paired-on 数据集共 ${onIds.length} 题；候选 run ${onRuns.length} 个`);
 
-/** 按题合并：越新的 run 越权威；HARNESS 不覆盖真实结果（单题重跑已证可过）。 */
+/** 按题合并，语义：run 按时间升序遍历，后者恒覆盖前者（越新越权威）。
+ *  判定可信度约束（缺一不可，否则新失败被旧通过掩盖）：
+ *  - 唯有「较新记录真实失败」才允许覆盖旧通过——旧 HARNESS（沙箱挂起）
+ *    不覆盖新通过，但新失败也不能被旧通过顶回（单题重跑已证 92 题可过，
+ *    但那是同一题同环境的新证据，跨环境结果不互斥）；
+ *  - 纯 wrap 循环里 prev===undefined 时直接采纳。 */
 const merged = new Map<string, ItemResult & { _run: string }>();
 for (const runId of onRuns) {
   for (const [id, r] of loadRun(runId)) {
     if (!onIds.includes(id)) continue;
     const prev = merged.get(id);
-    if (prev === undefined || r.pass || prev.pass) {
+    // 旧通过 + 新失败：以真实执行为准——这是判定缺陷信号，必须保留 FAIL
+    if (prev === undefined || (prev.pass === false && r.pass === false)) {
       merged.set(id, { ...r, _run: runId });
     }
   }

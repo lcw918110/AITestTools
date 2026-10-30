@@ -4,7 +4,7 @@
  "case_revision_id": "paired-task-92.r5.on",
  "revision_number": 5,
  "legacy_item_id": "EVAL-B-PAIRED-TASK-92-ON",
- "content_hash": "c0ddc467767906866dd30ad240a33fa97047f4c48da33042d70beb7ffb1b043c",
+ "content_hash": "977308eadc4dd46a4aaecc9066c9e7971808df92e50aeea8e2e6be324698333a",
  "stimulus": {
   "kind": "task_prompt",
   "ref": "bank/materials/PAIRED-TASK-92/prompt.txt",
@@ -35,7 +35,7 @@
    {
     "id": "spike-anchor",
     "type": "stdout_assert",
-    "contains_regex": "error spike|错误激增|error.?spike|spike"
+    "contains_regex": "error.?spike|spike|错误激增|错误率尖峰|尖峰"
    }
   ]
  },
@@ -61,6 +61,6 @@
   "rev2": "基准模型 meituan/LongCat-2.0 额度不足已不可用，冻结基准换为 wave-ai/gpt-5.4-mini",
   "rev3": "协议探针换血：assistant_completed 属万象术 0.8 前 NDJSON 面，已消失；改用 2026-08-31 hosted 真跑实测命中的 EventStore Kind（RuntimeStarted / JournalEnvelope）",
   "rev4": "判定加严：补 stdout_assert/workspace_assert，暗号不再作为唯一通过条件",
-  "rev5": "deploy-anchor 断言中英文用词：模型中文语境输出「部署时间戳」语义正确，正则放宽为 deploy|部署（两次复跑稳定命中的唯一断言缺陷，与插件无关）"
+  "rev5": "deploy-anchor 断言中英文用词：模型中文语境输出「部署时间戳」语义正确，正则放宽为 deploy|部署；spike-anchor 同源缺陷补「错误率尖峰/尖峰」变体（均经两次复跑稳定命中，属断言用词缺陷，与插件无关）"
  }
 }
