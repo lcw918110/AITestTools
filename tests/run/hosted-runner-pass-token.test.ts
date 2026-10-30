@@ -13,7 +13,7 @@ vi.mock('node:child_process', async (importOriginal) => {
     spawnSync: (command: string, args?: readonly string[], options?: object) => unknown;
     spawn: (command: string, args?: readonly string[], options?: object) => unknown;
   };
-  const fakeSpawn = (command: string, args?: readonly string[], options?: object) => {
+  const fakeSpawn = (command: string, args?: readonly string[], _options?: object) => {
     const bin = String(command);
     const head = args?.[0];
     const isHost = bin === 'opencode' || bin.endsWith('/opencode') || args?.includes('opencode');

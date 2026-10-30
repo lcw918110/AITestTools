@@ -456,7 +456,7 @@ test.describe('控制台核心页面端到端交互测试 (GAP-3, ISSUE-0003)', 
       // 验证矩阵渲染 (table)
       const matrixTable = page.locator('#datasetMatrix table.dataset-matrix-table');
       await expect(matrixTable).toBeVisible();
-      await expect(matrixTable).toContainText('任务类型 \ 难度');
+      await expect(matrixTable).toContainText('任务类型 \\ 难度');
       await expect(matrixTable).toContainText('coding');
       await expect(matrixTable).toContainText('reasoning');
 

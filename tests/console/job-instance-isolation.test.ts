@@ -6,7 +6,7 @@
  *    对无标识作业或其它实例持有的作业保持只读，严禁越权篡改。
  * 4. 活跃对等实例保护：PID 仍存活时保持只读，不进行任何越权中断。
  */
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -14,14 +14,14 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   _resetInstanceTokenForTest,
   assertJobsDirSecurityGuard,
-  ensureInstanceToken,
-  getInstanceToken,
+  ensureInstanceToken as _ensureInstanceToken,
+  getInstanceToken as _getInstanceToken,
   INSTANCE_TOKEN_FILENAME,
   isFormalJobsDir,
   isTestContext,
   jobs,
-  persistJob,
-  reconcileJobs,
+  persistJob as _persistJob,
+  reconcileJobs as _reconcileJobs,
   type Job,
 } from '../../apps/console/job-queue.ts';
 import { DEFAULT_JOBS_DIR } from '../../apps/console/config.ts';

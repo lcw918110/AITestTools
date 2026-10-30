@@ -31,13 +31,11 @@ vi.mock('node:child_process', async (importOriginal) => {
         ? (options as { cwd: string }).cwd
         : '';
     const isHost = bin === 'opencode' || bin.endsWith('/opencode') || args?.includes('opencode');
-    const isVersion = head === '--version' || args?.includes('--version');
     const isRun = head === 'run' || args?.includes('run');
     const stdout = isHost && isRun ? hostedIO.stdout : '';
     const stderr = isHost && isRun ? hostedIO.stderr : '';
     const status = isHost && isRun ? hostedIO.status : 0;
     const signal = isHost && isRun ? hostedIO.signal : null;
-    const error = isHost && isRun ? hostedIO.error : null;
     const listeners: Record<string, Array<(arg?: unknown) => void>> = {};
     const child = {
       pid: 1,

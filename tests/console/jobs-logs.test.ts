@@ -6,8 +6,7 @@
  * 不触发真实命令执行，不写入真实 product-eval 项目。
  */
 import { createServer, type Server } from 'node:http';
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { AddressInfo } from 'node:net';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -17,7 +16,9 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } 
 // 先于任何顶层语句执行，因此这里不能依赖 vi.stubEnv（它也在 import 之后）。
 // 唯一可靠的做法是在 vi.hoisted 回调里直接改 process.env，因为该回调
 // 确实先于 import 执行；回调内也不能引用顶部 import 的符号，需自行 require。
+// ESLint 对 vi.hoisted 回调内的 require 无法跟踪使用关系，此处禁用该规则。
 const { jobsDir } = vi.hoisted(() => {
+  /* eslint-disable @typescript-eslint/no-require-imports, @typescript-eslint/consistent-type-imports */
   const { mkdtempSync } = require('node:fs') as typeof import('node:fs');
   const { tmpdir } = require('node:os') as typeof import('node:os');
   const { join } = require('node:path') as typeof import('node:path');
