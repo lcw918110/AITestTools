@@ -16,7 +16,10 @@ function addRun(dataset: string, purpose?: string, startedAt = '2026-10-23T00:00
     join(dir, 'run.json'),
     JSON.stringify({ run_id: dir.split('/').pop(), dataset, purpose, started_at: startedAt }),
   );
-  writeFileSync(join(dir, 'metrics.json'), JSON.stringify({ aggregates: { a_case_pass_rate: val } }));
+  writeFileSync(
+    join(dir, 'metrics.json'),
+    JSON.stringify({ aggregates: { a_case_pass_rate: val } }),
+  );
 }
 
 function uniqueDataset() {

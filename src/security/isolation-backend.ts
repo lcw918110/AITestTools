@@ -128,7 +128,9 @@ async function loadSandboxRuntime(): Promise<SandboxRuntimeModule> {
 }
 
 /** 生产用运行时：依赖检查与四项探测都走 sandbox-runtime，不看驱动标签。 */
-export function createSandboxRuntime(platform: NodeJS.Platform = process.platform): IsolationRuntime {
+export function createSandboxRuntime(
+  platform: NodeJS.Platform = process.platform,
+): IsolationRuntime {
   return {
     platform,
     async checkDependencies() {
@@ -190,61 +192,61 @@ async function runProbe(
     'else echo EGRESS_DENIED; fi',
   ].join(' ');
   mkdirSync(work);
-    await runtime.SandboxManager.initialize({
-      network: { allowedDomains: [], deniedDomains: [] },
-      filesystem: {
-        denyRead: [secret],
-        allowWrite: [work],
-        denyWrite: [outside],
-      },
-    });
-    markInitialized(true);
-    const wrapped = await runtime.SandboxManager.wrapWithSandboxArgv(
-      boundaryCommand,
-      undefined,
-      undefined,
-      undefined,
-      work,
-    );
-    const boundary = runWrapped(wrapped, work, 8_000);
-    const treeToken = `proctor-tree-${process.pid}-${Date.now().toString(36)}`;
-    const sleeper = await runtime.SandboxManager.wrapWithSandboxArgv(
-      `sh -c ${shellQuote(`exec -a ${treeToken} sleep 30; touch ${marker}`)} & wait`,
-      undefined,
-      undefined,
-      undefined,
-      work,
-    );
-    const tree = await runProcessGroup(sleeper, work, 1_000, treeToken);
-    const output = `${boundary.stdout ?? ''}\n${boundary.stderr ?? ''}`;
-    const treeReaped = tree.timedOut && tree.reaped && !existsSync(marker);
-    const evidence: IsolationProbeEvidence[] = [
-      {
-        proof: 'workspace_write_denied',
-        passed: output.includes('WRITE_DENIED') && !output.includes('WRITE_ALLOWED'),
-        detail: output.includes('WRITE_DENIED') ? '工作区外写入被拒绝' : '未证明工作区外不可写',
-      },
-      {
-        proof: 'credential_read_denied',
-        passed: output.includes('SECRET_DENIED') && !output.includes('SECRET_READ'),
-        detail: output.includes('SECRET_DENIED') ? '凭据路径不可读' : '未证明凭据路径不可读',
-      },
-      {
-        proof: 'egress_denied',
-        passed: !output.includes('EGRESS_ALLOWED') && !output.includes('EGRESS_UNPROBED'),
-        detail: output.includes('EGRESS_ALLOWED')
-          ? '未允许的出站连接成功'
-          : output.includes('EGRESS_UNPROBED')
-            ? '缺少 python3，无法证明出站被拒绝'
-            : '未允许的出站连接被拒绝',
-      },
-      {
-        proof: 'process_tree_reaped',
-        passed: treeReaped,
-        detail: treeReaped ? '超时后进程树已清理' : '超时后进程树未确认清理',
-      },
-    ];
-    return evidence;
+  await runtime.SandboxManager.initialize({
+    network: { allowedDomains: [], deniedDomains: [] },
+    filesystem: {
+      denyRead: [secret],
+      allowWrite: [work],
+      denyWrite: [outside],
+    },
+  });
+  markInitialized(true);
+  const wrapped = await runtime.SandboxManager.wrapWithSandboxArgv(
+    boundaryCommand,
+    undefined,
+    undefined,
+    undefined,
+    work,
+  );
+  const boundary = runWrapped(wrapped, work, 8_000);
+  const treeToken = `proctor-tree-${process.pid}-${Date.now().toString(36)}`;
+  const sleeper = await runtime.SandboxManager.wrapWithSandboxArgv(
+    `sh -c ${shellQuote(`exec -a ${treeToken} sleep 30; touch ${marker}`)} & wait`,
+    undefined,
+    undefined,
+    undefined,
+    work,
+  );
+  const tree = await runProcessGroup(sleeper, work, 1_000, treeToken);
+  const output = `${boundary.stdout ?? ''}\n${boundary.stderr ?? ''}`;
+  const treeReaped = tree.timedOut && tree.reaped && !existsSync(marker);
+  const evidence: IsolationProbeEvidence[] = [
+    {
+      proof: 'workspace_write_denied',
+      passed: output.includes('WRITE_DENIED') && !output.includes('WRITE_ALLOWED'),
+      detail: output.includes('WRITE_DENIED') ? '工作区外写入被拒绝' : '未证明工作区外不可写',
+    },
+    {
+      proof: 'credential_read_denied',
+      passed: output.includes('SECRET_DENIED') && !output.includes('SECRET_READ'),
+      detail: output.includes('SECRET_DENIED') ? '凭据路径不可读' : '未证明凭据路径不可读',
+    },
+    {
+      proof: 'egress_denied',
+      passed: !output.includes('EGRESS_ALLOWED') && !output.includes('EGRESS_UNPROBED'),
+      detail: output.includes('EGRESS_ALLOWED')
+        ? '未允许的出站连接成功'
+        : output.includes('EGRESS_UNPROBED')
+          ? '缺少 python3，无法证明出站被拒绝'
+          : '未允许的出站连接被拒绝',
+    },
+    {
+      proof: 'process_tree_reaped',
+      passed: treeReaped,
+      detail: treeReaped ? '超时后进程树已清理' : '超时后进程树未确认清理',
+    },
+  ];
+  return evidence;
 }
 
 function runProcessGroup(
@@ -279,7 +281,11 @@ function runProcessGroup(
           const second = listProcesses();
           resolve({
             timedOut,
-            reaped: first.listed && second.listed && !first.text.includes(token) && !second.text.includes(token),
+            reaped:
+              first.listed &&
+              second.listed &&
+              !first.text.includes(token) &&
+              !second.text.includes(token),
           });
         }, 200);
       }, 200);

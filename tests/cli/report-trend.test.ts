@@ -18,7 +18,10 @@ function addRun(dataset: string, purpose?: string, startedAt = '2026-10-23T00:00
     join(dir, 'run.json'),
     JSON.stringify({ run_id: dir, dataset, purpose, started_at: startedAt }),
   );
-  writeFileSync(join(dir, 'metrics.json'), JSON.stringify({ aggregates: { a_case_pass_rate: val } }));
+  writeFileSync(
+    join(dir, 'metrics.json'),
+    JSON.stringify({ aggregates: { a_case_pass_rate: val } }),
+  );
 }
 
 function uniqueDataset() {
@@ -148,8 +151,12 @@ describe('report trend', () => {
   it('非法用途参数被严格拒绝，抛出明确错误', () => {
     const dataset = uniqueDataset();
     addRun(dataset, 'smoke');
-    expect(() => collectTrendPoints({ project, dataset, purpose: 'invalid_purpose' })).toThrow('非法用途');
-    expect(() => collectTrendPoints({ project, dataset, purpose: 'unknown_xyz' })).toThrow('支持的测试用途为');
+    expect(() => collectTrendPoints({ project, dataset, purpose: 'invalid_purpose' })).toThrow(
+      '非法用途',
+    );
+    expect(() => collectTrendPoints({ project, dataset, purpose: 'unknown_xyz' })).toThrow(
+      '支持的测试用途为',
+    );
   });
 
   it('支持按用途分桶（collectTrendBuckets），严禁不同用途在桶内混算', () => {

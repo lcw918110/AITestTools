@@ -104,7 +104,9 @@ export function normalizeAndValidatePurpose(purpose?: string | undefined): strin
   if (!trimmed) return undefined;
   if (trimmed === 'unannotated' || trimmed === '未标注') return 'unannotated';
   if (isValidPurpose(trimmed)) return trimmed;
-  throw new Error(`非法用途：${purpose}，支持的测试用途为 ${VALID_PURPOSES.join(', ')}（或 unannotated）`);
+  throw new Error(
+    `非法用途：${purpose}，支持的测试用途为 ${VALID_PURPOSES.join(', ')}（或 unannotated）`,
+  );
 }
 
 /** 扫描 runs/ 收集趋势点（纯函数，CLI 与 console API 共用）。 */
@@ -249,7 +251,9 @@ export function runReportTrend(options: ReportTrendOptions): number {
     console.log(`# trend buckets  metric=${metric}  buckets=${bucketKeys.length}`);
     for (const key of bucketKeys) {
       const b = buckets[key]!;
-      console.log(`\n## [用途分桶: ${b.purpose ?? '未标注（仅供诊断，不构成有效效果结论）'}] n=${b.points.length}`);
+      console.log(
+        `\n## [用途分桶: ${b.purpose ?? '未标注（仅供诊断，不构成有效效果结论）'}] n=${b.points.length}`,
+      );
       console.log('| started_at | run_id | dataset | value | gates |');
       console.log('| --- | --- | --- | --- | --- |');
       for (const p of b.points) {
@@ -270,7 +274,9 @@ export function runReportTrend(options: ReportTrendOptions): number {
     limit: options.limit,
   });
 
-  const effectivePurpose = recent[0]?.purpose ?? (options.purpose?.trim() === 'unannotated' ? null : (options.purpose?.trim() || null));
+  const effectivePurpose =
+    recent[0]?.purpose ??
+    (options.purpose?.trim() === 'unannotated' ? null : options.purpose?.trim() || null);
 
   if (options.json) {
     console.log(

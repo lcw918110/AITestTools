@@ -23,9 +23,19 @@ vi.mock('node:child_process', async (importOriginal) => {
     const listeners: Record<string, Array<(arg?: unknown) => void>> = {};
     const child = {
       pid: 1,
-      stdout: { on: (ev: string, cb: (arg?: unknown) => void) => { (listeners[`stdout:${ev}`] ??= []).push(cb); } },
-      stderr: { on: (ev: string, cb: (arg?: unknown) => void) => { (listeners[`stderr:${ev}`] ??= []).push(cb); } },
-      on: (ev: string, cb: (arg?: unknown) => void) => { (listeners[ev] ??= []).push(cb); },
+      stdout: {
+        on: (ev: string, cb: (arg?: unknown) => void) => {
+          (listeners[`stdout:${ev}`] ??= []).push(cb);
+        },
+      },
+      stderr: {
+        on: (ev: string, cb: (arg?: unknown) => void) => {
+          (listeners[`stderr:${ev}`] ??= []).push(cb);
+        },
+      },
+      on: (ev: string, cb: (arg?: unknown) => void) => {
+        (listeners[ev] ??= []).push(cb);
+      },
       kill: () => true,
     };
     queueMicrotask(() => {

@@ -156,7 +156,12 @@ describe('HTTP /api/jobs/:id/logs 集成', () => {
     jobs.set(job.id, job);
     const res = await request('/api/jobs/job-logs-mem/logs?offset=1');
     expect(res.status).toBe(200);
-    const body = (await res.json()) as { lines: string[]; nextOffset: number; reset: boolean; status: string };
+    const body = (await res.json()) as {
+      lines: string[];
+      nextOffset: number;
+      reset: boolean;
+      status: string;
+    };
     expect(body.lines).toEqual(['b', 'c']);
     expect(body.nextOffset).toBe(3);
     expect(body.reset).toBe(false);

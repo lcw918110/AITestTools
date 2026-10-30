@@ -206,8 +206,14 @@ describe('reconcileJobs 协调隔离与只读保护', () => {
 
     writeFileSync(join(testJobsDir, 'job-my-running.json'), JSON.stringify(myRunningJob, null, 2));
     writeFileSync(join(testJobsDir, 'job-my-queued.json'), JSON.stringify(myQueuedJob, null, 2));
-    writeFileSync(join(testJobsDir, 'job-other-running.json'), JSON.stringify(otherRunningJob, null, 2));
-    writeFileSync(join(testJobsDir, 'job-legacy-running.json'), JSON.stringify(legacyRunningJob, null, 2));
+    writeFileSync(
+      join(testJobsDir, 'job-other-running.json'),
+      JSON.stringify(otherRunningJob, null, 2),
+    );
+    writeFileSync(
+      join(testJobsDir, 'job-legacy-running.json'),
+      JSON.stringify(legacyRunningJob, null, 2),
+    );
     writeFileSync(join(testJobsDir, 'job-my-done.json'), JSON.stringify(myDoneJob, null, 2));
 
     // 3. 执行重启协调 reconcileJobs
@@ -215,26 +221,34 @@ describe('reconcileJobs 协调隔离与只读保护', () => {
 
     // 4. 验证磁盘与内存状态
     // A: myRunning 转换为 interrupted
-    const diskMyRunning = JSON.parse(readFileSync(join(testJobsDir, 'job-my-running.json'), 'utf8')) as Job;
+    const diskMyRunning = JSON.parse(
+      readFileSync(join(testJobsDir, 'job-my-running.json'), 'utf8'),
+    ) as Job;
     expect(diskMyRunning.status).toBe('interrupted');
     expect(diskMyRunning.error).toContain('服务重启，任务中断');
     expect(diskMyRunning.finishedAt).toBeTruthy();
     expect(queueMod.jobs.get('job-my-running')?.status).toBe('interrupted');
 
     // B: myQueued 转换为 interrupted
-    const diskMyQueued = JSON.parse(readFileSync(join(testJobsDir, 'job-my-queued.json'), 'utf8')) as Job;
+    const diskMyQueued = JSON.parse(
+      readFileSync(join(testJobsDir, 'job-my-queued.json'), 'utf8'),
+    ) as Job;
     expect(diskMyQueued.status).toBe('interrupted');
     expect(queueMod.jobs.get('job-my-queued')?.status).toBe('interrupted');
 
     // C: otherRunning 保持只读！磁盘与内存状态依然为 running
-    const diskOther = JSON.parse(readFileSync(join(testJobsDir, 'job-other-running.json'), 'utf8')) as Job;
+    const diskOther = JSON.parse(
+      readFileSync(join(testJobsDir, 'job-other-running.json'), 'utf8'),
+    ) as Job;
     expect(diskOther.status).toBe('running');
     expect(diskOther.managedByInstanceToken).toBe(otherToken);
     expect(diskOther.error).toBeUndefined();
     expect(queueMod.jobs.get('job-other-running')?.status).toBe('running');
 
     // D: legacyRunning 保持只读！磁盘与内存状态依然为 running
-    const diskLegacy = JSON.parse(readFileSync(join(testJobsDir, 'job-legacy-running.json'), 'utf8')) as Job;
+    const diskLegacy = JSON.parse(
+      readFileSync(join(testJobsDir, 'job-legacy-running.json'), 'utf8'),
+    ) as Job;
     expect(diskLegacy.status).toBe('running');
     expect(diskLegacy.managedByInstanceToken).toBeUndefined();
     expect(diskLegacy.error).toBeUndefined();
@@ -278,7 +292,9 @@ describe('reconcileJobs 协调隔离与只读保护', () => {
     queueMod.reconcileJobs();
 
     // 活跃对等实例的作业绝不能被本实例中断
-    const diskPeerJob = JSON.parse(readFileSync(join(testJobsDir, 'job-peer-active.json'), 'utf8')) as Job;
+    const diskPeerJob = JSON.parse(
+      readFileSync(join(testJobsDir, 'job-peer-active.json'), 'utf8'),
+    ) as Job;
     expect(diskPeerJob.status).toBe('running');
     expect(queueMod.jobs.get('job-peer-active')?.status).toBe('running');
   });

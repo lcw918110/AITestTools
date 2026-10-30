@@ -446,8 +446,12 @@ test.describe('控制台核心页面端到端交互测试 (GAP-3, ISSUE-0003)', 
 
       // 数据集初始化默认自动加载第 0 个 (ts-core)
       await expect(page.locator('#datasetTitle')).toHaveText('核心对照集');
-      await expect(page.locator('#datasetMeta')).toContainText('短名 ts-core · 无插件 v1.0.0 · 有插件 v1.1.0');
-      await expect(page.locator('#datasetCounts')).toContainText('无插件侧（OFF）2 题 · 有插件侧（ON）2 题 · 共 2 题');
+      await expect(page.locator('#datasetMeta')).toContainText(
+        '短名 ts-core · 无插件 v1.0.0 · 有插件 v1.1.0',
+      );
+      await expect(page.locator('#datasetCounts')).toContainText(
+        '无插件侧（OFF）2 题 · 有插件侧（ON）2 题 · 共 2 题',
+      );
 
       // 验证矩阵渲染 (table)
       const matrixTable = page.locator('#datasetMatrix table.dataset-matrix-table');
@@ -458,7 +462,9 @@ test.describe('控制台核心页面端到端交互测试 (GAP-3, ISSUE-0003)', 
 
       // 验证未覆盖警告提示
       await expect(page.locator('#datasetMissing')).toBeVisible();
-      await expect(page.locator('#datasetMissing')).toContainText('未覆盖 · 缺分层：PAIRED-TASK-02');
+      await expect(page.locator('#datasetMissing')).toContainText(
+        '未覆盖 · 缺分层：PAIRED-TASK-02',
+      );
 
       // 验证题目列表
       const taskItems = page.locator('#datasetTasks li');

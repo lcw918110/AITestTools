@@ -67,7 +67,9 @@ describe('隔离后端失败关闭', () => {
   });
 
   it('未注册的操作系统拒绝，不降级到更弱后端', async () => {
-    const gate = await evaluateIsolationGate(runtime({ platform: 'aix', evidence: passedEvidence() }));
+    const gate = await evaluateIsolationGate(
+      runtime({ platform: 'aix', evidence: passedEvidence() }),
+    );
     expect(gate.allowed).toBe(false);
     expect(gate.missing).toContain('已注册的隔离后端');
   });

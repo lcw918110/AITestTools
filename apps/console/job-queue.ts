@@ -154,7 +154,8 @@ export function ensureInstanceToken(): {
   }
 
   const configured = process.env.PROCTOR_CONSOLE_INSTANCE_TOKEN;
-  currentInstanceToken = configured && configured.trim() ? configured.trim() : 'inst_' + randomUUID();
+  currentInstanceToken =
+    configured && configured.trim() ? configured.trim() : 'inst_' + randomUUID();
   instanceTokenInitialized = true;
 
   try {
@@ -199,8 +200,7 @@ export function reconcileJobs(): void {
   const { currentToken, previousToken } = ensureInstanceToken();
   const reconcileTargetToken = isPeerInstanceActive
     ? undefined
-    : (previousToken ??
-       (process.env.PROCTOR_CONSOLE_INSTANCE_TOKEN ? currentToken : undefined));
+    : (previousToken ?? (process.env.PROCTOR_CONSOLE_INSTANCE_TOKEN ? currentToken : undefined));
 
   for (const name of readdirSync(JOBS_DIR)) {
     if (!name.endsWith('.json') || name.startsWith('.')) continue;
@@ -264,8 +264,8 @@ export function reconcileJobs(): void {
     const isUnfinished = job.status === 'running' || job.status === 'queued';
     const isOurPrevious = Boolean(
       reconcileTargetToken &&
-        job.managedByInstanceToken &&
-        job.managedByInstanceToken === reconcileTargetToken,
+      job.managedByInstanceToken &&
+      job.managedByInstanceToken === reconcileTargetToken,
     );
 
     if (isUnfinished && isOurPrevious) {

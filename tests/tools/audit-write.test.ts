@@ -31,7 +31,11 @@ describe('acquireLock 陈旧锁收割', () => {
     const dir = tmpdir();
     const lockPath = path.join(dir, '.audit.lock');
     const oldAt = new Date(Date.now() - 10 * 60_000).toISOString();
-    fs.writeFileSync(lockPath, JSON.stringify({ owner: 'ghost', pid: deadPid(), at: oldAt }), 'utf8');
+    fs.writeFileSync(
+      lockPath,
+      JSON.stringify({ owner: 'ghost', pid: deadPid(), at: oldAt }),
+      'utf8',
+    );
     const owner = acquireLock('new-owner', {}, { lockPath });
     expect(owner).toBe('new-owner');
     const holder = JSON.parse(fs.readFileSync(lockPath, 'utf8')) as { owner: string };
@@ -44,7 +48,11 @@ describe('acquireLock 陈旧锁收割', () => {
     const dir = tmpdir();
     const lockPath = path.join(dir, '.audit.lock');
     const oldAt = new Date(Date.now() - 10 * 60_000).toISOString();
-    fs.writeFileSync(lockPath, JSON.stringify({ owner: 'alive', pid: process.pid, at: oldAt }), 'utf8');
+    fs.writeFileSync(
+      lockPath,
+      JSON.stringify({ owner: 'alive', pid: process.pid, at: oldAt }),
+      'utf8',
+    );
     let code = '';
     try {
       acquireLock('intruder', {}, { lockPath });

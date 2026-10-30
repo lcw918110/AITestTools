@@ -14,7 +14,9 @@ const configHome = join(home, '.config');
 const dir = join(configHome, 'opencode');
 mkdirSync(dir, { recursive: true });
 
-const globalOc = JSON.parse(readFileSync(join(homedir(), '.config', 'opencode', 'opencode.json'), 'utf8'));
+const globalOc = JSON.parse(
+  readFileSync(join(homedir(), '.config', 'opencode', 'opencode.json'), 'utf8'),
+);
 const cfg: Record<string, unknown> = {
   $schema: 'https://opencode.ai/config.json',
   permission: { '*': 'allow' },
@@ -47,13 +49,27 @@ console.log(`[diag] 超时: ${timeoutMs}ms，开始…`);
 const t0 = Date.now();
 const child = spawn(
   'opencode',
-  ['run', '--dir', workDir, '-m', 'ctyun/deepseek-v4-pro-0813-oc', '--agent', 'fast-coder', '--print-logs', 'Reply with exactly ok. Prefer not using tools.'],
+  [
+    'run',
+    '--dir',
+    workDir,
+    '-m',
+    'ctyun/deepseek-v4-pro-0813-oc',
+    '--agent',
+    'fast-coder',
+    '--print-logs',
+    'Reply with exactly ok. Prefer not using tools.',
+  ],
   { env, cwd: workDir, stdio: ['ignore', 'pipe', 'pipe'] },
 );
 let out = '';
 let err = '';
-child.stdout.on('data', (d: Buffer) => { out += d; });
-child.stderr.on('data', (d: Buffer) => { err += d; });
+child.stdout.on('data', (d: Buffer) => {
+  out += d;
+});
+child.stderr.on('data', (d: Buffer) => {
+  err += d;
+});
 const timer = setTimeout(() => {
   console.log(`[diag] ${timeoutMs}ms 超时，SIGKILL`);
   child.kill('SIGKILL');
