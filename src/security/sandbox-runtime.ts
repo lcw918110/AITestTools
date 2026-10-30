@@ -95,7 +95,9 @@ export async function wrapHostCommand(input: {
 function withTimeout<T>(p: Promise<T>, ms: number, label: string): Promise<T> {
   return new Promise<T>((resolve, reject) => {
     const timer = setTimeout(() => {
-      reject(new Error(`${label} 超过 ${ms}ms 未完成（疑似沙箱代理连接排水挂起），已按超时失败处理`));
+      reject(
+        new Error(`${label} 超过 ${ms}ms 未完成（疑似沙箱代理连接排水挂起），已按超时失败处理`),
+      );
     }, ms);
     timer.unref();
     p.then(

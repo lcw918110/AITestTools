@@ -70,9 +70,11 @@ const merged = new Map<string, ItemResult & { _run: string }>();
 
 // 源 1：首跑判定重建（1-72 题，首跑被 kill 无 ndjson）
 try {
-  const firstVerdicts = JSON.parse(
-    readFileSync(FIRST_RUN_VERDICTS, 'utf8'),
-  ) as Array<{ item_id: string; pass: boolean; attribution?: string }>;
+  const firstVerdicts = JSON.parse(readFileSync(FIRST_RUN_VERDICTS, 'utf8')) as Array<{
+    item_id: string;
+    pass: boolean;
+    attribution?: string;
+  }>;
   for (const v of firstVerdicts) {
     merged.set(v.item_id, { ...v, _run: '20261030-211930219-cpwt(重建)' });
   }

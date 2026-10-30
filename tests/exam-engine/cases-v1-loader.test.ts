@@ -22,14 +22,14 @@ describe('cases-v1 加载器（阶段 3）', () => {
     }
   });
 
-  it('加载 318 个 CaseRevision（OFF/ON 拆两修订）', () => {
+  it('加载 319 个 CaseRevision（OFF/ON 拆两修订；ON 侧 92 题增 r5 修订）', () => {
     const revisions = loadCaseRevisions(join(projectRoot, 'case-revisions'), projectRoot);
-    expect(revisions.length).toBe(318);
-    // OFF/ON 各 159
+    expect(revisions.length).toBe(319);
+    // OFF 159 + ON 160（92 题含 r4/r5 两个 ON 修订）
     const off = revisions.filter((r) => r.doc.case_revision_id.endsWith('.off'));
     const on = revisions.filter((r) => r.doc.case_revision_id.endsWith('.on'));
     expect(off.length).toBe(159);
-    expect(on.length).toBe(159);
+    expect(on.length).toBe(160);
   });
 
   it('加载 13 个 DatasetRelease 冻结闭包', () => {
@@ -50,9 +50,9 @@ describe('cases-v1 加载器（阶段 3）', () => {
 });
 
 describe('revisionDigest（cases-v1 内容摘要）', () => {
-  it('与迁移脚本产出的 content_hash 全量一致（318 个）', () => {
+  it('与迁移脚本产出的 content_hash 全量一致（319 个）', () => {
     const revisions = loadCaseRevisions(join(projectRoot, 'case-revisions'), projectRoot);
-    expect(revisions.length).toBe(318);
+    expect(revisions.length).toBe(319);
     for (const rev of revisions) {
       expect(revisionDigest(rev.doc), `${rev.doc.case_revision_id} 应 digest 一致`).toBe(
         rev.doc.content_hash,

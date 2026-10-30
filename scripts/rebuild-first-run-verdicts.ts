@@ -29,7 +29,12 @@ interface HostedRun {
   [k: string]: unknown;
 }
 
-function judge(id: string): { item_id: string; pass: boolean; attribution?: string; source: string } {
+function judge(id: string): {
+  item_id: string;
+  pass: boolean;
+  attribution?: string;
+  source: string;
+} {
   const dir = join(ARTIFACTS, id);
   const runJson = join(dir, 'hosted-run.json');
   if (!existsSync(runJson)) {
@@ -54,7 +59,9 @@ const ids = readdirSync(ARTIFACTS).filter((d) => {
 
 const results = ids.sort().map(judge);
 const pass = results.filter((r) => r.pass).length;
-console.log(`首跑 artifacts 重建：${results.length} 题，PASS ${pass} / FAIL ${results.length - pass}`);
+console.log(
+  `首跑 artifacts 重建：${results.length} 题，PASS ${pass} / FAIL ${results.length - pass}`,
+);
 const fails = results.filter((r) => !r.pass);
 for (const r of fails) {
   console.log(`  ${r.item_id} [${r.attribution}]`);

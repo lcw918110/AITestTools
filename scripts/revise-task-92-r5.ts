@@ -13,12 +13,9 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { revisionDigest } from '../src/exam-engine/digest.ts';
 
-const R4 =
-  'examples/product-eval/case-revisions/paired-task-92.r4.on.case-revision.json';
-const R5 =
-  'examples/product-eval/case-revisions/paired-task-92.r5.on.case-revision.json';
-const RELEASE =
-  'examples/product-eval/dataset-releases/paired-on.dataset-release.json';
+const R4 = 'examples/product-eval/case-revisions/paired-task-92.r4.on.case-revision.json';
+const R5 = 'examples/product-eval/case-revisions/paired-task-92.r5.on.case-revision.json';
+const RELEASE = 'examples/product-eval/dataset-releases/paired-on.dataset-release.json';
 
 // 1. 复制 r4 → r5，改身份
 const r5 = JSON.parse(readFileSync(R4, 'utf8')) as Record<string, unknown> & {
