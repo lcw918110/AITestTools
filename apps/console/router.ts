@@ -40,7 +40,7 @@ import {
   runsTrend,
   runsView,
 } from './controllers/runs.ts';
-import { jobsCancel, jobsGet } from './controllers/jobs.ts';
+import { jobsCancel, jobsGet, jobsLogsGet } from './controllers/jobs.ts';
 import { run, type RunBody } from './controllers/run.ts';
 import {
   bankTaskCreate,
@@ -318,6 +318,8 @@ async function dispatchRequest(req: IncomingMessage, res: ServerResponse): Promi
       dataset: url.searchParams.get('dataset') ?? undefined,
       metric: url.searchParams.get('metric') ?? undefined,
       limit: url.searchParams.get('limit') ?? undefined,
+      purpose: url.searchParams.get('purpose') ?? undefined,
+      bucket: url.searchParams.get('bucket') ?? undefined,
     });
     json(res, r.status, r.body);
     return;
@@ -358,7 +360,26 @@ async function dispatchRequest(req: IncomingMessage, res: ServerResponse): Promi
     return;
   }
   if (pathname.startsWith('/api/jobs/')) {
-    const id = safeDecodeSegment(pathname.slice('/api/jobs/'.length));
+    const sub = pathname.slice('/api/jobs/'.length);
+    if (sub.endsWith('/logs')) {
+      const rawId = sub.slice(0, -'/logs'.length);
+      const id = safeDecodeSegment(rawId);
+      if (id === null) {
+        json(res, 404, { error: 'job not found' });
+        return;
+      }
+      if (req.method === 'GET') {
+        const offsetParam = url.searchParams.get('offset');
+        const offset = offsetParam !== null ? Number(offsetParam) : 0;
+        const r = await jobsLogsGet(id, offset);
+        json(res, r.status, r.body);
+        return;
+      }
+      json(res, 405, { error: 'method not allowed' });
+      return;
+    }
+
+    const id = safeDecodeSegment(sub);
     if (id === null) {
       json(res, 404, { error: 'job not found' });
       return;

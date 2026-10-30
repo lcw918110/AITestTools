@@ -44,6 +44,62 @@ function normalizeNdjson(runDir: string): string {
 }
 
 describe('切片 7：重跑一致性 + compare CLI', () => {
+  it('空字符串用途按未知处理，与未标注同样拒绝比较', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'proctor-purpose-blank-'));
+    const { mkdirSync, rmSync } = await import('node:fs');
+    const b = join(root, 'b');
+    const c = join(root, 'c');
+    mkdirSync(b);
+    mkdirSync(c);
+    try {
+      for (const dir of [b, c]) {
+        writeFileSync(
+          join(dir, 'results.ndjson'),
+          JSON.stringify({ item_id: 'A', item_rev: 1, pass: true }),
+        );
+      }
+      writeFileSync(join(b, 'run.json'), JSON.stringify({ purpose: '' }));
+      writeFileSync(join(c, 'run.json'), JSON.stringify({ purpose: '  ' }));
+      const bothUnknown = compareRuns(b, c);
+      expect(bothUnknown.purpose).toBeUndefined();
+      expect(bothUnknown.purposeNotice).toContain('仅供诊断');
+      writeFileSync(join(c, 'run.json'), JSON.stringify({}));
+      expect(bothUnknown).toMatchObject({ purposeNotice: expect.stringContaining('仅供诊断') });
+      writeFileSync(join(c, 'run.json'), JSON.stringify({ purpose: 'smoke' }));
+      expect(() => compareRuns(b, c)).toThrow('用途不可比');
+      writeFileSync(join(b, 'run.json'), JSON.stringify({ purpose: 'smoke' }));
+      writeFileSync(join(c, 'run.json'), JSON.stringify({ purpose: 'smoke' }));
+      expect(compareRuns(b, c).counts.unchanged).toBe(1);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
+
+  it('拒绝不同或单侧未知用途混算，相同用途允许比较', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'proctor-purpose-cmp-'));
+    const { mkdirSync, rmSync } = await import('node:fs');
+    const b = join(root, 'b');
+    const c = join(root, 'c');
+    mkdirSync(b);
+    mkdirSync(c);
+    try {
+      for (const dir of [b, c]) {
+        writeFileSync(
+          join(dir, 'results.ndjson'),
+          JSON.stringify({ item_id: 'A', item_rev: 1, pass: true }),
+        );
+      }
+      writeFileSync(join(b, 'run.json'), JSON.stringify({ purpose: 'smoke' }));
+      writeFileSync(join(c, 'run.json'), JSON.stringify({ purpose: 'effect_comparison' }));
+      expect(() => compareRuns(b, c)).toThrow('用途不可比');
+      writeFileSync(join(c, 'run.json'), '{}');
+      expect(() => compareRuns(b, c)).toThrow('用途不可比');
+      writeFileSync(join(c, 'run.json'), JSON.stringify({ purpose: 'smoke' }));
+      expect(compareRuns(b, c).counts.unchanged).toBe(1);
+    } finally {
+      rmSync(root, { recursive: true, force: true });
+    }
+  });
   it('smoke-a 连续两次归一化 results 一致，且 compare 全 unchanged', async () => {
     expect(
       await main([
@@ -90,6 +146,34 @@ describe('切片 7：重跑一致性 + compare CLI', () => {
     expect(report.counts.unchanged).toBeGreaterThanOrEqual(2);
   });
 
+  it('运行用途写入 run.json，未知旧运行不被反推', async () => {
+    vi.stubEnv('PROCTOR_RUN_PURPOSE', 'regression');
+    try {
+      expect(
+        await main([
+          'run',
+          '--dataset',
+          'smoke-a',
+          '--environment',
+          'fake-host-v1',
+          '--project',
+          demoProject,
+        ]),
+      ).toBe(0);
+      const runDir = out
+        .find((line) => line.startsWith('run 完成：'))
+        ?.slice('run 完成：'.length)
+        .trim();
+      expect(runDir).toBeTruthy();
+      const meta = JSON.parse(readFileSync(join(runDir!, 'run.json'), 'utf8')) as {
+        purpose?: string;
+      };
+      expect(meta.purpose).toBe('regression');
+    } finally {
+      vi.unstubAllEnvs();
+    }
+  });
+
   it('compare CLI 输出三分类计数', async () => {
     const root = mkdtempSync(join(tmpdir(), 'proctor-cmp-cli-'));
     const b = join(root, 'b');
@@ -119,6 +203,10 @@ describe('切片 7：重跑一致性 + compare CLI', () => {
       counts: Record<string, number>;
       effect: { pass_rate_delta: number; baseline_pass_rate: number; candidate_pass_rate: number };
     };
+    expect(report).toMatchObject({ purposeNotice: expect.stringContaining('仅供诊断') });
+    out = [];
+    expect(await main(['compare', '--baseline', b, '--candidate', c])).toBe(0);
+    expect(out.join('\n')).toContain('仅供诊断');
     expect(report.counts.new_failure).toBe(1);
     expect(report.counts.fixed).toBe(1);
     expect(report.counts.asset_rev_drift).toBe(1);

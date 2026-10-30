@@ -34,7 +34,7 @@ const HELP = `agent-proctor — 第三方独立 Agent 监考/评测引擎
   proctor baseline pin --run <run> --name <别名>
   proctor score write --run <run> --item <id> --value <分> [--max 5]
   proctor report show --run <run>
-  proctor report trend [--dataset <名>] [--metric <名>] [--limit N]
+  proctor report trend [--dataset <名>] [--purpose <用途>] [--bucket] [--metric <名>] [--limit N]
   proctor contract verify --host opencode@1.18.5
   proctor --version | --help
 
@@ -87,6 +87,8 @@ export async function main(argv: string[]): Promise<number> {
         environment: { type: 'string' },
         only: { type: 'string', multiple: true },
         concurrency: { type: 'string' },
+        purpose: { type: 'string' },
+        bucket: { type: 'boolean', default: false },
         metric: { type: 'string' },
         limit: { type: 'string' },
         item: { type: 'string' },
@@ -226,6 +228,8 @@ export async function main(argv: string[]): Promise<number> {
       return runReportTrend({
         project: values.project,
         dataset: values.dataset,
+        purpose: values.purpose,
+        bucket: values.bucket === true,
         metric: values.metric,
         limit,
         json: values.json === true,

@@ -9,6 +9,7 @@ import { formatHostExitCell, formatTimedOutCell, formatWorkspaceCell } from './h
 
 export interface RunMeta {
   run_id: string;
+  purpose?: string;
   dataset: string;
   environment: string;
   started_at: string;

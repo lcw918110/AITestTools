@@ -18,16 +18,35 @@ import { getTestSet, testSetIdFromRelease } from './test-sets.ts';
 
 export const EVAL_TASK_ID_RE = /^et-[a-z0-9]+$/;
 
+export const TASK_PURPOSES = [
+  'smoke',
+  'acceptance',
+  'diagnostic',
+  'regression',
+  'effect_comparison',
+  'controlled_fault',
+  'scorer_calibration',
+] as const;
+
+export type TaskPurpose = (typeof TASK_PURPOSES)[number];
+
+function isTaskPurpose(value: unknown): value is TaskPurpose {
+  return typeof value === 'string' && TASK_PURPOSES.some((purpose) => purpose === value);
+}
+
 export type EvalTaskRun = {
   path: string;
   startedAt: string;
   jobId: string;
+  purpose?: TaskPurpose;
 };
 
 export type EvalTask = {
   id: string;
   name: string;
   kind: ExperimentId;
+  purpose?: TaskPurpose;
+  purposeLocked?: boolean;
   release: string;
   testSetId: string;
   taskIds: string[];
@@ -44,6 +63,7 @@ export type EvalTask = {
 export type EvalTaskInput = {
   name?: string;
   kind?: string;
+  purpose?: string;
   release?: string;
   testSetId?: string;
   taskIds?: string[];
@@ -160,6 +180,11 @@ function readTaskFile(file: string): { ok: true; task: EvalTask } | { ok: false;
     updatedAt: typeof doc.updatedAt === 'string' ? doc.updatedAt : new Date().toISOString(),
     runs,
   };
+  if (doc.purpose !== undefined && !isTaskPurpose(doc.purpose)) {
+    return { ok: false, error: '非法用途' };
+  }
+  if (isTaskPurpose(doc.purpose)) out.purpose = doc.purpose;
+  if (doc.purposeLocked === true || runs.length > 0) out.purposeLocked = true;
   if (typeof doc.sutRoot === 'string' && doc.sutRoot.trim()) out.sutRoot = doc.sutRoot.trim();
   if (typeof doc.model === 'string' && doc.model.trim()) out.model = doc.model.trim();
   if (typeof doc.agent === 'string' && doc.agent.trim()) out.agent = doc.agent.trim();
@@ -210,6 +235,9 @@ export function createEvalTask(
   project: string,
   body: EvalTaskInput,
 ): EvalTask | { error: string; code: number } {
+  if (!isTaskPurpose(body.purpose)) {
+    return { error: '新建任务必须选择支持的测试用途', code: 400 };
+  }
   const kind = normalizeKind(body.kind);
   if (!kind) return { error: 'kind 须为 model / plugin / agent', code: 400 };
   if (body.taskIds !== undefined) {
@@ -238,6 +266,7 @@ export function createEvalTask(
     updatedAt: now,
     runs: [],
   };
+  if (isTaskPurpose(body.purpose)) task.purpose = body.purpose;
   const sut = body.sutRoot?.trim();
   const model = body.model?.trim();
   const agent = body.agent?.trim();
@@ -255,6 +284,12 @@ export function updateEvalTask(
 ): EvalTask | { error: string; code: number } {
   const existing = getEvalTask(project, id);
   if ('error' in existing) return existing;
+  if (body.purpose !== undefined) {
+    if (!isTaskPurpose(body.purpose)) return { error: '用途须为支持的测试用途', code: 400 };
+    if ((existing.purposeLocked || existing.runs.length > 0) && body.purpose !== existing.purpose) {
+      return { error: '已有运行记录，修改用途请新建任务', code: 400 };
+    }
+  }
   if (body.kind !== undefined) {
     const incoming = normalizeKind(body.kind);
     if (!incoming) return { error: 'kind 须为 model / plugin / agent', code: 400 };
@@ -288,6 +323,7 @@ export function updateEvalTask(
     updatedAt: new Date().toISOString(),
     runs: existing.runs,
   };
+  if (isTaskPurpose(body.purpose)) next.purpose = body.purpose;
   if (body.sutRoot !== undefined) {
     const sut = body.sutRoot.trim();
     if (sut) next.sutRoot = sut;
@@ -303,6 +339,18 @@ export function updateEvalTask(
     if (agent) next.agent = agent;
     else delete next.agent;
   }
+  writeTask(project, next);
+  return next;
+}
+
+/** 提交作业时冻结分类；失败或取消也不能回头改变此次运行的用途。 */
+export function freezeEvalTaskPurpose(
+  project: string,
+  id: string,
+): EvalTask | { error: string; code: number } {
+  const existing = getEvalTask(project, id);
+  if ('error' in existing) return existing;
+  const next: EvalTask = { ...existing, purposeLocked: true };
   writeTask(project, next);
   return next;
 }

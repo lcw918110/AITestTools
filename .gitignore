@@ -1,6 +1,8 @@
 node_modules/
 dist/
 coverage/
+test-results/
+playwright-report/
 *.tsbuildinfo
 
 # 评测产物：run 目录与基线由使用方仓库自行管理，不入引擎仓库
@@ -20,6 +22,9 @@ apps/console/.jobs/
 # 事件诊断产物（一次性 incident 排查，不入库）
 .diagnostics/
 wanxiangshu/
+
+# 本机宿主个人配置（不作为仓库默认配置交付）
+/opencode.json
 
 # 环境与密钥（profile 中的模型密钥只走环境变量）
 .env

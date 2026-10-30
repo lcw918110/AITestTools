@@ -82,7 +82,7 @@ export function projectSummary() {
     ? readdirSync(join(PROJECT, 'bank/materials')).filter((n) => !n.startsWith('.'))
     : [];
   return {
-    project: 'examples/product-eval',
+    project: PROJECT,
     exam: examName,
     description: examDescription,
     testSets: listTestSets(PROJECT),

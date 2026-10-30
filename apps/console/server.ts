@@ -7,7 +7,10 @@ import { mkdirSync } from 'node:fs';
 import { HOST, PORT, PROJECT, JOBS_DIR } from './config.ts';
 import { json } from './http.ts';
 import { handleRequest } from './router.ts';
-import { reconcileJobs } from './job-queue.ts';
+import { assertJobsDirSecurityGuard, reconcileJobs } from './job-queue.ts';
+
+// 工作区写保护哨兵：在任何目录创建 / 作业协调 / 写盘之前先行阻断，避免测试实例污染正式作业目录
+assertJobsDirSecurityGuard();
 
 mkdirSync(JOBS_DIR, { recursive: true });
 

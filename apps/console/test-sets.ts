@@ -77,6 +77,24 @@ export function labelOfTestSet(id: string, description?: string): string {
   return id;
 }
 
+function splitLabelAndDescription(
+  id: string,
+  rawDescription?: string,
+): { label: string; description: string } {
+  const raw = (rawDescription ?? '').trim();
+  if (LABELS[id]) {
+    return { label: LABELS[id], description: raw };
+  }
+  const lines = raw
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+  if (lines.length >= 2 && lines[0]!.length <= 40) {
+    return { label: lines[0]!, description: lines.slice(1).join('\n') };
+  }
+  return { label: labelOfTestSet(id, raw), description: raw };
+}
+
 /** 从 dataset-release 的 case_revisions 提取人题号。 */
 function taskIdsOfRelease(
   _project: string,
@@ -109,10 +127,11 @@ export function listTestSets(project: string): TestSet[] {
     if (!off) continue;
     const offName = off.name ?? off.dataset_release_id ?? offReleaseOf(id);
     const taskIds = taskIdsOfRelease(project, offName, off.case_revisions ?? []);
+    const { label, description } = splitLabelAndDescription(id, off.description);
     out.push({
       id,
-      label: labelOfTestSet(id, off.description),
-      description: (off.description ?? '').trim(),
+      label,
+      description,
       offRelease: offName,
       onRelease: on?.name ?? on?.dataset_release_id ?? onReleaseOf(id),
       taskIds,
@@ -227,7 +246,8 @@ export function createTestSet(
   if (listTestSets(project).some((t) => t.id === id)) {
     return { error: '测试集已存在', code: 409 };
   }
-  const description = (body.description ?? '').trim() || label;
+  const desc = (body.description ?? '').trim();
+  const description = desc && desc !== label ? `${label}\n${desc}` : label;
   const offName = offReleaseOf(id);
   const onName = onReleaseOf(id);
   const offPath = join(releasesDir(project), `${offName}.dataset-release.json`);

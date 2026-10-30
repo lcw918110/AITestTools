@@ -30,6 +30,7 @@ export interface LoadedRun {
   aggregates: Record<string, number>;
   scores: Map<string, number>;
   scaleMax: number | undefined;
+  purpose?: string;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -112,7 +113,12 @@ export function loadRunArtifacts(runDir: string): LoadedRun {
   const scores = new Map<string, number>();
   for (const s of scoresDoc.scores) scores.set(s.item_id, s.score);
 
+  const runFile = join(runDir, 'run.json');
+  const meta = existsSync(runFile) ? readJson(runFile) : undefined;
+  const purposeRaw = isRecord(meta) && typeof meta.purpose === 'string' ? meta.purpose : '';
+  const purpose = purposeRaw.trim() ? purposeRaw.trim() : undefined;
   return {
+    ...(purpose !== undefined ? { purpose } : {}),
     results,
     aggregates,
     scores,

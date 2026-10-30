@@ -40,6 +40,20 @@
                 名称
                 <input id="evalName" type="text" maxlength="80" />
               </label>
+              <label class="block">
+                测试用途
+                <select id="evalPurpose">
+                  <option value="">未标注</option>
+                  <option value="smoke">冒烟/环境可用性</option>
+                  <option value="acceptance">产品验收</option>
+                  <option value="diagnostic">诊断</option>
+                  <option value="regression">回归</option>
+                  <option value="effect_comparison">效果比较</option>
+                  <option value="controlled_fault">受控故障</option>
+                  <option value="scorer_calibration">评分器校准</option>
+                </select>
+              </label>
+              <p class="hint">不同用途的结果不可默认混算；已有运行后如需改用途，请新建任务。</p>
               <p id="evalKindLabel" class="kind-label">类型：—</p>
 
               <fieldset class="exam-mode" id="examMode">
@@ -105,6 +119,9 @@
 
               <div class="actions">
                 <button type="button" id="runBtn" class="primary">运行测试</button>
+                <button type="button" id="cancelJobBtn" class="ghost danger" hidden>
+                  取消运行
+                </button>
                 <button type="button" id="deleteEvalTask" class="ghost danger">删除此任务</button>
                 <span id="jobStatus" class="status"></span>
               </div>
@@ -448,6 +465,21 @@
             <select id="trendDatasetFilter"></select>
           </label>
           <label class="inline">
+            测试用途
+            <select id="trendPurposeFilter">
+              <option value="">（全部/自动单用途）</option>
+              <option value="bucket">分桶展示全部用途</option>
+              <option value="smoke">冒烟/环境可用性 (smoke)</option>
+              <option value="acceptance">产品验收 (acceptance)</option>
+              <option value="diagnostic">诊断 (diagnostic)</option>
+              <option value="regression">回归 (regression)</option>
+              <option value="effect_comparison">效果比较 (effect_comparison)</option>
+              <option value="controlled_fault">受控故障 (controlled_fault)</option>
+              <option value="scorer_calibration">评分器校准 (scorer_calibration)</option>
+              <option value="unannotated">未标注历史 (unannotated)</option>
+            </select>
+          </label>
+          <label class="inline">
             指标
             <select id="trendMetric">
               <option value="a_case_pass_rate">a_case_pass_rate</option>
@@ -465,6 +497,7 @@
               <th>started_at</th>
               <th>run_id</th>
               <th>数据集</th>
+              <th>用途</th>
               <th>指标值</th>
               <th>门禁</th>
             </tr>
@@ -602,6 +635,19 @@
         <label>
           名称
           <input id="newEvalName" type="text" placeholder="例如：157–159 对照" autocomplete="off" />
+        </label>
+        <label>
+          测试用途
+          <select id="newEvalPurpose" required>
+            <option value="">请选择用途</option>
+            <option value="smoke">冒烟/环境可用性</option>
+            <option value="acceptance">产品验收</option>
+            <option value="diagnostic">诊断</option>
+            <option value="regression">回归</option>
+            <option value="effect_comparison">效果比较</option>
+            <option value="controlled_fault">受控故障</option>
+            <option value="scorer_calibration">评分器校准</option>
+          </select>
         </label>
         <fieldset class="presets" id="newEvalKind"></fieldset>
         <p id="newEvalError" class="status err" hidden></p>

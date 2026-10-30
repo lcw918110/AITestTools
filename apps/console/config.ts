@@ -9,7 +9,12 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 export const REPO_ROOT = resolve(__dirname, '../..');
 export const PUBLIC = join(__dirname, 'public');
-export const PROJECT = join(REPO_ROOT, 'examples/product-eval');
-export const JOBS_DIR = join(__dirname, '.jobs');
+export const PROJECT = process.env.PROCTOR_CONSOLE_PROJECT
+  ? resolve(process.env.PROCTOR_CONSOLE_PROJECT)
+  : join(REPO_ROOT, 'examples/product-eval');
+export const DEFAULT_JOBS_DIR = join(__dirname, '.jobs');
+export const JOBS_DIR = process.env.PROCTOR_CONSOLE_JOBS_DIR
+  ? resolve(process.env.PROCTOR_CONSOLE_JOBS_DIR)
+  : DEFAULT_JOBS_DIR;
 export const HOST = '127.0.0.1';
 export const PORT = Number(process.env.PROCTOR_CONSOLE_PORT ?? 8787);

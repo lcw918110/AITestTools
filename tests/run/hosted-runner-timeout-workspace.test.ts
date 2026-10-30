@@ -18,14 +18,49 @@ const hostedIO = vi.hoisted(() => ({
 vi.mock('node:child_process', async (importOriginal) => {
   const actual = (await importOriginal()) as {
     spawnSync: (command: string, args?: readonly string[], options?: object) => unknown;
+    spawn: (command: string, args?: readonly string[], options?: object) => unknown;
+  };
+  const fakeSpawn = (command: string, args?: readonly string[], options?: object) => {
+    const bin = String(command);
+    const head = args?.[0];
+    const cwd =
+      options !== undefined &&
+      typeof options === 'object' &&
+      'cwd' in options &&
+      typeof (options as { cwd?: string }).cwd === 'string'
+        ? (options as { cwd: string }).cwd
+        : '';
+    const isHost = bin === 'opencode' || bin.endsWith('/opencode') || args?.includes('opencode');
+    const isVersion = head === '--version' || args?.includes('--version');
+    const isRun = head === 'run' || args?.includes('run');
+    const stdout = isHost && isRun ? hostedIO.stdout : '';
+    const stderr = isHost && isRun ? hostedIO.stderr : '';
+    const status = isHost && isRun ? hostedIO.status : 0;
+    const signal = isHost && isRun ? hostedIO.signal : null;
+    const error = isHost && isRun ? hostedIO.error : null;
+    const listeners: Record<string, Array<(arg?: unknown) => void>> = {};
+    const child = {
+      pid: 1,
+      stdout: { on: (ev: string, cb: (arg?: unknown) => void) => { (listeners[`stdout:${ev}`] ??= []).push(cb); } },
+      stderr: { on: (ev: string, cb: (arg?: unknown) => void) => { (listeners[`stderr:${ev}`] ??= []).push(cb); } },
+      on: (ev: string, cb: (arg?: unknown) => void) => { (listeners[ev] ??= []).push(cb); },
+      kill: () => true,
+    };
+    queueMicrotask(() => {
+      if (isHost && isRun && hostedIO.mutate !== undefined && cwd.length > 0) hostedIO.mutate(cwd);
+      if (stdout) for (const cb of listeners['stdout:data'] ?? []) cb(Buffer.from(stdout));
+      if (stderr) for (const cb of listeners['stderr:data'] ?? []) cb(Buffer.from(stderr));
+      for (const cb of listeners['close'] ?? []) cb(status, signal);
+    });
+    return child;
   };
   return {
     ...actual,
     spawnSync: vi.fn((command: string, args?: readonly string[], options?: object) => {
       const bin = String(command);
       const head = args?.[0];
-      if (bin === 'opencode' || bin.endsWith('/opencode')) {
-        if (head === '--version') {
+      if (bin === 'opencode' || bin.endsWith('/opencode') || args?.includes('opencode')) {
+        if (head === '--version' || args?.includes('--version')) {
           return {
             status: 0,
             stdout: 'opencode-test 0.0.0\n',
@@ -35,7 +70,7 @@ vi.mock('node:child_process', async (importOriginal) => {
             signal: null,
           };
         }
-        if (head === 'run') {
+        if (head === 'run' || args?.includes('run')) {
           const cwd =
             options !== undefined &&
             typeof options === 'object' &&
@@ -57,11 +92,33 @@ vi.mock('node:child_process', async (importOriginal) => {
       }
       return actual.spawnSync(command, args as string[], options);
     }),
+    spawn: vi.fn(fakeSpawn),
+  };
+});
+
+vi.mock('../../src/security/isolation-backend.ts', () => ({
+  evaluateIsolationGate: vi.fn(async () => ({ allowed: true, reason: '测试桩：隔离探测通过' })),
+}));
+vi.mock('../../src/security/sandbox-runtime.ts', async () => {
+  const actual = await vi.importActual('../../src/security/sandbox-runtime.ts');
+  return {
+    ...actual,
+    wrapHostCommand: async (input: { bin: string; args: string[] }) => ({
+      argv: [input.bin, ...input.args],
+      env: {},
+    }),
   };
 });
 
 const { HostedAdapter } = await import('../../src/run/hosted-runner.ts');
 const { RunOrchestrator } = await import('../../src/run/run-orchestrator.ts');
+
+// 仅在本文件已 mock 宿主执行的前提下验证超时与工作区语义。
+class ControlledHostedAdapter extends HostedAdapter {
+  override async preflight() {
+    return { ok: true };
+  }
+}
 
 const projectRoot = resolve('examples/product-eval');
 
@@ -74,7 +131,7 @@ async function runHosted(
   orch.beginRun({});
   orch.transitionRun('preflight');
   orch.transitionRun('running');
-  const { results } = await orch.executeCase(revision, environment, new HostedAdapter(), {
+  const { results } = await orch.executeCase(revision, environment, new ControlledHostedAdapter(), {
     projectRoot,
     models: [],
     artifactDir,

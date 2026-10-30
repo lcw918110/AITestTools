@@ -4,15 +4,34 @@
  * 只测只读与入参校验路径，不触发真实命令执行、不写入真实 product-eval 项目。
  */
 import { createServer, type Server } from 'node:http';
+import { mkdtempSync, rmSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest';
-import { handleRequest } from '../../apps/console/router.ts';
-import { jobs, type Job } from '../../apps/console/job-queue.ts';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import type { Job } from '../../apps/console/job-queue.ts';
+import type { jobs as JobsMap } from '../../apps/console/job-queue.ts';
+import type { handleRequest as HandleRequest } from '../../apps/console/router.ts';
+
+const isolationGate = vi.hoisted(() => ({ allowed: false, reason: '测试桩：隔离探测未通过' }));
+vi.mock('../../src/security/isolation-backend.ts', () => ({
+  evaluateIsolationGate: vi.fn(async () => isolationGate),
+}));
 
 let server: Server;
 let baseUrl = '';
+let testJobsDir = '';
+let jobs: typeof JobsMap;
+let handleRequest: typeof HandleRequest;
 
 beforeAll(async () => {
+  testJobsDir = mkdtempSync(join(tmpdir(), 'proctor-server-http-jobs-'));
+  process.env.PROCTOR_CONSOLE_JOBS_DIR = testJobsDir;
+  vi.resetModules();
+  const router = await import('../../apps/console/router.ts');
+  const queue = await import('../../apps/console/job-queue.ts');
+  handleRequest = router.handleRequest;
+  jobs = queue.jobs;
   server = createServer((req, res) => {
     void handleRequest(req, res).catch((e: unknown) => {
       const msg = e instanceof Error ? e.message : String(e);
@@ -28,9 +47,12 @@ beforeAll(async () => {
 });
 
 afterAll(async () => {
-  await new Promise<void>((resolve, reject) => {
-    server.close((err) => (err ? reject(err) : resolve()));
+  await new Promise<void>((res, reject) => {
+    server.close((err) => (err ? reject(err) : res()));
   });
+  delete process.env.PROCTOR_CONSOLE_JOBS_DIR;
+  vi.resetModules();
+  if (testJobsDir) rmSync(testJobsDir, { recursive: true, force: true });
 });
 
 afterEach(() => {
@@ -47,7 +69,7 @@ describe('HTTP 层集成测试', () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { ok: boolean; project: string };
     expect(body.ok).toBe(true);
-    expect(body.project).toBe('examples/product-eval');
+    expect(body.project).toBe(resolve('examples/product-eval'));
   });
 
   it('GET /api/presets 返回 200 与三个预设项', async () => {
@@ -207,6 +229,28 @@ describe('HTTP 层集成测试', () => {
     expect(res.status).toBe(403);
     const body = (await res.json()) as { error: string };
     expect(body.error).toContain('cross-origin');
+  });
+
+  it('真实运行缺操作系统级隔离后端时返回 400 阻断，不启动作业', async () => {
+    const res = await request('/api/run', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ experiment: 'model', live: true }),
+    });
+    expect(res.status).toBe(400);
+    const body = (await res.json()) as { error: string };
+    expect(body.error).toContain('操作系统级隔离');
+  });
+
+  it('本机隔离探测通过后才接受真实运行', async () => {
+    isolationGate.allowed = true;
+    const res = await request('/api/run', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ experiment: 'model', live: true }),
+    });
+    isolationGate.allowed = false;
+    expect(res.status).not.toBe(400);
   });
 
   it('跨站点防护：POST 携带 Sec-Fetch-Site: cross-site 返回 403', async () => {

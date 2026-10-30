@@ -26,6 +26,7 @@ export function runCompare(options: CompareOptions): number {
     } else {
       console.log(`baseline:  ${report.baseline}`);
       console.log(`candidate: ${report.candidate}`);
+      console.log(`用途：${report.purpose ?? report.purposeNotice}`);
       console.log(
         `漂移：新失败 ${report.counts.new_failure} / 修复 ${report.counts.fixed} / 升版 ${report.counts.asset_rev_drift} / 不变 ${report.counts.unchanged}`,
       );

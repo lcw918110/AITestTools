@@ -21,6 +21,7 @@ import {
   testSetIdsForTask,
 } from './test-sets.ts';
 import { writeJsonAtomic, writeTextAtomic } from './json-io.ts';
+import { PROJECT } from './config.ts';
 import { revisionDigest } from '../../src/exam-engine/digest.ts';
 import type { CaseRevision, RubricSpec, TaskStrata } from '../../src/exam-engine/types.ts';
 import { AUTOMATION_READINESS, CASE_LIFECYCLE } from '../../src/domain/types.ts';
@@ -1372,16 +1373,7 @@ export async function validateBank(
   return new Promise((resolveExit) => {
     const child = spawn(
       npm,
-      [
-        'run',
-        'proctor',
-        '--',
-        'item',
-        'validate',
-        '--project',
-        'examples/product-eval',
-        '--check-fixtures',
-      ],
+      ['run', 'proctor', '--', 'item', 'validate', '--project', PROJECT, '--check-fixtures'],
       { cwd: repoRoot, env: process.env },
     );
     let log = '';

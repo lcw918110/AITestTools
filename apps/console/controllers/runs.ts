@@ -15,7 +15,13 @@ import { buildRunDashboard, readHostedSnaps } from '../dashboard.ts';
 import { compareRuns, writeEffectCompareMarkdown } from '../../../src/report/compare.ts';
 import { runBaselinePin } from '../../../src/cli/commands/baseline-pin.ts';
 import { listRuns } from '../project-reader.ts';
-import { collectTrendPoints } from '../../../src/cli/commands/report-trend.ts';
+import {
+  collectTrendBuckets,
+  collectTrendPoints,
+  IncomparablePurposeError,
+  isValidPurpose,
+  VALID_PURPOSES,
+} from '../../../src/cli/commands/report-trend.ts';
 
 export async function runsList(): Promise<HttpResponse> {
   return { status: 200, body: { runs: listRuns(30) } };
@@ -25,22 +31,120 @@ export async function runsTrend(query: {
   dataset?: string | undefined;
   metric?: string | undefined;
   limit?: string | undefined;
+  purpose?: string | undefined;
+  bucket?: string | undefined;
 }): Promise<HttpResponse> {
   const dataset = query.dataset?.trim() || undefined;
   const metric = query.metric?.trim() || 'a_case_pass_rate';
   const limit = Number.parseInt(query.limit ?? '20', 10);
   const safeLimit = Number.isFinite(limit) && limit > 0 ? limit : 20;
-  const points = collectTrendPoints({ project: PROJECT, dataset, limit: safeLimit });
+  const rawPurpose = query.purpose?.trim() || undefined;
+  const isBucket = query.bucket === 'true' || query.bucket === '1';
+
+  if (rawPurpose !== undefined && rawPurpose !== 'unannotated' && rawPurpose !== '未标注') {
+    if (!isValidPurpose(rawPurpose)) {
+      return {
+        status: 400,
+        body: {
+          error: `非法用途：${query.purpose}，有效用途为：${VALID_PURPOSES.join(', ')}（或 unannotated）`,
+        },
+      };
+    }
+  }
+
+  if (isBucket) {
+    const buckets = collectTrendBuckets({ project: PROJECT, dataset, limit: safeLimit });
+    const formattedBuckets: Record<
+      string,
+      {
+        purpose: string | null;
+        notice: string | null;
+        points: Array<{
+          run_id: string;
+          started_at: string | undefined;
+          dataset: string | undefined;
+          purpose: string | null;
+          value: number | undefined;
+          gates_pass: boolean | undefined;
+          run_dir: string;
+        }>;
+      }
+    > = {};
+
+    for (const [key, b] of Object.entries(buckets)) {
+      formattedBuckets[key] = {
+        purpose: b.purpose,
+        notice: b.notice ?? null,
+        points: b.points.map((p) => ({
+          run_id: p.run_id,
+          started_at: p.started_at,
+          dataset: p.dataset,
+          purpose: p.purpose ?? null,
+          value: p.aggregates[metric],
+          gates_pass: p.gates_pass,
+          run_dir: p.run_dir,
+        })),
+      };
+    }
+
+    return {
+      status: 200,
+      body: {
+        project: PROJECT,
+        dataset: dataset ?? null,
+        metric,
+        bucketed: true,
+        available_purposes: Object.keys(buckets),
+        buckets: formattedBuckets,
+      },
+    };
+  }
+
+  let points: ReturnType<typeof collectTrendPoints>;
+  try {
+    points = collectTrendPoints({
+      project: PROJECT,
+      dataset,
+      limit: safeLimit,
+      purpose: rawPurpose,
+    });
+  } catch (error) {
+    if (error instanceof Error && error.message.startsWith('用途不可比')) {
+      const available_purposes =
+        error instanceof IncomparablePurposeError
+          ? error.available_purposes
+          : ((error as { available_purposes?: string[] }).available_purposes ?? []);
+      return {
+        status: 400,
+        body: {
+          error: error.message,
+          available_purposes,
+        },
+      };
+    }
+    if (error instanceof Error && error.message.startsWith('非法用途')) {
+      return { status: 400, body: { error: error.message } };
+    }
+    throw error;
+  }
+
+  const effectivePurpose =
+    points[0]?.purpose ??
+    (rawPurpose === 'unannotated' || rawPurpose === '未标注' ? null : (rawPurpose ?? null));
+
   return {
     status: 200,
     body: {
       project: PROJECT,
       dataset: dataset ?? null,
+      purpose: effectivePurpose,
+      notice: effectivePurpose ? null : '用途未标注；仅供诊断，不构成有效效果结论',
       metric,
       points: points.map((p) => ({
         run_id: p.run_id,
         started_at: p.started_at,
         dataset: p.dataset,
+        purpose: p.purpose ?? null,
         value: p.aggregates[metric],
         gates_pass: p.gates_pass,
         run_dir: p.run_dir,

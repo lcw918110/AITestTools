@@ -11,14 +11,36 @@ const hostedIO = vi.hoisted(() => ({ stdout: '', status: 0 as number | null }));
 vi.mock('node:child_process', async (importOriginal) => {
   const actual = (await importOriginal()) as {
     spawnSync: (command: string, args?: readonly string[], options?: object) => unknown;
+    spawn: (command: string, args?: readonly string[], options?: object) => unknown;
+  };
+  const fakeSpawn = (command: string, args?: readonly string[], options?: object) => {
+    const bin = String(command);
+    const head = args?.[0];
+    const isHost = bin === 'opencode' || bin.endsWith('/opencode') || args?.includes('opencode');
+    const isRun = head === 'run' || args?.includes('run');
+    const stdout = isHost && isRun ? hostedIO.stdout : '';
+    const status = isHost && isRun ? hostedIO.status : 0;
+    const listeners: Record<string, Array<(arg?: unknown) => void>> = {};
+    const child = {
+      pid: 1,
+      stdout: { on: (ev: string, cb: (arg?: unknown) => void) => { (listeners[`stdout:${ev}`] ??= []).push(cb); } },
+      stderr: { on: (ev: string, cb: (arg?: unknown) => void) => { (listeners[`stderr:${ev}`] ??= []).push(cb); } },
+      on: (ev: string, cb: (arg?: unknown) => void) => { (listeners[ev] ??= []).push(cb); },
+      kill: () => true,
+    };
+    queueMicrotask(() => {
+      if (stdout) for (const cb of listeners['stdout:data'] ?? []) cb(Buffer.from(stdout));
+      for (const cb of listeners['close'] ?? []) cb(status, null);
+    });
+    return child;
   };
   return {
     ...actual,
     spawnSync: vi.fn((command: string, args?: readonly string[], options?: object) => {
       const bin = String(command);
       const head = args?.[0];
-      if (bin === 'opencode' || bin.endsWith('/opencode')) {
-        if (head === '--version') {
+      if (bin === 'opencode' || bin.endsWith('/opencode') || args?.includes('opencode')) {
+        if (head === '--version' || args?.includes('--version')) {
           return {
             status: 0,
             stdout: 'opencode-test 0.0.0\n',
@@ -28,7 +50,7 @@ vi.mock('node:child_process', async (importOriginal) => {
             signal: null,
           };
         }
-        if (head === 'run') {
+        if (head === 'run' || args?.includes('run')) {
           return {
             status: hostedIO.status,
             stdout: hostedIO.stdout,
@@ -41,23 +63,48 @@ vi.mock('node:child_process', async (importOriginal) => {
       }
       return actual.spawnSync(command, args as string[], options);
     }),
+    spawn: vi.fn(fakeSpawn),
+  };
+});
+
+const isolationGate = vi.hoisted(() => ({ allowed: false, reason: '测试桩：隔离探测未通过' }));
+vi.mock('../../src/security/isolation-backend.ts', () => ({
+  evaluateIsolationGate: vi.fn(async () => isolationGate),
+}));
+const wrappedHosts = vi.hoisted(() => ({ calls: [] as string[] }));
+vi.mock('../../src/security/sandbox-runtime.ts', async () => {
+  const actual = await vi.importActual('../../src/security/sandbox-runtime.ts');
+  return {
+    ...actual,
+    wrapHostCommand: async (input: { bin: string; args: string[] }) => {
+      wrappedHosts.calls.push(input.bin);
+      return { argv: [input.bin, ...input.args], env: {} };
+    },
   };
 });
 
 const { HostedAdapter } = await import('../../src/run/hosted-runner.ts');
 const { RunOrchestrator } = await import('../../src/run/run-orchestrator.ts');
 
+// 仅用于已 mock 宿主进程的输出解析测试，不进入生产适配器选择路径。
+class ControlledHostedAdapter extends HostedAdapter {
+  override async preflight() {
+    return { ok: true };
+  }
+}
+
 async function runHosted(
   revision: CaseRevision,
   environment: EnvironmentProfile,
   projectRoot: string,
   artifactDir: string,
+  adapter: InstanceType<typeof HostedAdapter> = new ControlledHostedAdapter(),
 ) {
   const orch = new RunOrchestrator();
   orch.beginRun({});
   orch.transitionRun('preflight');
   orch.transitionRun('running');
-  const { results } = await orch.executeCase(revision, environment, new HostedAdapter(), {
+  const { results } = await orch.executeCase(revision, environment, adapter, {
     projectRoot,
     models: [],
     artifactDir,
@@ -100,6 +147,8 @@ describe('hosted_pass_token 降为辅助', () => {
   const prevModel = process.env.PROCTOR_HOSTED_MODEL;
 
   beforeEach(() => {
+    wrappedHosts.calls = [];
+    isolationGate.allowed = false;
     hostedIO.stdout = '';
     hostedIO.status = 0;
     delete process.env.PROCTOR_HOSTED_PLUGIN;
@@ -111,6 +160,56 @@ describe('hosted_pass_token 降为辅助', () => {
     else process.env.PROCTOR_HOSTED_PLUGIN = prevPlugin;
     if (prevModel === undefined) delete process.env.PROCTOR_HOSTED_MODEL;
     else process.env.PROCTOR_HOSTED_MODEL = prevModel;
+  });
+
+  it.each([undefined, 'scripted', 'none', 'invalid', 'live'])(
+    '宿主驱动标签 %s 不能绕过缺失隔离阻断',
+    async (driver) => {
+      const projectRoot = mkdtempSync(join(tmpdir(), 'proctor-guard-proj-'));
+      const artifactDir = mkdtempSync(join(tmpdir(), 'proctor-guard-art-'));
+      const candidate: EnvironmentProfile = {
+        ...environment,
+        // 通过反序列化模拟外部非法配置，生产枚举约束保持不变。
+        recipe: JSON.parse(
+          JSON.stringify({
+            ...environment.recipe,
+            ...(driver === undefined ? {} : { model_driver: driver }),
+          }),
+        ) as EnvironmentProfile['recipe'],
+      };
+      const spawn = vi.mocked((await import('node:child_process')).spawnSync);
+      spawn.mockClear();
+      const result = await runHosted(
+        makeRevision([]),
+        candidate,
+        projectRoot,
+        artifactDir,
+        new HostedAdapter(),
+      );
+      expect(result.pass).toBe(false);
+      expect(result.attribution).toBe('HARNESS');
+      expect(result.oracle_failures[0]?.message).toContain('操作系统级隔离');
+      expect(spawn.mock.calls.some((call) => call[1]?.[0] === 'run')).toBe(false);
+    },
+  );
+
+  it('真实 live hosted 环境缺已验证隔离后端时在 preflight 阻断，不执行 opencode run', async () => {
+    const projectRoot = mkdtempSync(join(tmpdir(), 'proctor-iso-proj-'));
+    const artifactDir = mkdtempSync(join(tmpdir(), 'proctor-iso-art-'));
+    const liveEnvironment: EnvironmentProfile = {
+      ...environment,
+      recipe: { ...environment.recipe, model_driver: 'live' },
+    };
+    const result = await runHosted(
+      makeRevision([]),
+      liveEnvironment,
+      projectRoot,
+      artifactDir,
+      new HostedAdapter(),
+    );
+    expect(result.pass).toBe(false);
+    expect(result.attribution).toBe('HARNESS');
+    expect(result.oracle_failures[0]?.message).toContain('操作系统级隔离');
   });
 
   it('workspace 命中、无 token、空 stdout → 整题 PASS，产物/摘要 pass_token_present false', async () => {
@@ -126,7 +225,9 @@ describe('hosted_pass_token 降为辅助', () => {
       },
     ]);
 
+    isolationGate.allowed = true;
     const result = await runHosted(revision, environment, projectRoot, artifactDir);
+    expect(wrappedHosts.calls).toEqual(['opencode']);
     expect(result.pass).toBe(true);
     expect(result.oracle_failures).toEqual([]);
     expect(result.attribution).toBeUndefined();
@@ -204,6 +305,7 @@ describe('hosted_pass_token 降为辅助', () => {
       },
     ]);
 
+    isolationGate.allowed = true;
     const result = await runHosted(revision, environment, projectRoot, artifactDir);
     expect(result.pass).toBe(false);
     expect(result.attribution).toBe('MODEL_TASK');

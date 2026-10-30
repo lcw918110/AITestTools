@@ -10,11 +10,16 @@ export PROCTOR_CONSOLE_VERIFY_STUB=1
 export BASE
 export ROOT
 
+# 参照 playwright.config.ts 范式：为控制台冒烟使用独立临时作业目录，禁止复用源码树正式 JOBS_DIR
+TMP_JOBS="$(mktemp -d "${TMPDIR:-/tmp}/proctor-console-l0-jobs-XXXXXX")"
+export PROCTOR_CONSOLE_JOBS_DIR="$TMP_JOBS"
+
 npm run console >/tmp/proctor-console-l0.log 2>&1 &
 PID=$!
 cleanup() {
   kill "$PID" 2>/dev/null || true
   wait "$PID" 2>/dev/null || true
+  rm -rf "$TMP_JOBS" 2>/dev/null || true
 }
 trap cleanup EXIT
 
@@ -159,7 +164,7 @@ grep -q '测万象术' /tmp/ca17.json
 
 # C-A-40～44 测试任务 CRUD
 ET=$(curl -sf -X POST "$BASE/api/eval-tasks" -H 'content-type: application/json' \
-  -d '{"name":"L0烟卷","kind":"plugin","testSetId":"effect-smoke","taskIds":["PAIRED-TASK-157"],"examMode":"both"}' \
+  -d '{"name":"L0烟卷","kind":"plugin","purpose":"smoke","testSetId":"effect-smoke","taskIds":["PAIRED-TASK-157"],"examMode":"both"}' \
   | python3 -c 'import sys,json; print(json.load(sys.stdin)["id"])')
 echo "$ET" | grep -q '^et-'
 python3 - <<PY
@@ -180,7 +185,7 @@ with urllib.request.urlopen(req) as r:
 assert d["name"] == "L0烟卷改名"
 req = urllib.request.Request(
     base + "/api/eval-tasks",
-    data=json.dumps({"name": "L0模型", "kind": "model", "examMode": "both"}).encode(),
+    data=json.dumps({"name": "L0模型", "kind": "model", "purpose": "smoke", "examMode": "both"}).encode(),
     headers={"content-type": "application/json"},
     method="POST",
 )

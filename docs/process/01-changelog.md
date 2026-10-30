@@ -27,6 +27,12 @@
 ## 2. 已落地（当前能用的）
 
 - 引擎 hosted：隔离仓、材料播种、EventStore 探针、超时仍判工作区；暗号辅助
+- **操作系统级隔离后端（FR-12）**：首期接入 `@anthropic-ai/sandbox-runtime`（0.0.81），`IsolationBackend` 注册表 + 四项本机探测（工作区外不可写 / 凭据不可读 / 出站被拒 / 进程树清理）缺一即拒绝真实宿主；macOS 已本机探测通过，Windows 登记为 `degraded` 默认拒绝；真实宿主命令经 `wrapHostCommand` 包裹，超时递归清孙进程树（见 ADR-0013）
+- **沙箱内真跑打通（macOS Seatbelt）**：修复六处使 hosted 评测能在沙箱内真实跑通 —— ①`SandboxManager` 是进程级单例，`initialize()` 在 `initializationPromise` 已存在时静默返回并忽略新配置，批量跑卷会导致只有首个 case 的路径生效、其余全部 EPERM，改为每次包裹前 `reset()`→`initialize()` 并用进程内串行锁包住（避免并发 case 互相关掉代理）；②子进程 `stdin` 由默认 pipe 改为 `ignore`（opencode 检测到常开管道会一直等输入，停在 `init` 直到 deadline）；③`workDir` 与隔离 HOME 用 `realpathSync` 归一（`/var` 是 `/private/var` 符号链接，Seatbelt 按真实路径判定）；④`allowedWrite` 每个根补 `/**` 并对依赖路径预建目录（opencode 会逐层建 `.local/share/opencode/log` 等）；⑤`allowedDomains` 并入 provider 声明的模型端点 host（保留非默认端口），否则沙箱代理以 403 拒绝模型请求；⑥环境变量里的 `http(s)_proxy`/`all_proxy`/`no_proxy` 在隔离执行时剥离。实测 OFF 全量 10/10 通过、零超时、`sandbox_bypassed=false`。
+- **沙箱旁路开关（仅诊断）**：`PROCTOR_SANDBOX_BYPASS=1` 时跳过 Seatbelt 包裹直接执行宿主命令；隔离门禁（`evaluateIsolationGate`，进程级缓存只探测一次）仍必须通过。产物 `hosted-run.json` 的 `sandbox_bypassed`、`sandbox_allowed_domains` 字段如实标注，报告读取方据此区分证据等级。
+- **EventStore 路径对齐万象术 0.8+**：插件实际把事件写到 `<worktree>/.Herdchestra/wanxiangshu/events/*.ndjson`（`RuntimePath.stateRoot` 的实现，要求 `.Herdchestra` 是真目录且含排除全部运行时数据的 `.gitignore`），旧路径 `<git-dir>/wanxiang/events` 与 `refs/wanxiang/store` 已不再是写入面。引擎 `readPendingEventNdjson` 需优先读 `.Herdchestra` 路径，否则 ON 侧永远 `no-store-ref`、协议探针必然缺失。
+- **已知未闭环**：opencode 自身在 Seatbelt 内报 `failed to subscribe ... Error starting FSEvents stream`（其内置文件监视器，非万象术插件）；不影响模型输出与 `.Herdchestra` 事件落盘，但会刷 ERROR 日志，需单独立项。
+- **运行时模型切换（PROCTOR_HOSTED_MODEL）**：真跑可用 `PROCTOR_HOSTED_MODEL=provider/model` 临时指定宿主模型（`model_source: env`，如实落盘）。原计划 `ctyun/deepseek-v4-pro-0813-oc` 因 Coding Plan 额度耗尽（curl 实测返回额度告警），本次 10+10 配对改用 `kw92.cyou/lazy/task` 执行；结论引用时须注明非原定模型，证据等级为参考。
 - 题库工作台：录/改/删/检查；新题挂校准卷；禁 Text-only 题干
 - 选题：按测试集筛题目、测万象术整次有无插件三选一；勾选不写回测试集
 - 试题 `tags`：已去掉 `paired` / `plugin-off` / `plugin-on` / `effect`；留下的是任务类型
@@ -1365,3 +1371,34 @@ env 切片收口后，按「不留技术债」维度清理既有缺陷，使 `co
 - **修复**：`build` 改为 `npm run clean && tsc -p tsconfig.build.json`（clean 在 tsc 之前）；`prepublishOnly` 收敛为 `npm run build`，避免两处各写一遍 clean 造成口径漂移。
 - **护栏**：新增 `tests/build/dist-manifest.test.ts`，锁三条契约——build 必须含 clean 且 clean 在 tsc 之前、prepublishOnly 复用 build、bin 入口落在被分发的 `dist` 内。红测已证伪（还原旧脚本后 2 例失败）。
 - **验证**：重建后 `dist` 无源码对应产物 **0 个**；`npm pack --dry-run` 退役产物命中 **0**，包体降至 370 文件；`npm run verify` 73 文件 **402 例**全过，`validate` 318/318，build / smoke:offline / console:smoke 全部退出码 0。
+
+## §41 首期隔离后端选型（2026-10-29）
+
+Grill 已对齐：真实宿主只接 `sandbox-runtime`；Windows 登记为降级并默认拒绝；微软 MXC 与微虚拟机不进首期。口径见 ADR-0013 与 `docs/02` §7.2。探测未通过时，控制台与宿主预检继续拒绝真实运行。macOS 证据不继承到 Windows 或 Linux。
+
+## 42. 控制台趋势多用途分桶与核心页面端到端测试闭环 (2026-10-24)
+
+### 背景与目标
+
+针对全局审视中识别的工程缺口（GAP-4 与 GAP-3）以及 T4 用途字段（ISSUE-0008）展开实质性实现与文档闭环：
+
+- 解决控制台趋势分析在遇到多用途数据集时无法分桶展示的问题（坚守跨用途严禁无差别混算铁律）；
+- 扩展控制台核心页面的端到端自动化测试覆盖（ISSUE-0003）；
+- 完成 ISSUE-0008 独立复核与状态关闭。
+
+### 落地事实与代码凭据
+
+1. **GAP-4（趋势多用途筛选与分桶）**：
+   - `src/cli/commands/report-trend.ts` & `src/cli/main.ts`：导出 `VALID_PURPOSES` 校验守卫；实现 `collectTrendBuckets` 纯函数，按用途隔离分组各桶时间线；支持 `--purpose` 与 `--bucket` 命令行选项；
+   - `apps/console/router.ts` & `apps/console/controllers/runs.ts`：路由支持解析 `purpose` 与 `bucket`，在 `bucket=true` 时返回分桶隔离结构，在多用途未过滤冲突时返回 400 及可用用途列表；
+   - `apps/console/public/index.html` & `trends.js`：增加用途筛选下拉框，支持单用途聚焦与多用途分桶独立折线渲染；
+   - 补充单测 `tests/cli/report-trend.test.ts` 与控制器测试 `tests/console/runs-trend.test.ts`。
+2. **GAP-3（端到端测试套件扩展）**：
+   - 新增 `tests/browser/console-core-pages.spec.ts`（600+ 行，10 个自动化用例），为题库管理（`bank.js`）、数据集管理（`datasets.js`）、运行环境与模型池（`env.js` / `model-pool.js`）补齐了 Playwright 端到端断言。
+3. **ISSUE-0008（用途字段独立复核）**：
+   - 经对 7 类标准用途枚举、创建必选校验与运行时锁定的交叉复审，在 `_审视/主文档.md` 中将 ISSUE-0008 正式标记为已验证关闭（VERIFIED / CLOSED）。
+
+### 遗留与外部依赖
+
+- DevOps 席位暂处于 `assessment-pending-for-devops` 状态，待环境席位恢复后复跑自动化测试；
+- 真实 OS 隔离后端（ISSUE-0009）与万象术插件内部 Agent commission 路由（T6/T7）持续作为外部/架构阻断项追踪。

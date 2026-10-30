@@ -111,6 +111,8 @@ describe('test-sets（cases-v1 读路径）', () => {
       ),
     ) as { case_revisions: unknown[] };
     expect(off.case_revisions).toEqual([]);
-    expect(listTestSets(root).some((s) => s.id === created.id)).toBe(true);
+    const found = listTestSets(root).find((s) => s.id === created.id);
+    expect(found?.label).toBe('本周对照');
+    expect(found?.description).toBe('自建');
   });
 });

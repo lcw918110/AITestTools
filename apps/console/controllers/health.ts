@@ -34,7 +34,7 @@ const PRESETS = [
 ] as const;
 
 export async function health(): Promise<HttpResponse> {
-  return { status: 200, body: { ok: true, project: 'examples/product-eval' } };
+  return { status: 200, body: { ok: true, project: PROJECT } };
 }
 
 export async function presets(): Promise<HttpResponse> {
@@ -82,7 +82,7 @@ export async function healthCheck(): Promise<HttpResponse> {
     status: 200,
     body: {
       ok,
-      service: { ok: true, project: 'examples/product-eval' },
+      service: { ok: true, project: PROJECT },
       project: { errors: summary.errors },
       bank: { ok: bank.ok, exitCode: bank.exitCode, summary: bank.summary },
       environment: {

@@ -61,6 +61,8 @@ export interface EffectSummary {
 }
 
 export interface CompareReport {
+  purpose?: string;
+  purposeNotice?: string;
   baseline: string;
   candidate: string;
   rows: CompareRow[];
@@ -211,6 +213,9 @@ export function compareRuns(baselineDir: string, candidateDir: string): CompareR
   const candDir = resolve(candidateDir);
   const base = loadRunArtifacts(baseDir);
   const cand = loadRunArtifacts(candDir);
+  if (base.purpose !== cand.purpose) {
+    throw new Error(`用途不可比：${base.purpose ?? '未标注'} / ${cand.purpose ?? '未标注'}`);
+  }
   const baseResults = base.results;
   const candResults = cand.results;
   const scoreBase = base.scores;
@@ -297,6 +302,9 @@ export function compareRuns(baselineDir: string, candidateDir: string): CompareR
   const effect = buildEffect(base, cand);
 
   return {
+    ...(base.purpose !== undefined
+      ? { purpose: base.purpose }
+      : { purposeNotice: '用途未标注；仅供诊断，不构成有效效果结论' }),
     baseline: baseDir,
     candidate: candDir,
     rows,
@@ -313,6 +321,7 @@ export function writeEffectCompareMarkdown(report: CompareReport, outPath: strin
     '',
     `- baseline: \`${report.baseline}\``,
     `- candidate: \`${report.candidate}\``,
+    `- 用途：${report.purpose ?? '未标注；仅供诊断，不构成有效效果结论'}`,
     '',
     '## 通过率',
     '',

@@ -6,6 +6,7 @@ import { initTrends } from './trends.js';
 import { initHealthCheck } from './health-check.js';
 
 const runBtn = document.getElementById('runBtn');
+const cancelJobBtn = document.getElementById('cancelJobBtn');
 const jobStatus = document.getElementById('jobStatus');
 const logEl = document.getElementById('log');
 const testSetFilter = document.getElementById('testSetFilter');
@@ -57,7 +58,14 @@ const resultEmpty = document.getElementById('resultEmpty');
 const KIND_LABEL = { model: '测模型', plugin: '测万象术', agent: '测 Agent' };
 
 let selected = 'plugin';
-let pollTimer;
+let pollTimer = null;
+let activeJobId = '';
+let inFlight = false;
+let logCursor = 0;
+let wakeRequested = false;
+const POLL_INTERVAL_FOREGROUND_MS = 800;
+const POLL_INTERVAL_BACKGROUND_MS = 5000;
+const MAX_DOM_LOG_LINES = 1000;
 let currentRunPath = '';
 let currentEvalId = '';
 let filling = false;
@@ -247,6 +255,8 @@ function collectBody() {
     model: document.getElementById('model').value.trim(),
     agent: document.getElementById('agent').value.trim(),
   };
+  const purpose = document.getElementById('evalPurpose').value;
+  if (purpose) body.purpose = purpose;
   return body;
 }
 
@@ -302,6 +312,8 @@ function applyTaskToForm(t) {
   filling = true;
   selected = t.kind;
   document.getElementById('evalName').value = t.name || '';
+  document.getElementById('evalPurpose').value = t.purpose || '';
+  document.getElementById('evalPurpose').disabled = t.purposeLocked || (t.runs || []).length > 0;
   evalKindLabel.textContent = `类型：${KIND_LABEL[t.kind] || t.kind}`;
   setExamMode(t.kind === 'plugin' ? t.examMode || 'both' : 'off');
   renderTestSetOptions(t.testSetId);
@@ -319,6 +331,9 @@ function renderRunHistory(task) {
   const runs = [...(task?.runs || [])].reverse();
   runHistory.innerHTML = '';
   if (!runs.length) {
+    currentRunPath = '';
+    runMeta.textContent = '';
+    compareStatus.textContent = '';
     resultEmpty.hidden = false;
     runView.hidden = true;
     const opt = document.createElement('option');
@@ -552,6 +567,9 @@ function renderEffect(data) {
   const lines = [];
   const es = data.effect_structured?.effect;
   if (es) {
+    lines.push(
+      `用途：${data.effect_structured.purpose ?? data.effect_structured.purposeNotice ?? '未标注；仅供诊断，不构成有效效果结论'}`,
+    );
     lines.push(
       `对照 Δpass=${Number(es.pass_rate_delta).toFixed(4)}（base ${Number(es.baseline_pass_rate).toFixed(4)} → cand ${Number(es.candidate_pass_rate).toFixed(4)}）`,
     );
@@ -832,39 +850,126 @@ function setStatus(text, cls) {
   jobStatus.className = `status ${cls || ''}`;
 }
 
-async function pollJob(jobId) {
-  clearInterval(pollTimer);
-  pollTimer = setInterval(async () => {
-    try {
-      const job = await api(`/api/jobs/${jobId}`);
-      logEl.textContent = (job.log || []).join('\n');
-      logEl.scrollTop = logEl.scrollHeight;
-      if (job.status === 'running' || job.status === 'queued') {
-        setStatus(`运行中… ${job.id}`);
-        return;
-      }
-      clearInterval(pollTimer);
-      if (job.status === 'done') {
-        setStatus(`完成 ${job.id}`, 'ok');
-      } else {
-        setStatus(`失败：${job.error || job.id}`, 'err');
-      }
-      runBtn.disabled = false;
-      await refreshEvalTasks();
-      const t = evalTasks.find((x) => x.id === currentEvalId);
-      if (t) {
-        renderRunHistory(t);
-        if (t.runs && t.runs.length) {
-          await showRun(t.runs[t.runs.length - 1].path);
-        }
-      }
-    } catch (e) {
-      clearInterval(pollTimer);
-      setStatus(String(e.message || e), 'err');
-      runBtn.disabled = false;
-    }
-  }, 800);
+function appendLogLines(lines, reset) {
+  if (reset) logEl.textContent = '';
+  if (!Array.isArray(lines) || lines.length === 0) return;
+  const fragment = document.createDocumentFragment();
+  for (const line of lines) {
+    fragment.appendChild(document.createTextNode(line + '\n'));
+  }
+  logEl.appendChild(fragment);
+  while (logEl.childNodes.length > MAX_DOM_LOG_LINES) {
+    logEl.removeChild(logEl.firstChild);
+  }
+  logEl.scrollTop = logEl.scrollHeight;
 }
+
+function stopPolling() {
+  if (pollTimer) {
+    clearTimeout(pollTimer);
+    pollTimer = null;
+  }
+  activeJobId = '';
+  inFlight = false;
+  wakeRequested = false;
+  cancelJobBtn.hidden = true;
+  cancelJobBtn.disabled = false;
+  runBtn.disabled = false;
+}
+
+function scheduleNextPoll(delayMs) {
+  if (pollTimer) {
+    clearTimeout(pollTimer);
+    pollTimer = null;
+  }
+  if (!activeJobId) return;
+  const delay =
+    delayMs !== undefined
+      ? delayMs
+      : document.hidden
+        ? POLL_INTERVAL_BACKGROUND_MS
+        : POLL_INTERVAL_FOREGROUND_MS;
+  pollTimer = setTimeout(() => {
+    void pollTick();
+  }, delay);
+}
+
+async function pollTick() {
+  if (!activeJobId || inFlight) return;
+  inFlight = true;
+  const targetId = activeJobId;
+  try {
+    const res = await api(`/api/jobs/${encodeURIComponent(targetId)}/logs?offset=${logCursor}`);
+    // 请求期间任务已被切换或取消，丢弃过期响应
+    if (activeJobId !== targetId) return;
+    if (Array.isArray(res.lines) && res.lines.length > 0) {
+      appendLogLines(res.lines, res.reset);
+    } else if (res.reset) {
+      appendLogLines([], true);
+    }
+    if (typeof res.nextOffset === 'number') logCursor = res.nextOffset;
+
+    if (res.status === 'running' || res.status === 'queued') {
+      setStatus(`运行中… ${targetId}`);
+      const delay = wakeRequested
+        ? 0
+        : document.hidden
+          ? POLL_INTERVAL_BACKGROUND_MS
+          : POLL_INTERVAL_FOREGROUND_MS;
+      wakeRequested = false;
+      scheduleNextPoll(delay);
+      return;
+    }
+
+    // 终态：done / cancelled / error / interrupted
+    stopPolling();
+    if (res.status === 'done') {
+      setStatus(`完成 ${targetId}`, 'ok');
+    } else if (res.status === 'cancelled') {
+      setStatus(`已取消 ${targetId}`, 'err');
+    } else {
+      setStatus(`失败：${res.error || targetId}`, 'err');
+    }
+    await refreshEvalTasks();
+    const t = evalTasks.find((x) => x.id === currentEvalId);
+    if (t) {
+      renderRunHistory(t);
+      if (t.runs && t.runs.length) {
+        await showRun(t.runs[t.runs.length - 1].path);
+      }
+    }
+  } catch (e) {
+    if (activeJobId !== targetId) return;
+    stopPolling();
+    setStatus(String(e.message || e), 'err');
+  } finally {
+    inFlight = false;
+  }
+}
+
+async function pollJob(jobId) {
+  stopPolling();
+  activeJobId = jobId;
+  logCursor = 0;
+  cancelJobBtn.hidden = false;
+  cancelJobBtn.disabled = false;
+  await pollTick();
+}
+
+cancelJobBtn.addEventListener('click', async () => {
+  if (!activeJobId) return;
+  const targetJobId = activeJobId;
+  cancelJobBtn.disabled = true;
+  setStatus(`取消中… ${targetJobId}`);
+  try {
+    await api(`/api/jobs/${encodeURIComponent(targetJobId)}`, { method: 'DELETE' });
+    stopPolling();
+    setStatus(`已取消 ${targetJobId}`, 'err');
+  } catch (e) {
+    cancelJobBtn.disabled = false;
+    setStatus(String(e.message || e), 'err');
+  }
+});
 
 runBtn.addEventListener('click', async () => {
   if (!currentEvalId) {
@@ -1007,6 +1112,7 @@ document.getElementById('pickNone').addEventListener('click', () => {
   scheduleSave();
 });
 document.getElementById('evalName').addEventListener('change', () => scheduleSave());
+document.getElementById('evalPurpose').addEventListener('change', () => scheduleSave());
 document.getElementById('sutRoot').addEventListener('change', () => scheduleSave());
 document.getElementById('model').addEventListener('change', () => scheduleSave());
 document.getElementById('agent').addEventListener('change', () => scheduleSave());
@@ -1041,6 +1147,7 @@ document.getElementById('newEvalForm').addEventListener('submit', async (ev) => 
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         name: document.getElementById('newEvalName').value.trim() || p.label,
+        purpose: document.getElementById('newEvalPurpose').value,
         kind,
         testSetId: p.defaultTestSetId || 'full',
         examMode: p.defaultExamMode,
@@ -1069,6 +1176,9 @@ document.getElementById('deleteEvalTask').addEventListener('click', async () => 
     await refreshEvalTasks();
     if (evalTasks.length) await selectEvalTask(evalTasks[0].id);
     else {
+      currentRunPath = '';
+      runMeta.textContent = '';
+      compareStatus.textContent = '';
       evalForm.hidden = true;
       evalEmpty.hidden = false;
       resultEmpty.hidden = false;
@@ -1111,6 +1221,21 @@ function applyPage() {
   document.getElementById('navHealth').classList.toggle('active', hash === 'health');
 }
 
+document.addEventListener('visibilitychange', () => {
+  if (!activeJobId) return;
+  if (!document.hidden) {
+    if (!inFlight) {
+      if (pollTimer) {
+        clearTimeout(pollTimer);
+        pollTimer = null;
+      }
+      void pollTick();
+    } else {
+      // 在途请求完成后立即补偿一次
+      wakeRequested = true;
+    }
+  }
+});
 window.addEventListener('hashchange', applyPage);
 document.addEventListener('env-catalog-changed', () => {
   const t = currentEvalTask();

@@ -5,11 +5,11 @@ import type { HttpResponse } from '../http.ts';
 import { PROJECT } from '../config.ts';
 import { isExperimentId, resolveRunPlan } from '../run-plan.ts';
 import { getTestSet } from '../test-sets.ts';
-import { isVerified } from '../env-catalog.ts';
 import { assertSafeTaskId, listTasks } from '../bank.ts';
-import { getEvalTask } from '../eval-tasks.ts';
-import { executeJob, jobs, persistJob, type Job } from '../job-queue.ts';
+import { freezeEvalTaskPurpose, type TaskPurpose } from '../eval-tasks.ts';
+import { executeJob, getInstanceToken, jobs, persistJob, type Job } from '../job-queue.ts';
 import { loadReleaseIndex } from '../project-reader.ts';
+import { evaluateIsolationGate } from '../../../src/security/isolation-backend.ts';
 
 export interface RunBody {
   experiment?: string;
@@ -39,13 +39,14 @@ export async function run(body: RunBody): Promise<HttpResponse> {
   }
   const live = Boolean(body.live);
   if (live) {
-    const model = (body.model ?? '').trim();
-    const agent = (body.agent ?? '').trim();
-    if (!model || !isVerified(PROJECT, 'model', model)) {
-      return { status: 400, body: { error: '请到运行环境页验证并选择模型' } };
-    }
-    if (!agent || !isVerified(PROJECT, 'agent', agent)) {
-      return { status: 400, body: { error: '请到运行环境页验证并选择 Agent' } };
+    const gate = await evaluateIsolationGate();
+    if (!gate.allowed) {
+      return {
+        status: 400,
+        body: {
+          error: `当前缺少经验证的操作系统级隔离后端，已拒绝启动真实宿主任务：${gate.reason}；请先勾选预检（仅校验题库）`,
+        },
+      };
     }
   }
   if (body.taskIds !== undefined) {
@@ -76,12 +77,14 @@ export async function run(body: RunBody): Promise<HttpResponse> {
     return { status: 400, body: { error: resolved.error } };
   }
   let evalTaskId: string | undefined;
+  let purpose: TaskPurpose | undefined;
   if (body.evalTaskId !== undefined && body.evalTaskId !== '') {
-    const row = getEvalTask(PROJECT, body.evalTaskId);
+    const row = freezeEvalTaskPurpose(PROJECT, body.evalTaskId);
     if ('error' in row) {
       return { status: row.code, body: { error: row.error } };
     }
     evalTaskId = row.id;
+    purpose = row.purpose;
   }
   const id = `job-${Date.now().toString(36)}`;
   const job: Job = {
@@ -90,6 +93,8 @@ export async function run(body: RunBody): Promise<HttpResponse> {
     status: 'queued',
     startedAt: new Date().toISOString(),
     log: [],
+    managedByInstanceToken: getInstanceToken(),
+    ...(purpose !== undefined ? { purpose } : {}),
     ...(evalTaskId !== undefined ? { evalTaskId } : {}),
   };
   jobs.set(id, job);

@@ -199,6 +199,9 @@ export async function runCommand(options: RunOptions): Promise<number> {
     runsRoot,
     meta: {
       run_id: rid,
+      ...(process.env.PROCTOR_RUN_PURPOSE?.trim()
+        ? { purpose: process.env.PROCTOR_RUN_PURPOSE.trim() }
+        : {}),
       dataset: datasetName,
       environment: environmentName,
       started_at: new Date().toISOString(),

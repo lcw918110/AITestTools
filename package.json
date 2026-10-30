@@ -62,18 +62,21 @@
     "eval:model:demo-schema": "npm run proctor -- run --dataset eval-model --environment model-direct-v1 --project examples/demo-project",
     "console": "node --experimental-strip-types --disable-warning=ExperimentalWarning apps/console/server.ts",
     "console:smoke": "bash scripts/console-l0.sh",
+    "console:e2e": "playwright test tests/browser/",
     "verify": "npm run format:check && npm run lint && npm run typecheck && npm run test && npm run validate:examples",
     "verify:release": "npm run verify && npm run smoke:offline",
     "prepublishOnly": "npm run build",
     "proctor": "node --experimental-strip-types --disable-warning=ExperimentalWarning src/cli/main.ts"
   },
   "dependencies": {
+    "@anthropic-ai/sandbox-runtime": "0.0.81",
     "ajv": "^8.17.1",
     "ajv-formats": "^3.0.1",
     "promptfoo": "^0.121.19"
   },
   "devDependencies": {
     "@eslint/js": "^9.32.0",
+    "@playwright/test": "^1.64.1",
     "@types/node": "^22.10.0",
     "@vitest/coverage-v8": "^3.2.4",
     "eslint": "^9.32.0",

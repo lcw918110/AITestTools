@@ -1,10 +1,11 @@
-import { existsSync, mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   appendEvalTaskRun,
   createEvalTask,
+  freezeEvalTaskPurpose,
   deleteEvalTask,
   getEvalTask,
   listEvalTasks,
@@ -18,9 +19,16 @@ describe('eval-tasks store', () => {
     root = '';
   });
 
+  it('新建任务缺省用途必须拒绝，不能绕过页面约束', () => {
+    root = mkdtempSync(join(tmpdir(), 'proctor-et-'));
+    expect(createEvalTask(root, { kind: 'plugin' })).toMatchObject({ code: 400 });
+    expect(createEvalTask(root, { kind: 'plugin', purpose: '' })).toMatchObject({ code: 400 });
+  });
+
   it('create → list → update → append run → delete', () => {
     root = mkdtempSync(join(tmpdir(), 'proctor-et-'));
     const created = createEvalTask(root, {
+      purpose: 'effect_comparison',
       name: '效果烟卷',
       kind: 'plugin',
       release: 'paired-off-effect-smoke',
@@ -66,6 +74,7 @@ describe('eval-tasks store', () => {
   it('测模型忽略 examMode=both，存成 off', () => {
     root = mkdtempSync(join(tmpdir(), 'proctor-et-'));
     const created = createEvalTask(root, {
+      purpose: 'acceptance',
       name: '测模型',
       kind: 'model',
       examMode: 'both',
@@ -81,6 +90,7 @@ describe('eval-tasks store', () => {
     root = mkdtempSync(join(tmpdir(), 'proctor-et-'));
     const created = createEvalTask(root, {
       kind: 'plugin',
+      purpose: 'regression',
       model: 'wave-ai/gpt-5.4-mini',
       agent: 'fast-coder',
     });
@@ -95,16 +105,77 @@ describe('eval-tasks store', () => {
     expect(cleared.model).toBe('wave-ai/gpt-5.4-mini');
   });
 
+  it('用途必须合法，保存后可读取，旧任务不猜用途', () => {
+    root = mkdtempSync(join(tmpdir(), 'proctor-et-'));
+    expect(createEvalTask(root, { kind: 'plugin', purpose: 'invalid' })).toMatchObject({
+      code: 400,
+    });
+    const created = createEvalTask(root, {
+      kind: 'plugin',
+      purpose: 'effect_comparison',
+    });
+    expect(created).toMatchObject({ purpose: 'effect_comparison' });
+    if ('error' in created) return;
+    expect(getEvalTask(root, created.id)).toMatchObject({ purpose: 'effect_comparison' });
+    const { purpose: _purpose, ...legacy } = created;
+    mkdirSync(join(root, 'eval-tasks'), { recursive: true });
+    writeFileSync(join(root, 'eval-tasks', `${created.id}.json`), JSON.stringify(legacy));
+    const loaded = getEvalTask(root, created.id);
+    expect(loaded).not.toHaveProperty('error');
+    expect(loaded).not.toHaveProperty('purpose');
+  });
+
+  it('已有运行不能改用途，修改名称时保留用途', () => {
+    root = mkdtempSync(join(tmpdir(), 'proctor-et-'));
+    const created = createEvalTask(root, { kind: 'plugin', purpose: 'regression' });
+    if ('error' in created) throw new Error(created.error);
+    appendEvalTaskRun(root, created.id, {
+      path: '/tmp/run-purpose',
+      startedAt: '2026-10-23T00:00:00.000Z',
+      jobId: 'job-purpose',
+    });
+    expect(updateEvalTask(root, created.id, { purpose: 'effect_comparison' })).toMatchObject({
+      code: 400,
+    });
+    expect(updateEvalTask(root, created.id, { name: '回归任务' })).toMatchObject({
+      purpose: 'regression',
+    });
+  });
+
+  it('提交运行即冻结用途，不等待运行结束，历史未知用途同样冻结', () => {
+    root = mkdtempSync(join(tmpdir(), 'proctor-et-'));
+    for (const hasPurpose of [true, false]) {
+      const created = createEvalTask(root, { kind: 'plugin', purpose: 'regression' });
+      if ('error' in created) throw new Error(created.error);
+      if (!hasPurpose) {
+        const { purpose: _purpose, ...legacy } = created;
+        writeFileSync(join(root, 'eval-tasks', `${created.id}.json`), JSON.stringify(legacy));
+      }
+      const frozen = freezeEvalTaskPurpose(root, created.id);
+      expect(frozen).toMatchObject({ purposeLocked: true });
+      expect(updateEvalTask(root, created.id, { purpose: 'diagnostic' })).toMatchObject({
+        code: 400,
+      });
+      expect(updateEvalTask(root, created.id, { name: '运行中改名' })).toMatchObject({
+        purposeLocked: true,
+      });
+    }
+  });
+
   it('非法 id / 空 kind', () => {
     root = mkdtempSync(join(tmpdir(), 'proctor-et-'));
-    expect(createEvalTask(root, { kind: 'nope' })).toMatchObject({ code: 400 });
+    expect(createEvalTask(root, { kind: 'nope', purpose: 'smoke' })).toMatchObject({ code: 400 });
     expect(getEvalTask(root, '../x')).toMatchObject({ code: 400 });
     expect(deleteEvalTask(root, 'et-missing')).toMatchObject({ code: 404 });
   });
 
   it('拒绝修改类型', () => {
     root = mkdtempSync(join(tmpdir(), 'proctor-et-'));
-    const created = createEvalTask(root, { kind: 'plugin', examMode: 'on' });
+    const created = createEvalTask(root, {
+      kind: 'plugin',
+      purpose: 'regression',
+      examMode: 'on',
+    });
     expect('error' in created).toBe(false);
     if ('error' in created) return;
     const switched = updateEvalTask(root, created.id, { kind: 'agent' });
