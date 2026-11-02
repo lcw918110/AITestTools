@@ -32,7 +32,7 @@
     {
       "case_id": "paired-task-53",
       "case_revision_id": "paired-task-53.r3.off",
-      "content_hash": "c95d985d971439d145aa3841cc182b9bea16ced56baed682ee52ef07504b12d9"
+      "content_hash": "ddf10c58019123cec35c8d2cb17976b120a49752888bb5d00c05791b1a6b127c"
     },
     {
       "case_id": "paired-task-54",
@@ -90,5 +90,5 @@
       "content_hash": "74685e2b23e8614d97defda0196ba3610a7c12d7cf04b19f699b4f00d0f8ceb8"
     }
   ],
-  "closure_hash": "e8e23d68adcbab0df58d0d4310adf6c41d329d63f0ba83451c054f4adc9e13df"
+  "closure_hash": "439e20a4d3148b0b80fb9d3a0cda096cb9395ba8bd2639d433699ace78a57274"
 }
