@@ -410,6 +410,10 @@ function loadPairedItemsV1(project: string): Map<string, { off?: ItemSide; on?: 
     }
   }
 
+  // 同侧多个修订并存时，必须按「头部修订优先、否则修订号最大」选定，
+  // 不能由 readdirSync 的文件名字典序决定（r10 会排在 r9 之前）。
+  const picked = new Map<string, { rev: CaseRevisionV1Doc; side: 'off' | 'on' }>();
+
   for (const name of readdirSync(revisionsDir)) {
     if (!name.endsWith('.case-revision.json')) continue;
     const file = join(revisionsDir, name);
@@ -423,6 +427,17 @@ function loadPairedItemsV1(project: string): Map<string, { off?: ItemSide; on?: 
     if (!caseDoc) continue;
     const variant: 'off' | 'on' = rev.case_revision_id.includes('.on') ? 'on' : 'off';
     const pair = caseDoc.pair_key ?? rev.case_id.toUpperCase();
+    const key = `${pair}::${variant}`;
+    const prev = picked.get(key);
+    if (prev === undefined || betterRevision(rev, prev.rev, caseDoc.head_revision_id)) {
+      picked.set(key, { rev, side: variant });
+    }
+  }
+
+  for (const { rev, side: variant } of picked.values()) {
+    const caseDoc = caseById.get(rev.case_id);
+    if (!caseDoc) continue;
+    const pair = caseDoc.pair_key ?? rev.case_id.toUpperCase();
     const slot = map.get(pair) ?? {};
     const side = sideFromRevision(project, rev, caseDoc, variant);
     if (variant === 'on') slot.on = side;
@@ -430,6 +445,30 @@ function loadPairedItemsV1(project: string): Map<string, { off?: ItemSide; on?: 
     map.set(pair, slot);
   }
   return map;
+}
+
+/**
+ * 判定候选修订是否优于当前已选修订。
+ *
+ * 口径（与 changelog 一致）：`revision_number` 更大者为当前修订；
+ * 同号时优先 `head_revision_id` 命中者，再按 id 字典序取大（仅为结果稳定）。
+ *
+ * 不把 `head_revision_id` 放在第一位：它是**冗余指针**，脚本修订若漏更就会
+ * 指到旧版（92 题曾停在 r4 而 r5/r6 已存在）。陈旧指针由静态校验
+ * `CASE_HEAD_REVISION_STALE` 拦截，读路径只认修订号。
+ */
+function betterRevision(
+  candidate: CaseRevisionV1Doc,
+  current: CaseRevisionV1Doc,
+  headRevisionId: string | undefined,
+): boolean {
+  const candN = Number(candidate.revision_number) || 0;
+  const currN = Number(current.revision_number) || 0;
+  if (candN !== currN) return candN > currN;
+  const candIsHead = headRevisionId === candidate.case_revision_id;
+  const currIsHead = headRevisionId === current.case_revision_id;
+  if (candIsHead !== currIsHead) return candIsHead;
+  return candidate.case_revision_id > current.case_revision_id;
 }
 
 function versionLabel(offRev?: number, onRev?: number): string {
@@ -667,6 +706,11 @@ export async function updateTask(
   const offNextStrata = strataProvided ? body.strata : (existing.off?.strata ?? undefined);
   const onNextStrata = strataProvided ? body.strata : (existing.on?.strata ?? undefined);
 
+  // 继承上一修订中「表单不管理」的 oracle（语义口径、正则锚点等），
+  // 否则界面改一次标签就会静默抹掉这些断言，题目退化却仍报「通过」。
+  const offPriorOracles = existing.off ? readRevisionOracles(existing.off.file) : undefined;
+  const onPriorOracles = existing.on ? readRevisionOracles(existing.on.file) : undefined;
+
   const offRevDoc = buildCaseRevisionDoc({
     taskId,
     side: 'off',
@@ -678,6 +722,7 @@ export async function updateTask(
     changeName,
     ...(offNextRubric ? { rubric: offNextRubric } : {}),
     ...(offNextStrata ? { strata: offNextStrata } : {}),
+    ...(offPriorOracles ? { priorOracles: offPriorOracles } : {}),
   });
   const onRevDoc = buildCaseRevisionDoc({
     taskId,
@@ -690,6 +735,7 @@ export async function updateTask(
     changeName,
     ...(onNextRubric ? { rubric: onNextRubric } : {}),
     ...(onNextStrata ? { strata: onNextStrata } : {}),
+    ...(onPriorOracles ? { priorOracles: onPriorOracles } : {}),
   });
   const offNextRevisionId = caseRevisionIdOf(caseId, offNextRev, 'off');
   const onNextRevisionId = caseRevisionIdOf(caseId, onNextRev, 'on');
@@ -712,9 +758,19 @@ export async function updateTask(
     if (existing.on) writeJson(onNextRevFile, onRevDoc);
 
     // 更新 case.json 的 head_revision_id 与 tags。
+    // head 必须指向「本次确实写出的最新修订」：单侧题（只有 OFF）若仍写 ON，
+    // 会产生指向不存在文件的悬空指针（静态门禁报 CASE_HEAD_REVISION_STALE，
+    // 且 getTask 定位不到题面）。两侧都在时按修订号取大、同号取 ON。
     const caseDoc = readCaseFile(caseFile);
     if (!caseDoc) throw new Error('缺少 case：' + caseFile);
-    caseDoc.head_revision_id = onNextRevisionId;
+    caseDoc.head_revision_id = pickHeadRevision({
+      hasOff: existing.off !== undefined,
+      hasOn: existing.on !== undefined,
+      offId: offNextRevisionId,
+      onId: onNextRevisionId,
+      offRev: offNextRev,
+      onRev: onNextRev,
+    });
     if (nextTags !== undefined) {
       if (nextTags.length > 0) caseDoc.tags = nextTags;
       else delete caseDoc.tags;
@@ -758,12 +814,57 @@ export async function updateTask(
 }
 
 /** stdout 断言 oracles：与创建路径完全一致（创建与改题共用） */
+/**
+ * 选出新的 `head_revision_id`。
+ *
+ * 只考虑本次**确实写出**的修订：单侧题（只有 OFF）绝对不能再写 ON，
+ * 否则 head 指向不存在的文件。两侧都存在时按修订号取大，同号取 ON
+ * （与静态门禁 `CASE_HEAD_REVISION_STALE` 的口径一致）。
+ */
+function pickHeadRevision(opts: {
+  hasOff: boolean;
+  hasOn: boolean;
+  offId: string;
+  onId: string;
+  offRev: number;
+  onRev: number;
+}): string {
+  if (!opts.hasOn) return opts.offId;
+  if (!opts.hasOff) return opts.onId;
+  if (opts.offRev > opts.onRev) return opts.offId;
+  return opts.onId;
+}
+
+/** 读上一修订文档里的 oracles（供改题继承非表单管理的断言）。 */
+function readRevisionOracles(file: string): unknown[] | undefined {
+  if (!existsSync(file)) return undefined;
+  try {
+    const doc = JSON.parse(readFileSync(file, 'utf8')) as {
+      expect?: { oracles?: unknown };
+    };
+    return Array.isArray(doc.expect?.oracles) ? doc.expect.oracles : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * 表单可管理的 oracle id。
+ *
+ * `exit0` / `stdout-must` / `stdout-forbid` 由录题表单（终态词、必含词、禁止词）驱动，
+ * 每次改题都按表单值重建；其余 id 的断言语表单无法表达（`semantic_variants`、
+ * `forbidden_variants`、`contains_regex` 锚点等），必须从上一修订原样继承。
+ */
+const FORM_MANAGED_ORACLE_IDS = new Set(['exit0', 'stdout-must', 'stdout-forbid']);
+
 function buildOracles(opts: {
   token: string;
   contains: string[];
   notContains: string[];
+  /** 上一修订的 oracles：用于继承表单不管理的断言（缺省=新建题，无继承）。 */
+  priorOracles?: unknown[] | undefined;
 }): Record<string, unknown>[] {
-  const { token, contains, notContains } = opts;
+  const { token, contains, notContains, priorOracles } = opts;
   const mustAppear = contains.length > 0 ? contains : [token];
   const stdoutMust: Record<string, unknown> = {
     id: 'stdout-must',
@@ -780,6 +881,17 @@ function buildOracles(opts: {
       type: 'stdout_assert',
       not_contains: notContains.length === 1 ? notContains[0] : notContains,
     });
+  }
+
+  // 继承：保留上一修订里所有非表单管理的断言，顺序不变。
+  // 缺少这一步，界面改一次标签就会把语义口径（semantic_variants / forbidden_variants）
+  // 和自定义锚点断言静默删掉，题目退化却仍显示「通过」。
+  for (const raw of priorOracles ?? []) {
+    if (raw === null || typeof raw !== 'object') continue;
+    const obj = raw as Record<string, unknown>;
+    const id = typeof obj['id'] === 'string' ? obj['id'] : undefined;
+    if (id !== undefined && FORM_MANAGED_ORACLE_IDS.has(id)) continue;
+    oracles.push(obj);
   }
   return oracles;
 }
@@ -854,6 +966,8 @@ function buildCaseRevisionDoc(opts: {
   changeName: string;
   rubric?: RubricSpec;
   strata?: TaskStrata;
+  /** 上一修订的 oracles（继承非表单管理的断言）。 */
+  priorOracles?: unknown[] | undefined;
 }): Record<string, unknown> {
   const {
     taskId,
@@ -866,12 +980,13 @@ function buildCaseRevisionDoc(opts: {
     changeName,
     rubric,
     strata,
+    priorOracles,
   } = opts;
   const caseId = caseIdOfTask(taskId);
   const caseRevisionId = caseRevisionIdOf(caseId, revisionNumber, side);
   const ref = `bank/materials/${taskId}/prompt.txt`;
   const isOn = side === 'on';
-  const oracles = buildOracles({ token, contains, notContains });
+  const oracles = buildOracles({ token, contains, notContains, priorOracles });
 
   const stimulus = {
     kind: 'task_prompt',

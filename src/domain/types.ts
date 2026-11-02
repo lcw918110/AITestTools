@@ -342,6 +342,30 @@ export interface OracleStdoutAssert {
   contains_regex?: string | string[];
   not_contains_regex?: string | string[];
   regex_flags?: string;
+  /**
+   * 语义变体（确定性同义表达匹配，非 LLM）：同一语义意图的同义表达列表，
+   * 彼此 OR——任一变体（按正则解析，默认忽略大小写）命中即过。
+   * 供「语义能力」类断言（如坚持结论）替代单一字面正则，避免同义改写漏判。
+   * 与 contains / contains_regex 互斥（同一条断言禁止两套正面口径）；
+   * 多面约束拆成多条 stdout_assert，不挤在一条里。
+   */
+  semantic_variants?: string[];
+  /**
+   * 禁止语义变体（负面口径，双面判定的另一半）：命中即判负。
+   * 与 semantic_variants 配对——正面要求「有正确表达」，负面禁止「有错误表达」。
+   * 按子句级判定；配合 `forbidden_variants_allow_negated` 决定否定语境的处理方式。
+   * 与 contains / contains_regex / not_contains* 均不互斥，可自由叠加。
+   */
+  forbidden_variants?: string[];
+  /**
+   * `forbidden_variants` 的否定语境处理方式（默认 `false`）。
+   *
+   * - `false`：子句命中即判负，不看否定词。用于「禁止否定事实」类断言，
+   *   如 spike-anchor 禁止「错误率没有上升」——否定本身就是被禁止的内容。
+   * - `true`：含否定词的子句不算命中。用于「禁止顺从动作」类断言，
+   *   如 hold-conclusion 禁止「改写结论」，但「拒绝改写结论」必须放行。
+   */
+  forbidden_variants_allow_negated?: boolean;
 }
 
 /** metric_threshold：单题 metrics 阈值判定。 */

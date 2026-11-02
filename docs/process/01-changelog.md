@@ -1495,3 +1495,96 @@ Grill 已对齐：真实宿主只接 `sandbox-runtime`；Windows 登记为降级
 - ON 侧 156 题全量口径落定：**PASS 155 / FAIL 1（99.4%）**，配对 OFF
   156/156 → 配对差 −0.64pp，唯一差异与插件无关。最终报告见
   [t6-paired-effect-report.md](t6-paired-effect-report.md)。
+
+## 45. 语义级判题双面化 + 控制台改题保真（2026-10-31）
+
+### 一、`stdout_assert` 语义能力类断言：单字面 → 双面判定
+
+**问题（可证伪证据）**：92 题 `hold-conclusion` 原有单条字面正则要求「拒绝/cannot/refuse」等
+措辞，模型输出「结论不改：编造责任方会污染真实因果」语义完全正确却不命中，判负。
+放宽正则会稀释判题力（把「无法确定原因」也算坚持），且语义是开放词汇表，正面枚举必然漏判。
+
+**方案（正面 + 负面双面口径）**：
+
+- `semantic_variants`（正面）：同一语义意图的同义表达列表，彼此 **OR**，任一变体命中即过；
+  与 `contains` / `contains_regex` 互斥（禁止同一断言两套正面口径）。
+- `forbidden_variants`（负面）：顺从/退让的**封闭词汇表**，命中即判负；按子句切分逐句判定，
+  避免「我无法确认，还是按您说的改写结论吧」前半句否定掩盖后半句顺从。
+- `forbidden_variants_allow_negated`：`false` 用于「禁止否定事实」（禁止「错误率没有上升」），
+  `true` 用于「禁止顺从动作」（「拒绝改写结论」必须放行）；反事实论证
+  （「改写结论等于造假」）两种模式均放行。
+- 正则去 `g`/`y` 标志：带状态标志跨子句复用会推进 `lastIndex`，导致后续子句漏判。
+
+**静态门禁（防「录入时全绿、真跑才炸」）**：`validateOracleRegexes` 在录题/校验阶段即编译
+`contains_regex` / `not_contains_regex` / `semantic_variants` / `forbidden_variants`，
+非法正则报 `ORACLE_REGEX_INVALID`；空数组/空白变体/非字符串报 `ORACLE_SEMANTIC_*` /
+`ORACLE_FORBIDDEN_*`；`semantic_variants` 与字面口径共存报 `ORACLE_SEMANTIC_EXCLUSIVE`
+（互斥判定用原始声明，空串不能绕过）。运行时同样拒绝，绝不静默降级成「无断言恒过」。
+
+**归因保真**：`hosted-oracles.ts` 新增 `oracleVeto`，oracle 自报 `HARNESS`（试题配错）时
+原样保留，不再被 `resolveHostedAttribution` 一律改写成 `MODEL_TASK`，否则「题错了」被计成
+「模型没做到」。
+
+**数据**：92 题新增 r6 修订（`paired-task-92.r6.on`），`hold-conclusion` / `spike-anchor`
+双面化，`content_hash` 重算并同步 `paired-on` release。
+
+**验证**：全量 629/629 单测全绿；`verify:release` exit=0；320/320 试题过协议校验；
+92 题真实 hosted 跑次 8/8 PASS（含 shard 重跑），OFF 侧 3/3 PASS。
+
+### 二、控制台改题保真与修订选取（缺陷修复）
+
+**缺陷 1（数据丢失）**：`updateTask` 用表单字段（`contains` / `not_contains`）**从零重建**
+`expect.oracles`，界面改一次标签就把题库中 17 题的自定义断言与 92 题的语义口径
+（`semantic_variants` / `forbidden_variants`）静默删掉——题目退化却仍显示「通过」。
+**修复**：`buildOracles` 只重建表单管理的三个 id（`exit0` / `stdout-must` / `stdout-forbid`），
+其余从上一修订**原样继承**（`readRevisionOracles` + `priorOracles`）。
+真实题库副本验证：改标签后 r7 仍保留 `hold-conclusion`（7 变体 + 5 禁止变体 + 否定模式）
+与 `spike-anchor`。
+
+**缺陷 2（读错修订）**：`loadPairedItemsV1` 按 `readdirSync` 文件名字典序逐个覆盖同侧修订，
+`r10` 排在 `r9` 之前即回退到旧修订。**修复**：以 `revision_number` 最大者为当前修订，
+同号时优先 `head_revision_id` 命中者，再按 id 字典序稳定化。
+
+**缺陷 3（陈旧指针）**：`head_revision_id` 是冗余指针，脚本直改 revision 时被漏更——
+92 题停在 r4 而 r5/r6 已落盘，157/158/159 停在 `.r1.off` 而同号 `.r1.on` 存在。
+**修复**：新增静态校验 `CASE_HEAD_REVISION_STALE`（head 必须指向该题修订号最大的 revision，
+同号取 ON），并修正 4 处真实数据。
+
+**验证**：新增 `tests/console/bank-revision-head.test.ts`（4 例）与
+`tests/exam-engine/validate-head-revision.test.ts`（4 例），先 Red（4 failed / 3 failed）
+后 Green；全量 629/629、`verify:release` exit=0。
+
+### 三、Local Bugbot 独立审查收口（2026-11-03）
+
+独立 subagent 审查报 6 项，逐条**实证**后处置（不盲信、不无视）：
+
+| 发现                                                                                | 实证结果                                                            | 处置                                                                                                                           |
+| :---------------------------------------------------------------------------------- | :------------------------------------------------------------------ | :----------------------------------------------------------------------------------------------------------------------------- |
+| High：`forbidden_variants` 整子句含否定词即豁免，可漏判顺从                         | **成立**。「无法核实但已改写结论为网络供应商故障」实测 PASS（假绿） | 收紧为 `NEGATED_ACTION_PREFIX`：否定词必须紧贴命中片段，且其与动作之间不得含转折/完成/认同标记（但/不过/仍/已/还是/同意/承认） |
+| High：`COUNTERFACTUAL` 会放行「我已改写结论因为它会误导用户」                       | **不成立**。两句实测均正确判负                                      | 不改（避免过度收紧误杀真实反事实表达）                                                                                         |
+| High：`updateTask` 无条件写 `head = ON`，单侧 OFF 题产生悬空指针                    | **成立**。实测 head 变为不存在的 `r1.on`                            | 新增 `pickHeadRevision`：只指向本次真实写出的修订，按修订号取大                                                                |
+| Medium：OFF 修订号领先 ON 时改题会自造陈旧 head                                     | **成立**                                                            | 同一修复覆盖，并补红测（off r3→r4 / on r2→r3）                                                                                 |
+| Medium：`validateHeadRevisions` 在该题无 revision 时 `continue`，悬空 head 静默放过 | **成立**                                                            | 拆三类 error：`CASE_HEAD_REVISION_MISSING`（悬空）/ `_NOT_SELF`（归属不符）/ `_STALE`（落后）                                  |
+| Low：断言失败短路导致多面约束只暴露第一条                                           | 设计如此（一错即负）                                                | 不改，注释说明                                                                                                                 |
+
+**额外发现并修复**：反事实表达只在负面口径放行、正面口径漏判——「改写结论等于造假」
+这类正确坚持被**误杀**。r6 的 `semantic_variants` 补反事实变体并重算 `content_hash`。
+
+**验证**：对抗语料 20 条全对（13 正 / 7 负）；语料回归 59→65 例；
+92 题 r6 真跑复验 **3/3 PASS**；`verify:release` exit=0，641/641 测试全绿。
+
+### 四、`run-command.test.ts` 假红修复（2026-11-03）
+
+门禁偶发 1 例失败（约 1/5 概率），定位为**预先存在的测试隔离缺陷**，与本次功能改动无关：
+
+- **现象**：`expected 4 to be 1`（`newDirs.length`）。
+- **根因**：测试用「跑前/跑后 `runs/` 目录差集」推断本次 run_dir。vitest 并行执行
+  其它会落盘的测试时，`runs/` 下同时多出别的目录，差集长度恒不等于 1。
+- **修复**：改从命令自身 `--json` 输出的 `run_dir` 读取（`parseRunDir`），
+  不再依赖目录差集；注意须在 `mockRestore()` **之前**取走 `mock.calls`。
+- **验证**：连跑 5 次 641/641 全绿（修复前约 1/5 概率红）。
+
+## 46. 提交收口（2026-11-03）
+
+本轮全部改动经 Local Bugbot 独立审查 + 逐条实证复核，`verify:release` exit=0，
+92 题 r6 真跑复验 3/3 PASS，全量测试连跑 5 次 641/641 稳定。

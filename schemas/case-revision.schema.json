@@ -291,14 +291,27 @@
         "not_contains": { "type": ["string", "array"] },
         "contains_regex": { "type": ["string", "array"] },
         "not_contains_regex": { "type": ["string", "array"] },
-        "regex_flags": { "type": "string" }
+        "regex_flags": { "type": "string" },
+        "semantic_variants": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "forbidden_variants": {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "forbidden_variants_allow_negated": { "type": "boolean" }
       },
       "additionalProperties": false,
       "anyOf": [
         { "required": ["contains"] },
         { "required": ["not_contains"] },
         { "required": ["contains_regex"] },
-        { "required": ["not_contains_regex"] }
+        { "required": ["not_contains_regex"] },
+        { "required": ["semantic_variants"] },
+        { "required": ["forbidden_variants"] }
       ]
     },
     "oracle-metric-threshold": {

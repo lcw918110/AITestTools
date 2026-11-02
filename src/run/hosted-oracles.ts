@@ -1,9 +1,28 @@
 import type { Attribution } from '../exam-engine/types.ts';
 import type { CaseRevision } from '../domain/types.ts';
+import type { OracleOutcome } from '../oracles/types.ts';
 import { runStdoutAssertOracle } from '../oracles/stdout-assert.ts';
 import { runToolSideEffectOracle } from '../oracles/tool-side-effect.ts';
 import { runWorkspaceAssertOracle } from '../oracles/workspace-assert.ts';
 import { resolveHostedAttribution } from '../attribution/hosted-tree.ts';
+
+/**
+ * 构造 oracle 否决项。
+ *
+ * 关键：oracle 自己归因 HARNESS（非法正则、双口径冲突、缺断言等试题配错）时
+ * 必须原样保留，不能被 resolveHostedAttribution 一律改写成 MODEL_TASK——
+ * 否则「试题配错」会被计成「模型没做到」，污染评测结论。
+ */
+function oracleVeto(
+  outcome: Extract<OracleOutcome, { pass: false }>,
+  focus: Attribution | undefined,
+): { message: string; attribution: Attribution } {
+  return {
+    message: `oracle ${outcome.oracle_id}：${outcome.message}`,
+    attribution:
+      outcome.attribution === 'HARNESS' ? 'HARNESS' : resolveHostedAttribution('MODEL_TASK', focus),
+  };
+}
 
 export interface HostedOracleVeto {
   message: string;
@@ -90,10 +109,7 @@ export function evaluateHostedOracles(opts: {
         attribution: opts.focus ?? 'MODEL_TASK',
       });
       if (!outcome.pass) {
-        otherVeto ??= {
-          message: `oracle ${outcome.oracle_id}：${outcome.message}`,
-          attribution: resolveHostedAttribution('MODEL_TASK', opts.focus),
-        };
+        otherVeto ??= oracleVeto(outcome, opts.focus);
       }
     } else if (oracle.type === 'workspace_assert') {
       workspace_ran = true;
@@ -117,10 +133,7 @@ export function evaluateHostedOracles(opts: {
         attribution: opts.focus ?? 'MODEL_TASK',
       });
       if (!outcome.pass) {
-        otherVeto ??= {
-          message: `oracle ${outcome.oracle_id}：${outcome.message}`,
-          attribution: resolveHostedAttribution('MODEL_TASK', opts.focus),
-        };
+        otherVeto ??= oracleVeto(outcome, opts.focus);
       }
     } else {
       return {

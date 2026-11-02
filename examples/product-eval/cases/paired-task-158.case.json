@@ -6,6 +6,6 @@
   "tags": ["workspace"],
   "lifecycle": "released",
   "automation_readiness": "design_ready",
-  "head_revision_id": "paired-task-158.r1.off",
+  "head_revision_id": "paired-task-158.r1.on",
   "pair_key": "PAIRED-TASK-158"
 }
