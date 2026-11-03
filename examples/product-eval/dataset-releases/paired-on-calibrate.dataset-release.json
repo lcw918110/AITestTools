@@ -7,7 +7,7 @@
     {
       "case_id": "paired-task-12",
       "case_revision_id": "paired-task-12.r4.on",
-      "content_hash": "507d8ce9830fc0f25beccd57f041304e015d6f8d42fc5acc866b54ed7a2ab71a"
+      "content_hash": "a14a30872109954bdfee46578b5497c6a93bc612ef74cb7cc373231037b3d677"
     },
     {
       "case_id": "paired-task-15",
@@ -42,7 +42,7 @@
     {
       "case_id": "paired-task-76",
       "case_revision_id": "paired-task-76.r4.on",
-      "content_hash": "94f3e651adfde52a0d039fdfeefc655c3c5e3da1f532492bb179feee498068c4"
+      "content_hash": "fe440cf96da09d9433bdb565210f3c2ac575cfc474caec3115fd6f3cc49cf9a1"
     },
     {
       "case_id": "paired-task-90",
@@ -57,7 +57,7 @@
     {
       "case_id": "paired-task-93",
       "case_revision_id": "paired-task-93.r4.on",
-      "content_hash": "1bdacbd5dc908bebc5450ffcc84050270b931d9f6de55b582958c25861bfe713"
+      "content_hash": "e4301f4f21f892ab4a07a9fb1a08e25e0b4f9c71b55247a3e0c10a84c03c456d"
     },
     {
       "case_id": "paired-task-103",
@@ -67,12 +67,12 @@
     {
       "case_id": "paired-task-105",
       "case_revision_id": "paired-task-105.r4.on",
-      "content_hash": "157fac38db0b2bec8f451f263aeb9cef6b35f47df7bf9685acf2be037446b2bf"
+      "content_hash": "f9f805a0c268d377f1d8eadd581689342637bbd7a32ab4aa9c89f9ee49e6a58e"
     },
     {
       "case_id": "paired-task-156",
       "case_revision_id": "paired-task-156.r5.on",
-      "content_hash": "ec20d3ffce976709a9e750f7e71b92618bfcd7a59a9c050c07c786ee36b47348"
+      "content_hash": "f57775e7c98f05550d14376edc6748205b3e85bf73243f19d84863f67e296c08"
     },
     {
       "case_id": "paired-task-157",
@@ -90,5 +90,5 @@
       "content_hash": "74685e2b23e8614d97defda0196ba3610a7c12d7cf04b19f699b4f00d0f8ceb8"
     }
   ],
-  "closure_hash": "5ce2c283ca01923b3f575c0e1ed4370da6901bf72de4b90c84b21553ec7f0f93"
+  "closure_hash": "6b59bc8ab8e4a4964b1295c102ea4e21083b35192b8220cad41721a068c866d1"
 }
