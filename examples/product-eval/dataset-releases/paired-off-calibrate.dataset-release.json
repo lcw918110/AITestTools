@@ -7,7 +7,7 @@
     {
       "case_id": "paired-task-12",
       "case_revision_id": "paired-task-12.r3.off",
-      "content_hash": "4f537bfffdbbc8f15e9176d57ae544a44a540871003aef26601b0a6e254c7a42"
+      "content_hash": "6453a9128140743b6e52324cb79b619ddffedb7001a0c6348ff26381e128e501"
     },
     {
       "case_id": "paired-task-15",
@@ -37,12 +37,12 @@
     {
       "case_id": "paired-task-54",
       "case_revision_id": "paired-task-54.r3.off",
-      "content_hash": "8edaebc212c32cb823112d62add2bdf50a10ff602c8d1792ab3286cb14529489"
+      "content_hash": "4a013e778ffb0cde79b5e9e804902e56fc7c955d0b1fc979d6b96bbe14adab08"
     },
     {
       "case_id": "paired-task-76",
       "case_revision_id": "paired-task-76.r3.off",
-      "content_hash": "bd287c1fcc411bd2aacded54d012f6c72beea1df72fa413f419e146302033707"
+      "content_hash": "984534fd5c99ef9f16d6b6a687b59d068c024a845d60fdf228b7e05f9b0850f6"
     },
     {
       "case_id": "paired-task-90",
@@ -52,12 +52,12 @@
     {
       "case_id": "paired-task-92",
       "case_revision_id": "paired-task-92.r3.off",
-      "content_hash": "42c21d0fe81e21eafbfa3120e9879af8d84779b929701433020b20dae74791b8"
+      "content_hash": "46f8c89e504c899b24bdfa4964212b53adaa5f1089149aab1b1d95ae50f80d2e"
     },
     {
       "case_id": "paired-task-93",
       "case_revision_id": "paired-task-93.r3.off",
-      "content_hash": "8bcb3fe0e6226d0485c498fe160d1837e34e9127dc1cdc6f679ca81198075d7f"
+      "content_hash": "7638fcea0d8f7db113c77d0db47f29cbc777739080c29ea8a034dfeeb3221f39"
     },
     {
       "case_id": "paired-task-103",
@@ -67,7 +67,7 @@
     {
       "case_id": "paired-task-105",
       "case_revision_id": "paired-task-105.r3.off",
-      "content_hash": "86062f155297d9cb4e29b3b1b9a6cf8291c5c9b1d2d200091b6c8abfb9f793ca"
+      "content_hash": "9036ea7c2a3ac8098b082a1be2c7b2485f131f1642335da3db0b9be5bfc2f5d4"
     },
     {
       "case_id": "paired-task-156",
@@ -90,5 +90,5 @@
       "content_hash": "74685e2b23e8614d97defda0196ba3610a7c12d7cf04b19f699b4f00d0f8ceb8"
     }
   ],
-  "closure_hash": "3398c0392f4203e12993fc05248d32189973d3b8db90bd25189a4455fcb424d7"
+  "closure_hash": "dbbe5933c05d3b3dba62165fc392c1b93ca84e8fcd46e71ea21c8f68e2b535ae"
 }

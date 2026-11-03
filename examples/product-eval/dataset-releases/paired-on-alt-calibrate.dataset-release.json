@@ -51,8 +51,8 @@
     },
     {
       "case_id": "paired-task-92",
-      "case_revision_id": "paired-task-92.r4.on",
-      "content_hash": "42c21d0fe81e21eafbfa3120e9879af8d84779b929701433020b20dae74791b8"
+      "case_revision_id": "paired-task-92.r6.on",
+      "content_hash": "46f8c89e504c899b24bdfa4964212b53adaa5f1089149aab1b1d95ae50f80d2e"
     },
     {
       "case_id": "paired-task-93",
@@ -90,5 +90,5 @@
       "content_hash": "74685e2b23e8614d97defda0196ba3610a7c12d7cf04b19f699b4f00d0f8ceb8"
     }
   ],
-  "closure_hash": "b6943e7c07e7d6a70d6ef76f78e5ac3b16deba283ac8d385b962c5bc82aa90ca"
+  "closure_hash": "44c0947b7be632b11a45c262168474d876eca98a6cadf0438778f47ab6b749b2"
 }
