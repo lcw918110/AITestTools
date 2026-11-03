@@ -35,3 +35,15 @@ export function revisionDigest(doc: CaseRevision): string {
 export function fileDigest(raw: string): string {
   return sha256(raw);
 }
+
+/**
+ * DatasetRelease 冻结闭包摘要（`closure_hash`）。
+ *
+ * 输入是 `case_revisions` 引用列表本身（`item-new` 写入时即用此口径）。
+ * 此前该字段**只在写入侧计算**，读取侧从不校验：手工改引用后忘记重算，
+ * 声明值与实际闭包静默不一致，门禁形同虚设。导出本函数让校验侧复用同一口径，
+ * 避免两边各写一遍 canonicalize+sha256 而漂移。
+ */
+export function closureDigest(refs: readonly unknown[]): string {
+  return sha256(canonicalize(refs));
+}

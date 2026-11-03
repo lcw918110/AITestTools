@@ -8,7 +8,7 @@ import {
 import { checkProtocolCompatibility } from './project.ts';
 import type { ExamProject } from './project.ts';
 import { validateAgainstSchema } from './schema.ts';
-import { revisionDigest } from './digest.ts';
+import { revisionDigest, closureDigest } from './digest.ts';
 import type {
   CandidateConfig,
   Case,
@@ -238,6 +238,21 @@ export function validateDatasetRelease(
         ),
       );
     }
+  }
+  // closure_hash 必须等于引用列表的规范哈希。
+  // 此前该字段只在写入时计算（`item-new`），读取侧从不校验：
+  // 手工编辑 `case_revisions` 后忘记重算，或写错哈希，门禁都拦不住，
+  // 冻结闭包与声明值静默不一致。
+  const expected = closureDigest(doc.case_revisions);
+  if (doc.closure_hash !== expected) {
+    issues.push(
+      err(
+        'DATASET_CLOSURE_HASH_MISMATCH',
+        `closure_hash 与 case_revisions 不一致（期望 ${expected}，实际 ${doc.closure_hash}）`,
+        file,
+        '/closure_hash',
+      ),
+    );
   }
   return issues;
 }

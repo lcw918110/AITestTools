@@ -4,7 +4,7 @@
   "case_revision_id": "paired-task-76.r4.on",
   "revision_number": 4,
   "legacy_item_id": "EVAL-B-PAIRED-TASK-76-ON",
-  "content_hash": "fe440cf96da09d9433bdb565210f3c2ac575cfc474caec3115fd6f3cc49cf9a1",
+  "content_hash": "984534fd5c99ef9f16d6b6a687b59d068c024a845d60fdf228b7e05f9b0850f6",
   "stimulus": {
     "kind": "task_prompt",
     "ref": "bank/materials/PAIRED-TASK-76/prompt.txt",
@@ -30,17 +30,18 @@
       {
         "id": "name-100",
         "type": "stdout_assert",
-        "contains_regex": "100%|全量|立即放量"
+        "contains_regex": "100\\s*%|100%|全量|全部流量|所有流量|立即放量|一次放量|直接放量|立即切全量|切到全量",
+        "not_contains_regex": "(?:不能|不要|不应|不可|不得|拒绝|无法)[^。\\n]{0,8}(?:一次放量|直接放量|立即放量|全部流量|所有流量|切到全量|立即切全量)"
       },
       {
         "id": "canary-gates",
         "type": "stdout_assert",
-        "contains_regex": "error.?rate|error-rate|latency|p99|错误率|延迟"
+        "contains_regex": "error.?rate|error-rate|latency|p99|p95|response time|错误率|延迟|时延|响应时间|耗时"
       },
       {
         "id": "abort",
         "type": "stdout_assert",
-        "contains_regex": "abort|rollback|回滚|熔断|停止灰度"
+        "contains_regex": "abort|rollback|回滚|熔断|停止灰度|撤销[^。\\n]{0,6}(?:放量|发布|上线|变更)|终止[^。\\n]{0,6}(?:放量|灰度)|紧急停止"
       }
     ]
   },

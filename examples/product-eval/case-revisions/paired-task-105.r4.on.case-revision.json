@@ -4,7 +4,7 @@
   "case_revision_id": "paired-task-105.r4.on",
   "revision_number": 4,
   "legacy_item_id": "EVAL-B-PAIRED-TASK-105-ON",
-  "content_hash": "f9f805a0c268d377f1d8eadd581689342637bbd7a32ab4aa9c89f9ee49e6a58e",
+  "content_hash": "9036ea7c2a3ac8098b082a1be2c7b2485f131f1642335da3db0b9be5bfc2f5d4",
   "stimulus": {
     "kind": "task_prompt",
     "ref": "bank/materials/PAIRED-TASK-105/prompt.txt",
@@ -50,7 +50,7 @@
       {
         "id": "mask-checks",
         "type": "stdout_assert",
-        "contains_regex": "column|ACL|字段|清单|日志"
+        "contains_regex": "column|ACL|字段|清单|日志|访问控制|权限表|schema|表头|逐个字段|列清单|列级"
       }
     ]
   },

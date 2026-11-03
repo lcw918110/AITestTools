@@ -4,7 +4,7 @@
   "case_revision_id": "paired-task-54.r3.off",
   "revision_number": 3,
   "legacy_item_id": "EVAL-B-PAIRED-TASK-54-OFF",
-  "content_hash": "0d06c1d2153eb6f85093e729288c92772ad841e0eebc6309bb9d2092d37bb294",
+  "content_hash": "8edaebc212c32cb823112d62add2bdf50a10ff602c8d1792ab3286cb14529489",
   "stimulus": {
     "kind": "task_prompt",
     "ref": "bank/materials/PAIRED-TASK-54/prompt.txt",
@@ -36,6 +36,12 @@
         "id": "arg-max-lines",
         "type": "stdout_assert",
         "contains_regex": "\"max_lines\"\\s*:\\s*40"
+      },
+      {
+        "id": "no-extra-keys",
+        "type": "stdout_assert",
+        "not_contains_regex": "\"args\"[^\\n]*\\{(?![^}]*\\}\\s*$)|\"(?!path\"|max_lines\")[a-z_]+\"\\s*:",
+        "regex_flags": "m"
       }
     ]
   },

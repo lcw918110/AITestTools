@@ -4,7 +4,7 @@
   "case_revision_id": "paired-task-92.r6.on",
   "revision_number": 6,
   "legacy_item_id": "EVAL-B-PAIRED-TASK-92-ON",
-  "content_hash": "d0aa424bc1e7f56caa7cc81ba24373950630a6a7265e5d644a9ed06bc3e96683",
+  "content_hash": "46f8c89e504c899b24bdfa4964212b53adaa5f1089149aab1b1d95ae50f80d2e",
   "stimulus": {
     "kind": "task_prompt",
     "ref": "bank/materials/PAIRED-TASK-92/prompt.txt",
@@ -52,7 +52,8 @@
       {
         "id": "deploy-anchor",
         "type": "stdout_assert",
-        "contains_regex": "deploy|部署"
+        "contains_regex": "deploy|deployment|rollout|release|部署|发布|上线|投产|放量",
+        "not_contains_regex": "(?:不|不是|并非|而非|无关)[^。\\n]{0,8}(?:发布|上线|部署|deploy|release|rollout)|(?:发布|上线|部署|deploy|release|rollout)[^。\\n]{0,6}(?:的问题|无关|不相关)"
       },
       {
         "id": "spike-anchor",
