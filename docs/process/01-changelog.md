@@ -2323,32 +2323,38 @@ ON 侧事件种类含 `ManagerJobCreated`、`WorktreeCreated`、`TerminalOutputC
 
 **111 文件 / 890 tests / 321 题 0 错误**，typecheck 与 Prettier 均通过。诊断载荷产物（`event-payloads/`）已从运行目录清理。
 
-### 十二、上游故障单：委派成功后 `join` 停摆（2026-11-10）
+### 十二、委派链失败复盘：不是上游缺陷（2026-11-10）
 
-按要求「再次确认挖掘，确定是上游就报故障单」，对 `k428` / `2umd` / `zlx2` 三次运行做了逐条复算，
-结论与早前几轮的推测都不同，已落成
-[BUG-20261110](../bugs/BUG-20261110-orchestrator-program-api.md)。
+按要求「完整确认后再给万象术仓写 bug」，对 `k428` / `2umd` / `zlx2` 三次运行做了逐条复算，
+**结论推翻了我自己前几轮的判断**：上游没有缺陷，故障单已撤回，未在上游仓留任何改动。
 
-**已确认**：`commission` 是成功的——`hosted-stdout.log:122` 明确记 `outcome = "commissioned"`，
-事件流有 5 个 `ManagerJobCreated` + 5 个 `WorktreeCreated`。工作树也建成了。
+**决定性证据**（调仓内编译产物，走真实链路
+`OfficeCapability_permissions` → `projectRole` → `runtimeBaseClassForRole`）：
 
-**真正卡点**：`hosted-stderr.log:621` 的 `join` 是**全流程最后一次工具调用**，
-之后到 543 秒被 `SIGKILL` 只剩 34 条 `stream`，零工具调用。
-`timed_out=false`，所以不是 600 秒不够。收尾报 `WorkStillActive`。
+| 项                | 实测结果                                                                                              |
+| :---------------- | :---------------------------------------------------------------------------------------------------- |
+| orchestrator 权限 | 10 项，含 `Read`(tag 5)、`Glob`(8)、`Grep`(9)                                                         |
+| 投影成员          | `cat, ls, rg, stat, whereAll, where, resume, commission, horizon, review`                             |
+| 基类方法          | `cat, stat, ls, rg, whereAll, where, commission, resume, horizon, review, park, unpark, abandon, run` |
+| contract 渲染     | 「它可以在一个 program 中 读取 文件」——动词正常，无空串                                               |
 
-模型自述（`hosted-stdout.log:122-125`）点出直接原因：`retention` 用尽、必须 `resetScope`。
-上游 `RequestProjection.fs:691-711` 在 `retention.remaining = 0` 时确实强制要求 `resetScope`。
-`resetScope` 之后 `join` 就再没下文——是结果未回传、上下文被清、还是模型放弃，本仓证据不足以区分，
-已在单子里列为待上游确认项。
+**orchestrator 的文件读取能力是齐全的。** 工具描述与实际能力一致。
 
-**这轮推翻的四个早期说法**（写在单子末尾，避免向上游传错）：
+模型失败的原因在它自己：`hosted-stdout.log` 125 行里反复声称「基类只提供
+commission、horizon、park、unpark、abandon」，并去猜 `this.call` / `this.fs` /
+`this.glob` / `import('fs/promises')` / `require`——这些确实不存在，
+而真实可用的 `this.cat` / `this.stat` / `this.ls` / `this.rg` 它**一次都没试**。
+三次运行的文件读取方法调用数均为 **0**。
 
-| 早期说法                                  | 为何错                                                            |
-| :---------------------------------------- | :---------------------------------------------------------------- |
-| manager 工具面缺写入/执行，转派入口不存在 | 漏了 `devops`（有 `Write`/`Exec`）；编程面 `fork` 按角色是活的    |
-| 编排链上没有任何会话具备改文件→跑测试     | `devops` 能力齐全，只是没被这条链路用上                           |
-| orchestrator 是 75 次调用                 | 75 是字符串出现数，实际工具调用 44 行                             |
-| `Math.floor` 说明没跑过测试               | `Math.floor` 是种子原状，该结果无法区分「跑过没改对」与「没跑过」 |
+**我判错的两个成因**（已写进复盘，避免重犯）：
 
-三次独立审查（含两次推翻结论）的成本，换来的是不再把「API 试探」误当成终局根因。
-上游源码全程只读，未修改任何文件。
+1. 只看 `OfficeMatrix.fs:105` 的 `Fork; Join; Horizon; ResetScope`，没追
+   `OfficeCapability.permissions` 的真实返回；
+2. 探针把字符串 `Set(['Commission',...])` 传给比较 Fable Union 的 `has()`——
+   字符串永不匹配，**任何角色都会渲染出空 verbs**。这个错误探针一度「证实」了错误结论。
+
+第 2 条尤其值得记：一个写错的探针可以证实任何结论。第一次跑出
+「含空动词残句: true」时我以为是铁证，实际是类型传错。
+
+复盘落在 [2026-11-10-delegation-failure-postmortem.md](../bugs/2026-11-10-delegation-failure-postmortem.md)。
+上游源码全程只读。
