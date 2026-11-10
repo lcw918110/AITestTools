@@ -48,4 +48,39 @@ describe('L2 fakehost adapter（scripted）', () => {
     expect(results[0]?.pass).toBe(false);
     expect(results[0]?.attribution).toBe('PROTOCOL');
   });
+
+  // 回归：no_event 的空 names 会让 forbidden 为空 Set、find 恒 undefined → 恒通过（假绿）。
+  // L1 与 hosted 都已补空名校验，L2 曾漏改，三处口径不一致。
+  it('no_event 未声明有效事件名时归因 HARNESS，不得假绿', async () => {
+    const project = loadProject(demo);
+    const { cases, environment } = resolveDatasetItems(project, 'smoke-a', 'fake-host-v1');
+    const runCase = cases.find((c) => c.revision.case_id === 'demo-a-nudge-timing-01')!;
+
+    for (const names of [[], [''], ['   '], [null], [42]]) {
+      const revision = structuredClone(runCase.revision);
+      revision.expect.oracles = [{ type: 'no_event', id: 'empty-names', names }] as never;
+
+      const { results } = await runL2(revision, environment, project.root);
+
+      expect(results[0]?.pass, `names=${JSON.stringify(names)} 不得通过`).toBe(false);
+      expect(results[0]?.attribution, `names=${JSON.stringify(names)}`).toBe('HARNESS');
+    }
+  });
+
+  // 同类假绿：空 names 的 event_subsequence 是「空序列是任何序列的子序列」→ 恒通过。
+  it('event_subsequence 未声明有效事件名时归因 HARNESS，不得假绿', async () => {
+    const project = loadProject(demo);
+    const { cases, environment } = resolveDatasetItems(project, 'smoke-a', 'fake-host-v1');
+    const runCase = cases.find((c) => c.revision.case_id === 'demo-a-nudge-timing-01')!;
+
+    for (const names of [[], [''], ['   '], [null], [42]]) {
+      const revision = structuredClone(runCase.revision);
+      revision.expect.oracles = [{ type: 'event_subsequence', id: 'empty-names', names }] as never;
+
+      const { results } = await runL2(revision, environment, project.root);
+
+      expect(results[0]?.pass, `names=${JSON.stringify(names)} 不得通过`).toBe(false);
+      expect(results[0]?.attribution, `names=${JSON.stringify(names)}`).toBe('HARNESS');
+    }
+  });
 });

@@ -263,8 +263,12 @@ function runProcessGroup(
     const timer = setTimeout(() => {
       timedOut = true;
       try {
-        if (child.pid === undefined) child.kill('SIGKILL');
-        else process.kill(-child.pid, 'SIGKILL');
+        // pid=1 时 -pid 即 -1，等于向当前用户所有进程广播 SIGKILL，必须拒绝。
+        if (child.pid === undefined || child.pid <= 1 || child.pid === process.pid) {
+          child.kill('SIGKILL');
+        } else {
+          process.kill(-child.pid, 'SIGKILL');
+        }
       } catch {
         child.kill('SIGKILL');
       }

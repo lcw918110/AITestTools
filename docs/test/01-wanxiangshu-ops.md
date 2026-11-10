@@ -76,7 +76,25 @@ unset PROCTOR_HOSTED_PLUGIN      # 配对 off 时勿强制挂插件
 
 ### 2.1 校准先行，再跑两层实验
 
-**「过」现在判什么**：hosted 效果题主判定是 `expect.oracles` 里的 `workspace_assert`（工作区还在就跑，包括超时 / 非 0 / 空 stdout）。仓库全过 → 整题 PASS，即使超时或退出码非 0；超时与 `host_exit` 写入报告作辅助（类似暗号）。`hosted_pass_token` 只作**辅助信号**：报告写清「暗号：有/无」，缺词或空输出**不得一票否决**。`exit_code equals 0` 在超时/被杀时不单独否决。工作区失败 → `MODEL_TASK`（ON 题的 `attribution_focus: PROTOCOL` **不得**改写）；超时且文件没动 → `CONTEXT`。额度/真鉴权失败仍是 `CONTEXT`。PROTOCOL 只留给进程正常结束后探针 / EventStore 真缺。ON 额外要求 EventStore 里有 `RuntimeStarted` 与 `JournalEnvelope`（超时且工作区已过时探针未齐只记辅助）。冒烟 01–03 若几乎只靠回复文本过，不能当效果基线。
+**「过」现在判什么**：hosted 效果题主判定是 `expect.oracles` 里的 `workspace_assert`（只认播种目录，包括超时 / 非 0 / 空 stdout）。仓库全过 → 整题 PASS，即使超时或退出码非 0；超时与 `host_exit` 写入报告作辅助（类似暗号）。插件自建的委派工作树（`WorktreeCreated` 的 `WorktreePath`）**不算通过面**：清播种目录前只把与播种材料同名的文件收进 `delegated-worktrees/`。事件里的路径必须是系统临时目录下的绝对路径，相对路径与目录外路径拒绝采集，供事后核对「改在工作树、没合回播种目录」。不跟工作树、不把工作树改对记成 PASS。`hosted_pass_token` 只作**辅助信号**：报告写清「暗号：有/无」，缺词或空输出**不得一票否决**。`exit_code equals 0` 在超时/被杀时不单独否决。工作区失败 → `MODEL_TASK`（ON 题的 `attribution_focus: PROTOCOL` **不得**改写）；超时且文件没动 → `CONTEXT`。额度/真鉴权失败仍是 `CONTEXT`。宿主以非 0 退出、播种材料没动、且 stderr 出现供应商流协议错误（`AI_InvalidResponseDataError` / `stream error`）时记 `CONTEXT`：模型流被打断，不是模型改错。事件流没写出、事件流读到了但 `event_subsequence` / `no_event` 未满足、协议探针缺失，同一条件也记 `CONTEXT`，不得记 `HARNESS`、`PROTOCOL` 或 `MODEL_TASK`。文件已经改过仍记 `MODEL_TASK`。
+
+**宿主被信号杀死（非超时）→ `HARNESS`，不是 `MODEL_TASK`**。超时是我们主动 SIGTERM/SIGKILL，语义是「模型没跑完」→ `CONTEXT`；非超时信号终止（`SIGTRAP` / `SIGSEGV` / `SIGABRT` / 外部 `SIGKILL` 如 OOM killer）是宿主自己死的，模型行为完全无法判定，属工装故障。
+
+三条配套规则：
+
+1. **不要求题目声明 `workspace_assert`**。旧实现只在有 `workspace_assert` 时才把被杀识别为无法判定，导致 284 道仅 `exit_code` 单断言的题在宿主崩溃时被误记 `MODEL_TASK`（2026-11-05 全量 `fqi8` 的第 139 题即此例：Bun `SIGTRAP` + npm registry 403）。
+2. **崩溃绝不产出 PASS**。即使题目声明的 `workspace_assert` 天然通过（如 `exists: false` 在宿主什么都没做时必然成立），也必须否决整题——否则崩溃会变成假绿，比假红更危险。
+3. **`timed_out` 只能由平台 deadline 显式标记**，不得从 signal 反推。外部 OOM killer 同样给出 `status=null` + `SIGKILL`，从 signal 反推会把「宿主自己死」误判成「本平台超时」，让崩溃归因对最常见的 OOM 场景完全失效。
+
+归因优先级（高到低）：崩溃 `HARNESS` → 试题/接线配错 `HARNESS` → 超时事实不可判定 `CONTEXT` → 工作区失败 `MODEL_TASK` → 其它 oracle。崩溃同时伴随工作区已改错或鉴权失败时，按已确定的**事实**归因（`MODEL_TASK` / `CONTEXT`），不一律记 `HARNESS`。
+
+**宿主进程结束判定用双阶段结算**。opencode 是 client-server 架构，退出时留下的 server 子进程会继承 stdout/stderr 的 pipe 写端；只要有一个孙进程还活着，pipe 就不关，Node 的 `close` 事件永不触发，该题会一直挂到 deadline（180s）并被误判成超时。结算规则：
+
+1. 监听 `exit`，记录退出码/信号，并启动 **500ms 宽限期**；
+2. 宽限期内 `close` 正常触发 → 用 `close` 结算（输出完整，与旧行为一致，绝大多数题走这条）；
+3. 宽限期到 → 主动 `destroy()` stdout/stderr 读端，用 `exit` 的结果结算，产物 `hosted-run.json` 写 `stdio_destroyed: true`。
+
+`stdio_destroyed` 为真表示「宿主已退出但管道被孙进程占住」，属工装侧可观测事实，不改变归因（仍按退出码/信号正常判定）。PROTOCOL 只留给进程正常结束后探针 / EventStore 真缺。ON 额外要求 EventStore 里有 `RuntimeStarted` 与 `JournalEnvelope`（超时且工作区已过时探针未齐只记辅助）。冒烟 01–03 若几乎只靠回复文本过，不能当效果基线。
 
 **校准（只跑 OFF，找当前模型会挂的题）** — 组卷 `paired-off-calibrate`（14 题，覆盖拒答 / 注入 / 格式 / 工具声明 / 运维判断，**不含** 01–03）。弱模型对照用 `paired-off-alt-calibrate`（考场 `hosted-model-alt-v1` / `agnes/agnes-2.0-flash`）：
 
@@ -201,7 +219,11 @@ npm run proctor -- compare --baseline "$OFF" --candidate "$ON"
 - 个人配置里的旧 agent 名（`build` / `coder` / `browser` / `reviewer` / `executor` / `meditator` 等 19 个）会让万象术 `managed-agent-config-invalid` 直接 fatal
 - OFF/ON 必须只差插件一项，继承个人配置会让对照失去意义
 
-**受管 agent**：万象术要求显式 `fast-` / `deep-` 前缀名，共 20 个（`fast-coder`、`deep-reviewer`…）。考场用 `host.managed_agents` 声明，引擎把它们统一绑到 `host.model`；`host.agent` 指定本次用哪个（现为 `fast-coder`）。OFF 侧同样声明，保证只变插件。
+**受管 agent（OFF/ON 语义不同，2026-11-09 实测纠正）**：两侧不共用角色配置，因为**插件加载后会接管 agent 清单**——这是插件的固有行为，不是配置失误。
+
+- **OFF（无插件）**：用宿主自带的通用角色池。`hosted-plain-v1` 声明 20 个 `fast-` / `deep-` 前缀名，`host_agent` 为 `fast-coder`。这套配置同时服务「测模型」（`eval-model`）与「测 Agent」（`eval-agent`），后者正是要比较角色差异，不可删。
+- **ON（挂插件）**：必须用插件认的角色名，否则启动即被拒。实测万象术 `wanxiangli/identity` 的 `activeRoleLabels` 为 `orchestrator` / `manager` / `engineer` / `devops` / `plan`，`requiredNames` 额外含 `bookkeeper`，共 6 个。`blogger` / `predictor` 已 retired，不在清单内。插件 `ManagedAgentConfig.validate` 会 `rejectLegacy`（`coder` / `inspector` / `browser` / `inquiry` / `distiller` 等 legacy 名 fatal），并按 `requiredNames` 强制接管 agent 条目；admission 层还要求根会话 agent 与插件认的角色一致（否则 `InvalidExplicitAgent`）。
+- **配对结论口径**：因此配对不是「只差插件一行」的干净对照，而是「**有无万象术插件及其强制接管的角色体系**」。两侧配置差异（`host_agent` / `managed_agents`）是插件兼容性约束的必然结果，不能靠改配置消除；OFF 侧改用插件角色名只会得到一个没有编排能力的空壳名字，不再是宿主原生基线。
 
 **git hooks 目录**：隔离工作区用空模板 `git init`，但必须补建 `.git/hooks`，否则万象术装 git hook 时 `durability-activation-failed`。引擎已处理。
 
@@ -211,7 +233,20 @@ npm run proctor -- compare --baseline "$OFF" --candidate "$ON"
 
 **模型一致性**：`.env` 的 `PROCTOR_HOSTED_MODEL` 会静默盖掉 `room.host.model`，已注掉。产物记 `model_source`（`environment` / `env`）、`model_frozen`、`model_matches_freeze`，跑完必须确认 `model_source: environment` 且 `model_matches_freeze: true`。
 
-**诊断**：真跑固定带 `--print-logs`，宿主日志全文落 `artifacts/<item>/hosted-stderr.log`。归因中 `HARNESS` / `CONTEXT` 不被题目 `attribution_focus` 改写——额度不足必须记成 `CONTEXT`，不得记成 `MODEL_TASK`。
+**诊断**：真跑固定带 `--print-logs`，宿主日志全文落 `artifacts/<item>/hosted-stderr.log`。需要排查委派停滞时，可对单题显式设置 `PROCTOR_CAPTURE_EVENT_PAYLOADS=1`，在隔离工作区清理前把事件存储中内联且摘要校验通过的载荷收至题目产物的 `event-payloads/`，并附 `manifest.json`。
+
+清单必须按以下口径读，否则会把缺证据当成没问题：
+
+- `completed` 为 `true` 才代表采集跑完；为 `false` 时说明中途失败。此时清单退化写到 `artifacts/<item>/event-payloads-manifest.json`（题目产物根下，而不是 `event-payloads/` 子目录），已写入的半份载荷不可信。
+- `states[].statusOk` / `logOk` 才是 git 调用的成败。失败时 `status` / `log` 可能是空串，**不能**据此判成「工作区干净」；原因在 `statusError` / `logError`。
+- `states[].allowed=false` 表示该目录不在系统临时目录内、被跳过（例如非隔离模式下播种目录就是宿主仓），不表示工作区干净。
+- `missing` 是引用过但未内联的载荷；`invalid` 是 Base64 非规范、摘要不符、空载荷或值类型非法；`skipped` 是已内联但触达上限未保存（**不算缺失**）；`writeFailed` 是载荷合法但落盘失败（同摘要若有后续合法副本会重试覆盖）；`ignoredPayloadKeys` 只计数量，键名不受信不入清单。
+- `errors` 与 `notes` 分工：`errors` 记逐事件的具体错误（最多 200 条）；`notes` 记上限触顶与截断说明，**不受错误预算约束**，所以「证据不完整」的提示不会被畸形输入挤掉。
+- `unreadEvents` 非空表示有事件文件整份没读到（读取失败或预算触顶），这时它的 `payload_refs` 从未登记，`missing` 为空**不能**当作「证据完整」。
+- 采集有上限：单条载荷 8 MiB（解码前按 Base64 长度预估拒绝，且预算耗尽后不再解码）、总量 64 MiB、最多 2000 条；事件文件数 2000、累计读取 64 MiB，pending 与 store 两侧对称，按文件路径排序后截断以保证跨机可复现；各摘要集合最多 5000 条（且不小于 `maxPayloads`）。触限属**证据不完整**而非失败。
+- 播种目录或工作树不在系统临时目录内时，`states[].allowed=false`，既不跑 git 也不读载荷，避免把宿主仓内容写进产物。
+
+采集只作诊断，不影响判定。载荷可能包含提示词、源码或敏感信息，默认关闭，不要提交或分享，使用后自行删除。归因中 `HARNESS` / `CONTEXT` 不被题目 `attribution_focus` 改写——额度不足必须记成 `CONTEXT`，不得记成 `MODEL_TASK`。
 
 **小规模先行**：`paired-off-smoke` / `paired-on-smoke`（各 3 题，同题号）只验证 LIVE 链路通（01–03 是 Text-only 天花板）。链路通之后跑 `paired-*-effect-smoke`（157–159），**不要**把冒烟全过或校准 14 题当效果基线，也**不要**开跑 156。
 

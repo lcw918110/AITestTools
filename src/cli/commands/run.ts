@@ -95,6 +95,45 @@ function resolveAdapter(revision: CaseRevision, environment: EnvironmentProfile)
  * 执行：runner 直接消费领域对象（CaseRevision / EnvironmentProfile），不再经适配层。
  */
 
+/**
+ * 从 `case_revision_id` 后缀判定配对侧。
+ *
+ * 约定：`<...>.off` / `<...>.on`。无后缀返回 undefined（非配对题，用默认环境）。
+ * 这是配对实验「按侧解析环境」的唯一侧来源，不另设字段——避免同一事实两处表达。
+ */
+export function revisionSide(caseRevisionId: string): 'off' | 'on' | undefined {
+  if (caseRevisionId.endsWith('.off')) return 'off';
+  if (caseRevisionId.endsWith('.on')) return 'on';
+  return undefined;
+}
+
+/**
+ * 按修订侧解析该侧应使用的环境。
+ *
+ * 配对实验的设计前提是「只差插件开关」，而 CLI 只能传一个 `--environment`。
+ * 若两侧共用环境，OFF 侧也会挂插件，差值不再是「有插件 vs 无插件」。
+ * 故 environment 可声明 `paired_environments` 映射，按侧切换。
+ *
+ * 映射目标不存在时**报错而非静默回落**：静默回落会让配对前提再次失效而无从察觉。
+ */
+export function resolveSideEnvironment(
+  revision: CaseRevision,
+  base: EnvironmentProfile,
+  envs: readonly { doc: EnvironmentProfile }[],
+): EnvironmentProfile {
+  const side = revisionSide(revision.case_revision_id);
+  if (side === undefined) return base;
+  const mapped = base.paired_environments?.[side];
+  if (mapped === undefined || mapped === base.environment_profile_id) return base;
+  const found = envs.find((e) => e.doc.environment_profile_id === mapped);
+  if (found === undefined) {
+    throw new Error(
+      `environment ${base.environment_profile_id} 的 paired_environments.${side} 指向不存在的环境：${mapped}`,
+    );
+  }
+  return found.doc;
+}
+
 /** 解析 dataset-release × environment，返回 runner 认识的 CaseRevision[] + EnvironmentProfile。 */
 export function resolveDatasetItems(
   project: ReturnType<typeof loadProject>,
@@ -129,7 +168,14 @@ export function resolveDatasetItems(
       );
     }
     const pairKey = caseDoc.pair_key ?? caseDoc.case_id.toUpperCase();
-    runCases.push({ revision, ...(pairKey !== undefined ? { pairKey } : {}) });
+    // 配对题按侧解析环境（OFF 走无插件环境，ON 走挂插件环境），
+    // 否则两侧共用 --environment 会让 OFF 也挂插件，配对前提失效。
+    const sideEnv = resolveSideEnvironment(revision, env.doc, envs);
+    runCases.push({
+      revision,
+      ...(pairKey !== undefined ? { pairKey } : {}),
+      environment: sideEnv,
+    });
   }
 
   return { cases: runCases, environment: env.doc };
@@ -174,12 +220,14 @@ export async function runCommand(options: RunOptions): Promise<number> {
   try {
     batchResults = await mapPool(filtered, concurrency, async (runCase) => {
       const artifactDir = join(runsRoot, rid, 'artifacts', runCase.revision.case_revision_id);
-      const adapter = resolveAdapter(runCase.revision, environment);
+      // 配对题按侧解析后的环境优先；非配对题回落到命令行指定的环境。
+      const caseEnv = runCase.environment ?? environment;
+      const adapter = resolveAdapter(runCase.revision, caseEnv);
       const orch = new RunOrchestrator();
       orch.beginRun({});
       orch.transitionRun('preflight');
       orch.transitionRun('running');
-      const { results } = await orch.executeCase(runCase.revision, environment, adapter, {
+      const { results } = await orch.executeCase(runCase.revision, caseEnv, adapter, {
         projectRoot: project.root,
         models,
         artifactDir,
@@ -209,6 +257,9 @@ export async function runCommand(options: RunOptions): Promise<number> {
       items: filtered.map((i) => ({
         id: i.revision.case_revision_id,
         rev: i.revision.revision_number,
+        // 记账用实际执行的环境：配对题按侧解析后可能与顶层 environment 不同，
+        // 只写基准值会让报告与执行账实不符。
+        environment: (i.environment ?? environment).environment_profile_id,
       })),
     },
     results,

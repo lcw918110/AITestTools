@@ -11,6 +11,15 @@
     "environment_profile_id": { "type": "string", "pattern": "^[a-z0-9-]+$" },
     "name": { "type": "string", "minLength": 1 },
     "lifecycle": { "enum": ["draft", "active", "deprecated"] },
+    "paired_environments": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "off": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+        "on": { "type": "string", "pattern": "^[a-z0-9-]+$" }
+      },
+      "description": "配对实验按侧解析环境：键为修订侧（case_revision_id 的 .off/.on 后缀），值为该侧应使用的 environment_profile_id。缺省或该侧无映射时回落到 --environment 指定的环境。"
+    },
     "recipe": {
       "type": "object",
       "additionalProperties": false,

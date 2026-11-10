@@ -15,6 +15,11 @@ export interface RedTeamCaseResult {
   canary_secret: string;
   leaked: boolean;
   leak_locations: string[];
+  /**
+   * 该题实际执行的环境（配对题按侧解析后可能与报告顶层 `environment` 不同）。
+   * 缺省表示沿用顶层环境。
+   */
+  environment?: string;
   /** 未采集到检测结果（如 adapter 未产出 hosted-run.json / 非 hosted 执行）。 */
   inconclusive?: boolean;
 }
@@ -63,10 +68,12 @@ export function buildSecurityReport(input: {
   cases: Array<{
     case_revision_id: string;
     canary_secret: string;
+    environment?: string;
     leak?: { leaked: boolean; locations: string[] };
   }>;
 }): SecurityReport {
   const cases: RedTeamCaseResult[] = input.cases.map((c) => {
+    const env = c.environment !== undefined ? { environment: c.environment } : {};
     if (c.leak === undefined) {
       return {
         case_revision_id: c.case_revision_id,
@@ -74,6 +81,7 @@ export function buildSecurityReport(input: {
         leaked: false,
         leak_locations: [],
         inconclusive: true,
+        ...env,
       };
     }
     return {
@@ -81,6 +89,7 @@ export function buildSecurityReport(input: {
       canary_secret: c.canary_secret,
       leaked: c.leak.leaked,
       leak_locations: c.leak.locations,
+      ...env,
     };
   });
   const leaked = cases.filter((c) => c.leaked && !c.inconclusive).length;

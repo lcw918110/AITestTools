@@ -156,15 +156,31 @@ export class L1Adapter implements ExecutionAdapter {
         if (evidenceRel !== undefined) predOpts.evidence_ref = evidenceRel;
         failures.push(runStatePredicateOracle(predOpts));
       } else if (oracle.type === 'no_event') {
-        const names = Array.isArray(oracle.names) ? oracle.names.map(String) : [];
-        failures.push(
-          runNoEventOracle({
+        // 先过滤非字符串再判空：`String(null)` 会变成 'null'、`String(42)` 变成 '42'，
+        // 两者都能绕过 trim 检查，使 forbidden 集合无命中而恒通过（假绿）。
+        const declared = Array.isArray(oracle.names) ? oracle.names.length : 0;
+        const names = Array.isArray(oracle.names)
+          ? oracle.names.filter((n): n is string => typeof n === 'string' && n.trim() !== '')
+          : [];
+        // 空 names 会让 forbidden 为空 Set、find 恒 undefined → 恒通过（假绿）。
+        // 与 L2 / hosted 口径对齐：视为试题配错，归因 HARNESS。
+        if (names.length === 0 || names.length !== declared) {
+          failures.push({
+            pass: false,
             oracle_id: oid,
-            events,
-            names,
-            attribution: focus,
-          }),
-        );
+            message: `oracle ${oid}：no_event 未声明有效事件名，拒绝静默放过`,
+            attribution: 'HARNESS',
+          });
+        } else {
+          failures.push(
+            runNoEventOracle({
+              oracle_id: oid,
+              events,
+              names,
+              attribution: focus,
+            }),
+          );
+        }
       } else if (oracle.type === 'metric_threshold') {
         // 占位：先收集，待其它 oracle 出草稿 metrics 后再判
         continue;

@@ -119,6 +119,45 @@
 
 `scripts/migrate-v2.mjs` 的 `toCaseRevision` 新增 `execution_profile` 构造（从 `item.freeze` 提取 mode/layer/fold_entry/event_schema/session_id/contract/script/cassette），`strata` 从 `item.axis` 推导 `task_type`；`envProfile.recipe` 新增 `kind`/`model_driver`/`fold_entries`/`adapter`/`sut`/`contract`/`event_schema`。
 
+### 5.1 配对实验的环境按侧解析
+
+**问题**：`proctor run` 只接受一个 `--environment`，同一 release 里的 ON/OFF 两侧共用它。
+配对实验的设计前提是「同一道题、同一套判定口径，只差插件开关」
+（`tests/oracles/paired-on-off-parity.test.ts` 开头注释）。共用环境时 OFF 侧也挂了插件，
+差值不再是「有插件 vs 无插件」，配对结论失效。
+
+**方案**：environment 声明可选的 `paired_environments` 映射，run 按修订所在侧解析。
+
+```json
+{
+  "environment_profile_id": "hosted-plugin-v1",
+  "paired_environments": {
+    "off": "hosted-plain-v1"
+  }
+}
+```
+
+- 侧由 `case_revision_id` 的后缀判定：`.off` / `.on`（缺失时视为无侧，用默认环境）。
+- `paired_environments` 缺省或该侧无映射时，回落到 `--environment` 指定的环境，
+  保持既有单环境行为不变。
+- 映射目标必须是已存在的 environment_profile_id，**执行时校验**（`resolveDatasetItems`
+  解析该侧环境时找不到即抛错）。`proctor item validate` 只做 schema 校验，不检查映射目标
+  是否存在，故悬空引用要到跑卷时才暴露。
+- **所有按题执行的命令都必须消费解析后的按侧环境**，不能只接 `--environment` 的基准值。
+  当前覆盖 `proctor run` 与 `proctor redteam`（两者共用 `resolveDatasetItems` 产出的
+  `RunCaseInput.environment`）。新增命令若自行遍历题目，必须同样取 `runCase.environment`，
+  否则会重演「OFF 侧也挂插件」的失效——2026-11 的 `redteam` 就漏接过这一条。
+
+**为什么放在 environment 而不是 dataset-release**：配对是「环境能力差异」的表达，
+不是数据集闭包的一部分；把映射写进 release 会让同一份冻结闭包因环境组合不同而变义。
+
+**配对两侧的配置差异是必然的（2026-11-09 实测）**：`paired_environments` 只保证「按侧选对
+环境」，**不保证两侧配置只差插件**。挂万象术插件的一侧会被插件接管 agent 清单——插件
+`ManagedAgentConfig.validate` 拒绝 legacy agent 名并按固定 `requiredNames`（`orchestrator`
+/ `manager` / `engineer` / `devops` / `plan` / `bookkeeper`）强制建条目，admission 层还要求
+根会话 agent 与插件认知一致。故 ON 侧 `host_agent` / `managed_agents` 没有选择余地。
+配对结论应表述为「**有无插件及其强制接管的角色体系**」，不得声称「只差插件一行」。
+
 ## 6. 不做的事
 
 - 不恢复 `axis`/`layer` 作为一级字段（轴概念保持废除）。

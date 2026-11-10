@@ -12,6 +12,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { factLayers } from '../oracles/event-name.ts';
 
 export const WANXIANG_STORE_REF = 'refs/wanxiang/store';
 export const JOURNAL_ENVELOPE_TYPE = 'JournalEnvelope';
@@ -78,25 +79,13 @@ export function parseCanonicalEventText(text: string): CanonicalEvent | undefine
   }
 }
 
-/** 归因 Kind：event_type + Fact 族 + Fact 个案（如 JournalEnvelope / Runtime / RuntimeStarted）。 */
+/** 归因 Kind：event_type + Fact 各层（如 JournalEnvelope / Runtime / RuntimeStarted）。 */
 export function extractAttributionKinds(event: CanonicalEvent): string[] {
   const kinds = [event.event_type];
-  const payload = event.payload;
-  if (
-    payload === null ||
-    payload === undefined ||
-    typeof payload !== 'object' ||
-    Array.isArray(payload)
-  )
-    return kinds;
-  const fact = (payload as Record<string, unknown>).Fact;
-  if (!Array.isArray(fact)) return kinds;
-  const family = fact[0];
-  if (typeof family === 'string' && family.length > 0) kinds.push(family);
-  const inner = fact[1];
-  if (Array.isArray(inner)) {
-    const caseName = inner[0];
-    if (typeof caseName === 'string' && caseName.length > 0) kinds.push(caseName);
+  // 与 eventName 共用同一份 Fact 解析口径，避免两处漂移：
+  // 曾出现 eventName 已认三级、kinds 仍只认两级，使 ManagerJobCreated 进不了 kinds。
+  for (const layer of factLayers(event.payload)) {
+    if (!kinds.includes(layer)) kinds.push(layer);
   }
   return kinds;
 }
@@ -241,5 +230,45 @@ export function ensureHostedGitRepo(workTree: string): { ok: boolean; error?: st
   }
   git(workTree, ['config', 'user.email', 'proctor@test']);
   git(workTree, ['config', 'user.name', 'proctor']);
+  return { ok: true };
+}
+
+/**
+ * 把已播种的材料提交成一个初始 commit，使工作区对被测插件呈现为「干净」。
+ *
+ * 为什么必须有这一步：万象术的 `ChangeRuntime.start`
+ * （`wanxiangli/src/change/ChangeRuntime.fs:104-108`）在创建 manager 会话之前先调
+ * `isDirty` 检查工作区；有任何未提交改动就返回 `RejectedDirty`，`createSession` 与
+ * `append "ManagerJobCreated"` 都不会执行，`commission` 最终只能拿到兜底码
+ * `placement-failed`（`Command.fs:1123`）。`ensureHostedGitRepo` 只做 `git init`，
+ * 播种的文件全部未跟踪，脏检查必然失败——委派因此永远建立不起来。
+ *
+ * 用 `--no-verify` 跳过 hook：被测插件会安装 git hook，此处提交发生在被测代码运行之前，
+ * 不应让它有机会干预初始化。
+ *
+ * 同时显式关闭提交签名（`-c commit.gpgsign=false`）：宿主机可能全局开启 `commit.gpgsign`，
+ * 而隔离工作区没有可用密钥，`git commit` 会以 `gpg failed to sign the data` 失败，
+ * 使工作区重新变成脏的、委派再次被 `RejectedDirty` 拦住。这里用命令行级配置覆盖，
+ * 不改动宿主全局设置。
+ */
+export function commitHostedSeed(workTree: string): { ok: boolean; error?: string } {
+  const add = git(workTree, ['add', '-A']);
+  if (add.status !== 0) {
+    return { ok: false, error: (add.stderr || add.stdout).slice(0, 200) };
+  }
+  // 无改动可提交时 `git commit` 会以非零退出；用 `--allow-empty` 保证幂等，
+  // 也让「空工作区」这种情况同样得到一个干净的 HEAD。
+  const commit = git(workTree, [
+    '-c',
+    'commit.gpgsign=false',
+    'commit',
+    '--allow-empty',
+    '--no-verify',
+    '-m',
+    'proctor seed',
+  ]);
+  if (commit.status !== 0) {
+    return { ok: false, error: (commit.stderr || commit.stdout).slice(0, 200) };
+  }
   return { ok: true };
 }

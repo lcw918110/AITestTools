@@ -37,16 +37,37 @@ export function resolveHostedAttribution(decided: Attribution, focus?: Attributi
 /**
  * 效果题工作区未过时的归因（写死，不看 attribution_focus）。
  * - 鉴权/额度 → CONTEXT
+ * - 宿主被信号杀死且播种材料完全没动 → HARNESS（模型没跑起来，是工装故障）
  * - 超时且播种材料完全没动 → CONTEXT（没跑完，不是改错）
+ * - 供应商流协议错误打断、且播种材料完全没动 → CONTEXT（流没跑完，不是改错）
  * - 其余（改了但改错、非超时任务失败）→ MODEL_TASK
  */
+
+/** 供应商流协议被打断。只认这两类字样，避免把 FSEvents 之类的宿主噪音算进去。 */
+export function isProviderStreamBroken(stderr: string): boolean {
+  return /AI_InvalidResponseDataError|stream error/i.test(stderr);
+}
+
 export function resolveWorkspaceFailAttribution(input: {
   timedOut: boolean;
   materialsMutated: boolean;
   authMiss?: boolean;
+  /**
+   * stderr 出现供应商流协议错误（如 AI_InvalidResponseDataError）。
+   * 宿主以非 0 退出、材料没动时，模型行为无法判完，不得记成 MODEL_TASK。
+   */
+  providerStreamBroken?: boolean;
+  /**
+   * 宿主被信号杀死（非超时崩溃）。与超时区分：
+   * 超时是本平台主动终止（模型没跑完）→ CONTEXT；
+   * 崩溃是宿主自己死的（Bun panic / OOM / 段错误）→ HARNESS。
+   */
+  hostCrashed?: boolean;
 }): Attribution {
   if (input.authMiss === true) return 'CONTEXT';
+  if (input.hostCrashed === true && !input.materialsMutated) return 'HARNESS';
   if (input.timedOut && !input.materialsMutated) return 'CONTEXT';
+  if (input.providerStreamBroken === true && !input.materialsMutated) return 'CONTEXT';
   return 'MODEL_TASK';
 }
 

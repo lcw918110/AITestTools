@@ -3,6 +3,9 @@
   "environment_profile_id": "hosted-plugin-v1",
   "name": "hosted-plugin-v1",
   "lifecycle": "active",
+  "paired_environments": {
+    "off": "hosted-plain-v1"
+  },
   "recipe": {
     "runtime": "opencode",
     "host": "opencode@1.18.5",
@@ -11,15 +14,7 @@
     "host_command": "opencode",
     "host_model": "wave-anthropic/claude-sonnet-5",
     "host_agent": "orchestrator",
-    "managed_agents": [
-      "manager",
-      "orchestrator",
-      "engineer",
-      "devops",
-      "blogger",
-      "bookkeeper",
-      "predictor"
-    ],
+    "managed_agents": ["orchestrator", "manager", "engineer", "devops", "plan", "bookkeeper"],
     "host_plugin": "dist/OpenCode/Plugin/Plugin.js",
     "durable_log_glob": "**/.git/refs/wanxiang/store",
     "kind": "hosted",

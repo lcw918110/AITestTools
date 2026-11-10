@@ -14,7 +14,11 @@ export interface RunMeta {
   environment: string;
   started_at: string;
   project_root: string;
-  items: Array<{ id: string; rev: number }>;
+  /**
+   * 逐题实际使用的环境名（配对题按侧解析后可能与顶层 `environment` 不同）。
+   * 缺省表示该题沿用顶层环境，历史 run.json 无需回填。
+   */
+  items: Array<{ id: string; rev: number; environment?: string }>;
 }
 
 export interface WriteArtifactsResult {
@@ -68,6 +72,7 @@ export function writeRunArtifacts(opts: {
         ...(r.timed_out !== undefined ? { timed_out: r.timed_out } : {}),
         ...(r.host_exit !== undefined ? { host_exit: r.host_exit } : {}),
         ...(r.host_signal !== undefined ? { host_signal: r.host_signal } : {}),
+        ...(r.host_spawn_error !== undefined ? { host_spawn_error: r.host_spawn_error } : {}),
         ...(r.host_exit_role !== undefined ? { host_exit_role: r.host_exit_role } : {}),
         ...(r.materials_mutated !== undefined ? { materials_mutated: r.materials_mutated } : {}),
       }),
@@ -119,21 +124,40 @@ export function writeRunArtifacts(opts: {
     `- pass_rate: ${passRate}`,
     `- gates: ${gates_pass ? 'PASS' : 'FAIL'}`,
     '',
-    '| item | rev | pass | 工作区 | 暗号 | 超时 | host_exit | attribution |',
-    '| --- | --- | --- | --- | --- | --- | --- | --- |',
+  ];
+  // 配对题按侧解析环境后，逐题实际环境可能与顶层不同；此时补一列，避免报告账实不符。
+  const envById = new Map(opts.meta.items.map((it) => [it.id, it.environment]));
+  const hasPerItemEnv = opts.meta.items.some(
+    (it) => it.environment !== undefined && it.environment !== opts.meta.environment,
+  );
+  lines.push(
+    hasPerItemEnv
+      ? '| item | rev | 环境 | pass | 工作区 | 暗号 | 超时 | host_exit | attribution |'
+      : '| item | rev | pass | 工作区 | 暗号 | 超时 | host_exit | attribution |',
+    hasPerItemEnv
+      ? '| --- | --- | --- | --- | --- | --- | --- | --- | --- |'
+      : '| --- | --- | --- | --- | --- | --- | --- | --- |',
     ...opts.results.map((r) => {
       const token = formatPassTokenCell(r);
       const ws = formatWorkspaceCell(r.workspace_ok);
       const to = formatTimedOutCell(r.timed_out);
-      const hx = formatHostExitCell({ host_exit: r.host_exit, timed_out: r.timed_out });
-      return `| ${r.item_id} | ${r.item_rev} | ${r.pass ? 'yes' : 'no'} | ${ws} | ${token} | ${to} | ${hx} | ${r.attribution ?? ''} |`;
+      const hx = formatHostExitCell({
+        host_exit: r.host_exit,
+        timed_out: r.timed_out,
+        host_spawn_error: r.host_spawn_error,
+      });
+      const envCell = envById.get(extractCaseId(r.item_id)) ?? opts.meta.environment;
+      const head = hasPerItemEnv
+        ? `| ${r.item_id} | ${r.item_rev} | ${envCell} |`
+        : `| ${r.item_id} | ${r.item_rev} |`;
+      return `${head} ${r.pass ? 'yes' : 'no'} | ${ws} | ${token} | ${to} | ${hx} | ${r.attribution ?? ''} |`;
     }),
     '',
     '- 暗号为辅助信号（有/无）；缺席不单独否决整题。',
     '- 效果题主判定是 `workspace_assert`：仓库过则整题 PASS，即使超时或退出码非 0。超时/`host_exit` 记辅助，类似暗号。',
     '- 超时且文件没动 → FAIL CONTEXT；超时且改错 → FAIL MODEL_TASK。PROTOCOL focus 不能把工作区失败改写成 PROTOCOL。',
     '',
-  ];
+  );
   // 稳定性 / flaky 显式报告（单次跑常为 0，不等于已证明无 flaky）
   const flaky = aggregates.a_flaky_rerun_delta ?? 0;
   const repeatTagged = opts.results.filter((r) => /::r\d+$/.test(r.item_id)).length;

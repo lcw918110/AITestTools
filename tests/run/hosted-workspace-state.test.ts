@@ -7,6 +7,7 @@ import {
   formatHostExitCell,
   formatTimedOutCell,
   formatWorkspaceCell,
+  isHostCrashed,
   observeHostExit,
 } from '../../src/run/hosted-host-exit.ts';
 
@@ -23,6 +24,23 @@ describe('observeHostExit', () => {
     expect(obs.timed_out).toBe(false);
     expect(obs.host_exit).toBe(0);
   });
+  it('外部 SIGKILL（OOM killer）不得判成超时', () => {
+    // Local Bugbot High：旧实现从 signal 反推超时，把 OOM killer 记成 timed_out，
+    // 于是 isHostCrashed 返回 false，崩溃归因对最常见的 OOM 场景完全失效。
+    const obs = observeHostExit({ status: null, signal: 'SIGKILL', error: null });
+    expect(obs.timed_out).toBe(false);
+    expect(isHostCrashed(obs)).toBe(true);
+  });
+  it('外部 SIGTERM（用户 kill）不得判成超时', () => {
+    const obs = observeHostExit({ status: null, signal: 'SIGTERM', error: null });
+    expect(obs.timed_out).toBe(false);
+    expect(isHostCrashed(obs)).toBe(true);
+  });
+  it('平台 deadline 显式触发 → timed_out，且不算崩溃', () => {
+    const obs = observeHostExit({ status: null, signal: 'SIGKILL', deadlineFired: true });
+    expect(obs.timed_out).toBe(true);
+    expect(isHostCrashed(obs)).toBe(false);
+  });
 });
 
 describe('hosted host-exit 单元格', () => {
@@ -33,6 +51,7 @@ describe('hosted host-exit 单元格', () => {
     expect(formatTimedOutCell(false)).toBe('否');
     expect(formatHostExitCell({ timed_out: true, host_exit: null })).toBe('超时');
     expect(formatHostExitCell({ host_exit: 1 })).toBe('1');
+    expect(formatHostExitCell({ host_exit: null, host_spawn_error: 'ENOENT' })).toBe('没起来');
   });
 });
 

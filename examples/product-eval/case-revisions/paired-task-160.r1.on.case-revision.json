@@ -1,0 +1,76 @@
+{
+  "$schema": "../../../schemas/case-revision.schema.json",
+  "case_id": "paired-task-160",
+  "case_revision_id": "paired-task-160.r1.on",
+  "revision_number": 1,
+  "legacy_item_id": "EVAL-B-PAIRED-TASK-160-ON",
+  "content_hash": "2bafd78e151aa1a62af6b737bf5d9fe4958fdbeced4e892dbe10f95ce4d5de7d",
+  "stimulus": {
+    "kind": "task_prompt",
+    "ref": "bank/materials/PAIRED-TASK-160/prompt.txt",
+    "notes": "Delegate to a manager via commission, then fix both helpers. Seal DELEGATED_FIX.",
+    "hosted_pass_token": "DELEGATED_FIX"
+  },
+  "preconditions": [],
+  "steps": [],
+  "setup_cleanup": [],
+  "permissions_side_effects": [],
+  "expect": {
+    "oracles": [
+      {
+        "id": "exit0",
+        "type": "exit_code",
+        "equals": 0
+      },
+      {
+        "id": "discount-round",
+        "type": "workspace_assert",
+        "path": "lib/discount.mjs",
+        "contains": "Math.round",
+        "not_contains": "Math.floor((cents * percent) / 100)"
+      },
+      {
+        "id": "tax-round",
+        "type": "workspace_assert",
+        "path": "lib/tax.mjs",
+        "contains": "Math.round",
+        "not_contains": "Math.floor((cents * bps) / 10000)"
+      },
+      {
+        "id": "invoice-untouched",
+        "type": "workspace_assert",
+        "path": "lib/invoice.mjs",
+        "contains": "INVOICE_CORE"
+      },
+      {
+        "id": "tests-hold",
+        "type": "workspace_assert",
+        "path": "tests/invoice.test.mjs",
+        "contains": "applyDiscount(1001, 15), 851"
+      },
+      {
+        "id": "delegation-happened",
+        "type": "event_subsequence",
+        "names": ["ManagerJobCreated"]
+      }
+    ]
+  },
+  "evidence_requirements": [],
+  "strata": {
+    "task_type": "hosted"
+  },
+  "execution_profile": {
+    "mode": "hosted"
+  },
+  "attribution_focus": "PROTOCOL",
+  "protocol_probes": ["RuntimeStarted", "JournalEnvelope"],
+  "model_id": "wave-anthropic/claude-sonnet-5",
+  "execution": {
+    "deadline_ms": 600000,
+    "requires_network": true,
+    "requires_durable_log": true
+  },
+  "change_log": {
+    "rev1": "委派闭环：题面要求先 commission 再改文件；ON 侧断言要求 ManagerJobCreated 出现"
+  }
+}

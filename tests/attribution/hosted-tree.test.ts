@@ -5,7 +5,9 @@ import {
   missingProtocolProbes,
   resolveHostedAttribution,
   resolveWorkspaceFailAttribution,
+  isProviderStreamBroken,
 } from '../../src/attribution/index.ts';
+import { isHostCrashed } from '../../src/run/hosted-host-exit.ts';
 
 describe('hosted attribution tree', () => {
   it('协议事件缺失 → PROTOCOL', () => {
@@ -53,6 +55,32 @@ describe('resolveWorkspaceFailAttribution', () => {
       'MODEL_TASK',
     );
   });
+  it('只认供应商流协议错误，不认 FSEvents 噪音', () => {
+    expect(
+      isProviderStreamBroken(
+        'AI_InvalidResponseDataError: Received message_start while message is still open.',
+      ),
+    ).toBe(true);
+    expect(isProviderStreamBroken('Error starting FSEvents stream')).toBe(false);
+  });
+  it('供应商流被打断且材料未改 → CONTEXT，不是 MODEL_TASK', () => {
+    expect(
+      resolveWorkspaceFailAttribution({
+        timedOut: false,
+        materialsMutated: false,
+        providerStreamBroken: true,
+      }),
+    ).toBe('CONTEXT');
+  });
+  it('供应商流被打断但文件已改 → MODEL_TASK', () => {
+    expect(
+      resolveWorkspaceFailAttribution({
+        timedOut: false,
+        materialsMutated: true,
+        providerStreamBroken: true,
+      }),
+    ).toBe('MODEL_TASK');
+  });
   it('鉴权/额度失败 → CONTEXT（即使改过文件）', () => {
     expect(
       resolveWorkspaceFailAttribution({
@@ -61,6 +89,74 @@ describe('resolveWorkspaceFailAttribution', () => {
         authMiss: true,
       }),
     ).toBe('CONTEXT');
+  });
+  it('宿主崩溃且材料未改 → HARNESS（不是 CONTEXT，也不是 MODEL_TASK）', () => {
+    // 崩溃与超时语义不同：超时是本平台主动终止（模型没跑完），崩溃是宿主自己死的（工装故障）。
+    expect(
+      resolveWorkspaceFailAttribution({
+        timedOut: false,
+        materialsMutated: false,
+        hostCrashed: true,
+      }),
+    ).toBe('HARNESS');
+  });
+  it('宿主崩溃但已改文件 → MODEL_TASK（有实际动作，可判改错）', () => {
+    expect(
+      resolveWorkspaceFailAttribution({
+        timedOut: false,
+        materialsMutated: true,
+        hostCrashed: true,
+      }),
+    ).toBe('MODEL_TASK');
+  });
+  it('鉴权失败优先于崩溃 → CONTEXT', () => {
+    expect(
+      resolveWorkspaceFailAttribution({
+        timedOut: false,
+        materialsMutated: false,
+        authMiss: true,
+        hostCrashed: true,
+      }),
+    ).toBe('CONTEXT');
+  });
+});
+
+describe('isHostCrashed', () => {
+  it('非超时 + 无退出码 + 有信号 → 崩溃', () => {
+    expect(
+      isHostCrashed({
+        timed_out: false,
+        host_exit: null,
+        host_signal: 'SIGTRAP',
+        host_exit_role: 'auxiliary',
+        host_spawn_error: null,
+        stdio_destroyed: false,
+      }),
+    ).toBe(true);
+  });
+  it('超时（即使有 SIGTERM）不算崩溃', () => {
+    expect(
+      isHostCrashed({
+        timed_out: true,
+        host_exit: null,
+        host_signal: 'SIGTERM',
+        host_exit_role: 'auxiliary',
+        host_spawn_error: null,
+        stdio_destroyed: false,
+      }),
+    ).toBe(false);
+  });
+  it('正常退出不算崩溃', () => {
+    expect(
+      isHostCrashed({
+        timed_out: false,
+        host_exit: 1,
+        host_signal: null,
+        host_exit_role: 'auxiliary',
+        host_spawn_error: null,
+        stdio_destroyed: false,
+      }),
+    ).toBe(false);
   });
 });
 

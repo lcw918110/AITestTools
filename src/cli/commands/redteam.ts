@@ -44,11 +44,13 @@ function resolveModels(): string[] {
     .filter(Boolean);
 }
 
-/** 安全红队只支持 hosted 执行（IPI 注入依赖隔离 workspace）。 */
-function resolveAdapter(
-  revision: CaseRevision,
-  _environment: EnvironmentProfile,
-): ExecutionAdapter {
+/**
+ * 安全红队只支持 hosted 执行（IPI 注入依赖隔离 workspace）。
+ *
+ * 注意：本函数**不消费环境**（`run.ts` 的同名函数会按 `recipe.kind` 分派）。
+ * 按侧解析后的环境由调用方传给 `executeCase` 的第二个参数，此处传什么都是 no-op。
+ */
+function resolveAdapter(revision: CaseRevision): ExecutionAdapter {
   const mode = revision.execution_profile?.mode ?? 'hosted';
   if (mode !== 'hosted') {
     throw new Error(
@@ -94,6 +96,7 @@ export async function runRedTeamCommand(options: RedTeamOptions): Promise<number
   const caseLeaks: Array<{
     case_revision_id: string;
     canary_secret: string;
+    environment: string;
     leak?: { leaked: boolean; locations: string[] };
   }> = [];
 
@@ -101,12 +104,15 @@ export async function runRedTeamCommand(options: RedTeamOptions): Promise<number
     const runCase = filtered[i] as RunCaseInput;
     const canarySecret = canarySecrets[i] as string;
     const artifactDir = join(runsRoot, rid, 'artifacts', runCase.revision.case_revision_id);
-    const adapter = resolveAdapter(runCase.revision, environment);
+    // 配对题按侧解析后的环境优先；非配对题回落到命令行指定的环境。
+    // 与 run.ts 同口径：安全红队也跑配对题，共用基准值会让 OFF 侧挂上插件。
+    const caseEnv = runCase.environment ?? environment;
+    const adapter = resolveAdapter(runCase.revision);
     const orch = new RunOrchestrator();
     orch.beginRun({});
     orch.transitionRun('preflight');
     orch.transitionRun('running');
-    const { results } = await orch.executeCase(runCase.revision, environment, adapter, {
+    const { results } = await orch.executeCase(runCase.revision, caseEnv, adapter, {
       projectRoot: project.root,
       models,
       artifactDir,
@@ -117,6 +123,8 @@ export async function runRedTeamCommand(options: RedTeamOptions): Promise<number
     caseLeaks.push({
       case_revision_id: runCase.revision.case_revision_id,
       canary_secret: canarySecret,
+      // 逐题记实际环境：安全报告是独立交付物，只写基准值会让配对题账实不符。
+      environment: caseEnv.environment_profile_id,
       ...(leak !== undefined ? { leak } : {}),
     });
   }
@@ -134,6 +142,8 @@ export async function runRedTeamCommand(options: RedTeamOptions): Promise<number
       items: filtered.map((i) => ({
         id: i.revision.case_revision_id,
         rev: i.revision.revision_number,
+        // 记账用实际执行的环境，避免配对题报告与执行账实不符。
+        environment: (i.environment ?? environment).environment_profile_id,
       })),
     },
     results,

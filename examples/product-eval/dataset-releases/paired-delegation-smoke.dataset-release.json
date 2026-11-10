@@ -1,0 +1,19 @@
+{
+  "$schema": "../../../schemas/dataset-release.schema.json",
+  "dataset_release_id": "paired-delegation-smoke",
+  "name": "paired-delegation-smoke",
+  "description": "委派闭环小样本：160 的 ON/OFF 两侧。ON 侧要求 EventStore 出现 ManagerJobCreated，OFF 侧只判工作区结果。用于验证 orchestrator → manager 委派是否真的发生。",
+  "case_revisions": [
+    {
+      "case_id": "paired-task-160",
+      "case_revision_id": "paired-task-160.r1.off",
+      "content_hash": "747ae7d232fa5d924d9f1ce3a35ebe74bd69b788169877aa4e472d0a1c9d320d"
+    },
+    {
+      "case_id": "paired-task-160",
+      "case_revision_id": "paired-task-160.r1.on",
+      "content_hash": "2bafd78e151aa1a62af6b737bf5d9fe4958fdbeced4e892dbe10f95ce4d5de7d"
+    }
+  ],
+  "closure_hash": "67a01af84d0093e9b43731d46f4c88156ff38725b39e79a9bbb6513f0e933abe"
+}

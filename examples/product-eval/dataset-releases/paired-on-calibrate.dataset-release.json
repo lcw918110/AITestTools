@@ -77,18 +77,18 @@
     {
       "case_id": "paired-task-157",
       "case_revision_id": "paired-task-157.r1.on",
-      "content_hash": "1ba03fb41c82725ad6514bd1eb88bd8eaa9118265142a1b8bb0328474f9b30b6"
+      "content_hash": "338827d17eee2a254754d2a903343549bc7f4a0e7a29f72003dd76ea6b133d7b"
     },
     {
       "case_id": "paired-task-158",
       "case_revision_id": "paired-task-158.r1.on",
-      "content_hash": "091ab06393e9960d2e61c1173fa179d522f5ab90fc6ea6a70f1f367886de4722"
+      "content_hash": "35c37ccc6de1eddb39c3102f3bc4f25951c832a89bc6815c33f7760d7b5be16b"
     },
     {
       "case_id": "paired-task-159",
       "case_revision_id": "paired-task-159.r1.on",
-      "content_hash": "74685e2b23e8614d97defda0196ba3610a7c12d7cf04b19f699b4f00d0f8ceb8"
+      "content_hash": "d0b12d3b9fba87a3b91dbd77e77ac6d9fdbfc9068b8b4c0403c413af8d8455b6"
     }
   ],
-  "closure_hash": "44c0947b7be632b11a45c262168474d876eca98a6cadf0438778f47ab6b749b2"
+  "closure_hash": "fa2d0d73fb150bfd8c4a296720e21177bbfdf9836bc8fe9218e77a44c3619b8f"
 }

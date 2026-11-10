@@ -501,15 +501,29 @@ export class L2Adapter implements ExecutionAdapter {
     for (const [i, oracle] of ctx.revision.expect.oracles.entries()) {
       const oid = typeof oracle.id === 'string' ? oracle.id : `${oracle.type}#${i}`;
       if (oracle.type === 'event_subsequence') {
-        const names = Array.isArray(oracle.names) ? oracle.names.map(String) : [];
-        failures.push(
-          runEventSubsequenceOracle({
+        // 空 names 会让 subsequence 匹配恒真（空序列是任何序列的子序列）→ 假绿。
+        // 与 hosted 口径对齐：视为试题配错，归因 HARNESS。
+        const declared = Array.isArray(oracle.names) ? oracle.names.length : 0;
+        const names = Array.isArray(oracle.names)
+          ? oracle.names.filter((n): n is string => typeof n === 'string' && n.trim() !== '')
+          : [];
+        if (names.length === 0 || names.length !== declared) {
+          failures.push({
+            pass: false,
             oracle_id: oid,
-            events: this.timeline,
-            names,
-            attribution: focus,
-          }),
-        );
+            message: `oracle ${oid}：event_subsequence 未声明有效事件名，拒绝静默放过`,
+            attribution: 'HARNESS',
+          });
+        } else {
+          failures.push(
+            runEventSubsequenceOracle({
+              oracle_id: oid,
+              events: this.timeline,
+              names,
+              attribution: focus,
+            }),
+          );
+        }
       } else if (oracle.type === 'state_predicate') {
         failures.push(
           runStatePredicateOracle({
@@ -520,15 +534,30 @@ export class L2Adapter implements ExecutionAdapter {
           }),
         );
       } else if (oracle.type === 'no_event') {
-        const names = Array.isArray(oracle.names) ? oracle.names.map(String) : [];
-        failures.push(
-          runNoEventOracle({
+        // 先过滤非字符串再判空：`String(null)` 会变成 'null' 绕过 trim 检查。
+        const names = Array.isArray(oracle.names)
+          ? oracle.names.filter((n): n is string => typeof n === 'string' && n.trim() !== '')
+          : [];
+        // 空 names 会让 forbidden 为空 Set、find 恒 undefined → 恒通过（假绿）。
+        // 与 L1 / hosted 口径对齐：视为试题配错，归因 HARNESS。
+        const declared = Array.isArray(oracle.names) ? oracle.names.length : 0;
+        if (names.length === 0 || names.length !== declared) {
+          failures.push({
+            pass: false,
             oracle_id: oid,
-            events: this.timeline,
-            names,
-            attribution: focus,
-          }),
-        );
+            message: `oracle ${oid}：no_event 未声明有效事件名，拒绝静默放过`,
+            attribution: 'HARNESS',
+          });
+        } else {
+          failures.push(
+            runNoEventOracle({
+              oracle_id: oid,
+              events: this.timeline,
+              names,
+              attribution: focus,
+            }),
+          );
+        }
       } else if (oracle.type === 'metric_threshold') {
         continue;
       } else {

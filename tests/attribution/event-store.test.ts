@@ -1,9 +1,10 @@
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
-import { spawnSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { describe, expect, it } from 'vitest';
 import {
   collectEventStoreKinds,
+  commitHostedSeed,
   ensureHostedGitRepo,
   extractAttributionKinds,
   parseCanonicalEventText,
@@ -58,6 +59,29 @@ describe('EventStore 只读解析', () => {
     expect(collectEventStoreKinds([ev!])).toEqual(['JournalEnvelope', 'Runtime', 'RuntimeStarted']);
   });
 
+  // 回归：kinds 与 eventName 必须共用同一份 Fact 解析口径。
+  // 曾出现 eventName 已认三级、kinds 仍只认两级，使 ManagerJobCreated 进不了
+  // kinds 集合——任何把事件名当 protocol_probes 的题都会恒判缺失并归因 HARNESS。
+  it('三级 Fact（Agent 族）的 kinds 含真实事件名', () => {
+    const ev = parseCanonicalEventText(
+      JSON.stringify({
+        event_id: EVENT_ID,
+        stream_id: 'journal/session/s1',
+        event_type: 'JournalEnvelope',
+        parents: [],
+        payload: { Fact: ['Agent', ['Orchestrator', ['ManagerJobCreated', { job: 'j1' }]]] },
+        payload_refs: [],
+      }),
+    );
+    expect(ev).not.toBeNull();
+    expect(extractAttributionKinds(ev!)).toEqual([
+      'JournalEnvelope',
+      'Agent',
+      'Orchestrator',
+      'ManagerJobCreated',
+    ]);
+  });
+
   it('无 git / 无 store ref 诚实缺席', () => {
     const dir = mkdtempSync(join(process.cwd(), 'tests/fixtures', 'proctor-es-miss-'));
     try {
@@ -67,6 +91,86 @@ describe('EventStore 只读解析', () => {
       const empty = readWanxiangEventStore(dir);
       expect(empty.present).toBe(false);
       expect(empty.reason).toBe('no-store-ref');
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // 回归：万象术 ChangeRuntime.start 在建 manager 会话前先做脏检查
+  // （wanxiangli/src/change/ChangeRuntime.fs:104-108），脏则 RejectedDirty，
+  // commission 只能拿到兜底码 placement-failed（Command.fs:1123）。
+  // ensureHostedGitRepo 只 init 不 commit，播种材料全是未跟踪文件，脏检查必然失败。
+  it('播种后 commitHostedSeed 使工作区变干净（委派前置条件）', () => {
+    const dir = mkdtempSync(join(process.cwd(), 'tests/fixtures', 'proctor-es-seed-'));
+    try {
+      const inited = ensureHostedGitRepo(dir);
+      expect(inited, inited.error ?? 'git init').toMatchObject({ ok: true });
+
+      // 模拟 hosted-runner 的播种：写题目材料，不提交。
+      mkdirSync(join(dir, 'lib'), { recursive: true });
+      mkdirSync(join(dir, 'tests'), { recursive: true });
+      writeFileSync(join(dir, 'README.md'), '# proctor hosted workspace\n');
+      writeFileSync(join(dir, 'lib', 'a.mjs'), 'export const a = 1;\n');
+      writeFileSync(join(dir, 'tests', 'a.test.mjs'), '// test\n');
+
+      // 未提交时脏检查必然非空——这正是 commission 失败的根因。
+      const dirtyBefore = execFileSync('git', ['status', '--porcelain'], {
+        cwd: dir,
+        encoding: 'utf8',
+      });
+      expect(
+        dirtyBefore
+          .trim()
+          .split('\n')
+          .filter((l) => l.length > 0).length,
+      ).toBeGreaterThan(0);
+
+      const committed = commitHostedSeed(dir);
+      expect(committed, committed.error ?? 'git commit').toMatchObject({ ok: true });
+
+      // 提交后必须干净，否则 ChangeRuntime.start 仍会 RejectedDirty。
+      const dirtyAfter = execFileSync('git', ['status', '--porcelain'], {
+        cwd: dir,
+        encoding: 'utf8',
+      });
+      expect(dirtyAfter.trim()).toBe('');
+
+      // 幂等：重复调用不应失败（空提交用 --allow-empty 兜住）。
+      expect(commitHostedSeed(dir), '重复提交应幂等').toMatchObject({ ok: true });
+    } finally {
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  // 回归：宿主机可能全局开启 commit.gpgsign，而隔离工作区没有可用密钥。
+  // 若不显式关闭签名，git commit 会以 "gpg failed to sign the data" 失败，
+  // 工作区重新变脏，委派再次被 RejectedDirty 拦住。
+  it('宿主开启 commit.gpgsign 时仍能提交（隔离工作区无密钥）', () => {
+    const dir = mkdtempSync(join(process.cwd(), 'tests/fixtures', 'proctor-es-gpg-'));
+    const gpgConfig = join(dir, 'gpg-gitconfig');
+    try {
+      // 用独立 GIT_CONFIG_GLOBAL 模拟「宿主全局开启签名」，不污染真实用户配置。
+      writeFileSync(gpgConfig, '[commit]\n\tgpgsign = true\n[gpg]\n\tprogram = /bin/false\n');
+
+      const inited = ensureHostedGitRepo(dir);
+      expect(inited, inited.error ?? 'git init').toMatchObject({ ok: true });
+      writeFileSync(join(dir, 'README.md'), '# proctor hosted workspace\n');
+
+      const saved = process.env.GIT_CONFIG_GLOBAL;
+      process.env.GIT_CONFIG_GLOBAL = gpgConfig;
+      try {
+        const committed = commitHostedSeed(dir);
+        expect(committed, committed.error ?? 'git commit').toMatchObject({ ok: true });
+      } finally {
+        if (saved === undefined) delete process.env.GIT_CONFIG_GLOBAL;
+        else process.env.GIT_CONFIG_GLOBAL = saved;
+      }
+
+      const dirtyAfter = execFileSync('git', ['status', '--porcelain'], {
+        cwd: dir,
+        encoding: 'utf8',
+      });
+      expect(dirtyAfter.trim()).toBe('');
     } finally {
       rmSync(dir, { recursive: true, force: true });
     }

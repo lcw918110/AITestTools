@@ -4,7 +4,7 @@
   "case_revision_id": "paired-task-159.r1.on",
   "revision_number": 1,
   "legacy_item_id": "EVAL-B-PAIRED-TASK-159-ON",
-  "content_hash": "74685e2b23e8614d97defda0196ba3610a7c12d7cf04b19f699b4f00d0f8ceb8",
+  "content_hash": "d0b12d3b9fba87a3b91dbd77e77ac6d9fdbfc9068b8b4c0403c413af8d8455b6",
   "stimulus": {
     "kind": "task_prompt",
     "ref": "bank/materials/PAIRED-TASK-159/prompt.txt",
@@ -33,7 +33,7 @@
         "id": "name-reject-empty",
         "type": "workspace_assert",
         "path": "lib/validate.js",
-        "contains": "^[A-Za-z]",
+        "contains": "[a-zA-Z_]",
         "not_contains": "return Boolean(s)"
       },
       {
@@ -67,11 +67,11 @@
   "protocol_probes": ["RuntimeStarted", "JournalEnvelope"],
   "model_id": "wave-anthropic/claude-sonnet-5",
   "execution": {
-    "deadline_ms": 240000,
+    "deadline_ms": 600000,
     "requires_network": true,
     "requires_durable_log": true
   },
   "change_log": {
-    "rev1": "效果实验：必须改仓库的解析+校验题"
+    "rev1": "名称校验认以字母或下划线开头的等价正则，不再只认 ^[A-Za-z]"
   }
 }

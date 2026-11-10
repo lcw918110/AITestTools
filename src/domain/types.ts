@@ -1023,6 +1023,12 @@ export interface EnvironmentProfile {
   environment_profile_id: string;
   name: string;
   lifecycle: 'draft' | 'active' | 'deprecated';
+  /**
+   * 配对实验按侧解析环境：键为修订侧（`case_revision_id` 的 `.off`/`.on` 后缀），
+   * 值为该侧应使用的 `environment_profile_id`。缺省或该侧无映射时回落到
+   * `--environment` 指定的环境。详见 `docs/09-轴路由cases-v1表达设计.md` §5.1。
+   */
+  paired_environments?: { off?: string; on?: string };
   recipe: {
     os?: string;
     architecture?: string;

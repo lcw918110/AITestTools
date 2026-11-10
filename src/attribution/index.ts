@@ -3,6 +3,7 @@ export {
   diagnoseHostedFailure,
   resolveHostedAttribution,
   resolveWorkspaceFailAttribution,
+  isProviderStreamBroken,
   type AttributionDecision,
   type AttributionInput,
 } from './hosted-tree.ts';

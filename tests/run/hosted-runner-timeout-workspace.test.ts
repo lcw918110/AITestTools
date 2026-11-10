@@ -13,6 +13,8 @@ const hostedIO = vi.hoisted(() => ({
   signal: null as NodeJS.Signals | string | null,
   error: null as (Error & { code?: string }) | null,
   mutate: undefined as ((cwd: string) => void) | undefined,
+  /** true 时模拟宿主卡死：不主动 close，等平台 deadline 触发 kill。 */
+  hang: false,
 }));
 
 vi.mock('node:child_process', async (importOriginal) => {
@@ -37,8 +39,13 @@ vi.mock('node:child_process', async (importOriginal) => {
     const status = isHost && isRun ? hostedIO.status : 0;
     const signal = isHost && isRun ? hostedIO.signal : null;
     const listeners: Record<string, Array<(...args: unknown[]) => void>> = {};
+    const emitClose = (code: number | null, sig: NodeJS.Signals | string | null) => {
+      for (const cb of listeners['close'] ?? []) cb(code, sig);
+    };
     const child = {
-      pid: 1,
+      // 必须是 >1 的假 PID：reapTree 会用 process.kill(-pid) 杀进程组，
+      // 若这里给 1，负号后就是 kill(-1) —— 向当前用户所有进程广播，会杀掉跑测试的编辑器本身。
+      pid: 987_654,
       stdout: {
         on: (ev: string, cb: (...args: unknown[]) => void) => {
           (listeners[`stdout:${ev}`] ??= []).push(cb);
@@ -52,13 +59,24 @@ vi.mock('node:child_process', async (importOriginal) => {
       on: (ev: string, cb: (...args: unknown[]) => void) => {
         (listeners[ev] ??= []).push(cb);
       },
-      kill: () => true,
+      // 真实语义：kill 后进程以该信号退出，close 携带 (null, signal)。
+      // 平台 deadline 路径正是靠这里驱动，不能用「立即 close」绕过。
+      kill: (sig?: NodeJS.Signals) => {
+        if (isHost && isRun && hostedIO.hang) {
+          queueMicrotask(() => emitClose(null, sig ?? 'SIGTERM'));
+        }
+        return true;
+      },
     };
     queueMicrotask(() => {
       if (isHost && isRun && hostedIO.mutate !== undefined && cwd.length > 0) hostedIO.mutate(cwd);
       if (stdout) for (const cb of listeners['stdout:data'] ?? []) cb(Buffer.from(stdout));
       if (stderr) for (const cb of listeners['stderr:data'] ?? []) cb(Buffer.from(stderr));
-      for (const cb of listeners['close'] ?? []) cb(status, signal);
+      // hang=true 时故意不 close：模拟宿主卡死，等平台 deadline 触发 kill。
+      // 这样 `runHostedWithReap` 的 `timedOut` 标志由真实定时器置位，
+      // 覆盖 `deadlineFired` 主路径，而不是只测 ETIMEDOUT 兜底。
+      if (isHost && isRun && hostedIO.hang) return;
+      emitClose(status, signal);
     });
     return child;
   };
@@ -153,8 +171,12 @@ function loadRevision(name: string): CaseRevision {
   ) as CaseRevision;
 }
 
-function timeoutError(): Error & { code: string } {
-  return Object.assign(new Error('spawnSync ETIMEDOUT'), { code: 'ETIMEDOUT' });
+/** 把题目 deadline 压到极短，让平台定时器真实触发（而非靠 ETIMEDOUT 兜底）。 */
+function withShortDeadline(revision: CaseRevision, deadlineMs = 150): CaseRevision {
+  return {
+    ...revision,
+    execution: { ...revision.execution, deadline_ms: deadlineMs },
+  };
 }
 
 const environment: EnvironmentProfile = {
@@ -197,6 +219,7 @@ describe('hosted 超时仍跑 workspace_assert', () => {
     hostedIO.signal = null;
     hostedIO.error = null;
     hostedIO.mutate = undefined;
+    hostedIO.hang = false;
     delete process.env.PROCTOR_HOSTED_PLUGIN;
     delete process.env.PROCTOR_HOSTED_MODEL;
   });
@@ -209,12 +232,10 @@ describe('hosted 超时仍跑 workspace_assert', () => {
   });
 
   it('超时 + 工作区已改为正确 → PASS，报告标明超时', async () => {
-    hostedIO.status = null;
-    hostedIO.signal = 'SIGTERM';
-    hostedIO.error = timeoutError();
+    hostedIO.hang = true;
     hostedIO.mutate = patch157;
     const artifactDir = mkdtempSync(join(tmpdir(), 'proctor-to-ok-'));
-    const revision = loadRevision('paired-task-157.r1.off.case-revision.json');
+    const revision = withShortDeadline(loadRevision('paired-task-157.r1.off.case-revision.json'));
     const result = await runHosted(revision, environment, artifactDir);
     expect(result.pass).toBe(true);
     expect(result.timed_out).toBe(true);
@@ -269,11 +290,9 @@ describe('hosted 超时仍跑 workspace_assert', () => {
   });
 
   it('超时 + 文件未动 → FAIL CONTEXT，且跑了 workspace_assert', async () => {
-    hostedIO.status = null;
-    hostedIO.signal = 'SIGTERM';
-    hostedIO.error = timeoutError();
+    hostedIO.hang = true;
     const artifactDir = mkdtempSync(join(tmpdir(), 'proctor-to-miss-'));
-    const revision = loadRevision('paired-task-157.r1.off.case-revision.json');
+    const revision = withShortDeadline(loadRevision('paired-task-157.r1.off.case-revision.json'));
     const result = await runHosted(revision, environment, artifactDir);
     expect(result.pass).toBe(false);
     expect(result.timed_out).toBe(true);
@@ -292,11 +311,9 @@ describe('hosted 超时仍跑 workspace_assert', () => {
   });
 
   it('ON 超时 + 文件未动 → FAIL CONTEXT，不是 PROTOCOL', async () => {
-    hostedIO.status = null;
-    hostedIO.signal = 'SIGTERM';
-    hostedIO.error = timeoutError();
+    hostedIO.hang = true;
     const artifactDir = mkdtempSync(join(tmpdir(), 'proctor-to-on-miss-'));
-    const revision = loadRevision('paired-task-157.r1.on.case-revision.json');
+    const revision = withShortDeadline(loadRevision('paired-task-157.r1.on.case-revision.json'));
     expect(revision.attribution_focus).toBe('PROTOCOL');
     const result = await runHosted(revision, environment, artifactDir);
     expect(result.pass).toBe(false);
@@ -307,12 +324,10 @@ describe('hosted 超时仍跑 workspace_assert', () => {
   });
 
   it('超时 + 改了但改错 → FAIL MODEL_TASK；ON 的 PROTOCOL focus 不能盖工作区', async () => {
-    hostedIO.status = null;
-    hostedIO.signal = 'SIGTERM';
-    hostedIO.error = timeoutError();
+    hostedIO.hang = true;
     hostedIO.mutate = patch157Wrong;
     const artifactDir = mkdtempSync(join(tmpdir(), 'proctor-to-wrong-'));
-    const revision = loadRevision('paired-task-157.r1.on.case-revision.json');
+    const revision = withShortDeadline(loadRevision('paired-task-157.r1.on.case-revision.json'));
     expect(revision.attribution_focus).toBe('PROTOCOL');
     const result = await runHosted(revision, environment, artifactDir);
     expect(result.pass).toBe(false);

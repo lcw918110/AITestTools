@@ -12,6 +12,11 @@ export interface RunCaseInput {
   revision: CaseRevision;
   /** 配对键（Case.pair_key ?? case_id 大写），hosted 配对结论用。 */
   pairKey?: string;
+  /**
+   * 该题实际使用的环境（配对题按侧解析后的结果）。
+   * 缺省时由调用方回落到命令行 `--environment` 指定的环境。
+   */
+  environment?: EnvironmentProfile;
 }
 
 /** runner 消费的环境上下文：EnvironmentProfile。 */
@@ -52,5 +57,6 @@ export interface AxisItemResult {
   /** hosted：进程退出码；超时/被杀为 null（辅助） */
   host_exit?: number | null;
   host_signal?: string | null;
+  host_spawn_error?: string | null;
   host_exit_role?: 'auxiliary';
 }

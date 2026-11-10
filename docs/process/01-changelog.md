@@ -217,6 +217,7 @@
 3. **完整链仍未接通：** 三题 EventStore 中 `manager`、`devops` 会话**仍为零**。orchestrator 直接 delegate 到 engineer，未走 manager 协调 engineer+devops 路径，验证闭环（engineer → devops 跑测试 → engineer 反馈）仍未闭合。
 4. **运行结果：** 157、158 仍超时（CONTEXT）；159 完成（`host_exit=0`）但 `workspace_ok` 仍 false（query-split、name-reject-empty 失败，无 `pass_token` 发射）。
 5. **结论：** 配置层修复（`host.agent` → `"orchestrator"`）确认有效——orchestrator 与 Delegation 机制首次启动。但 orchestrator → manager → devops 完整编排链需万象术 plugin 的 orchestration 业务逻辑支持，属于 SUT 侧问题，非配置层面可解决。题面 157–159 本身无需改动。
+   **（本条结论已被 §52/§53 修正）** 后续定位显示：编排链不是「缺业务逻辑」，`commission` 的实现链路完整、四个宿主回调也已接线；真实问题是 `Command.fs:1123` 的 `Error _` 把 `OrchestratorVerdict` 压成兜底码 `placement-failed`，真实原因被丢弃。详见 [07-wanxiangshu-commission-bug.md](07-wanxiangshu-commission-bug.md)。
 
 ---
 
@@ -1872,3 +1873,452 @@ refus(?:e|al|ing)|cannot|can't|won't|not allowed|no access|拒绝|不能|无权|
 
 > 教训：扩正面口径必须配「否定式/错对象/肯定式照做」三类反向探针。
 > 只测「合格能否通过」等于只做了双向验证的一半。
+
+## 52. 编排类断言落地：从「测不到」到「能测委派」（2026-11-04）
+
+### 一、起因
+
+追查 T6 阻塞时发现：`commission` 恒返回 `placement-failed`。顺这条线往下查，
+发现本仓在编排可观测性上有两个真实缺陷，比上游 bug 更该先修。
+
+### 二、缺陷一：`eventName` 解析不了真实事件，编排断言全失效
+
+`src/oracles/event-name.ts` 原实现只认 `Kind / kind / type / name`。
+但万象术 EventStore 的真实事件形状是：
+
+```json
+{ "event_type": "JournalEnvelope", "payload": { "Fact": ["Runtime", ["RuntimeStarted", {}]] } }
+```
+
+事件名嵌在 `payload.Fact[1][0]`。实测 157 ON 的 110 个事件，**`eventName` 全部返回空串**。
+
+后果：
+
+- `no_event` → `forbidden.has('')` 恒 false → **永远通过（假绿）**
+- `event_subsequence` → 恒匹配不到 → **永远失败（假红）**
+
+这就是 `product-eval` 319 个修订里一条编排断言都没有的真实原因——写了也是错的。
+
+修法：`eventName` 增加 `fact` 字段、`payload.Fact` 嵌套、`event_type` 三条路径。
+实测 110/110 全部解析成功（`Companion` 54 / `Host` 26 / `Context` 11 / `ChatExecution` 9 / `Prompt` 7 / `RuntimeStarted` 1 / `JsLifecycle*` 2）。
+
+### 三、缺陷二：hosted 模式不支持事件类断言
+
+`src/run/hosted-oracles.ts` 只认 `exit_code / stdout_assert / workspace_assert / tool_side_effect`，
+其余一律 `HARNESS` 拒绝。而「委派有没有发生」只能从事件流看出来。
+
+修法：`evaluateHostedOracles` 增加可选 `events` 参数，支持 `event_subsequence` / `no_event`；
+`hosted-runner` 把 `store.events` 接进去。
+
+**缺事件流或 names 为空时归因 `HARNESS`**，不静默放过——防止「没接线」被误判成「模型没做对」。
+
+### 四、新增委派闭环题 `paired-task-160`
+
+不加在 157–159 上，因为 `paired-on-off-parity.test.ts` 锁死了「ON/OFF 断言必须完全相同」，
+而 OFF 环境（`hosted-plain-v1`）没有 `host_plugin` 也没有 `durable_log_glob`，拿不到事件流。
+
+新题设计：题面要求「先 commission 委派给 manager，再由 manager 改文件」，
+断言除工作区结果外增加：
+
+```json
+{ "id": "delegation-happened", "type": "event_subsequence", "names": ["ManagerJobCreated"] }
+```
+
+`ManagerJobCreated` 是 `ChangeRuntime.fs` 里 `commission` 成功时追加的正式 Fact，
+是委派成功的唯一确定信号（不是猜的事件名）。
+
+### 五、上游 bug 定位
+
+**本节结论已被 §53 推翻，保留仅为记录排查路径。** 详见 [07-wanxiangshu-commission-bug.md](07-wanxiangshu-commission-bug.md)。
+
+当时曾判定 `HorizonTool.fs:49-51` 四个宿主回调为 `None` 导致 `placement-failed`；
+经逐层核实调用链，该结论错误：
+
+- `commission` 不经过 `HorizonTool`。`Fork/OpenCode/Tool.fs:124` 的 `orchestratorSpec` 把
+  `Command.Commission` 路由到 `ForkTool`；`HorizonTool` 只服务 `horizon` 只读名册。
+- `ForkTool` 的 `DelegationEnvironment`（`Fork/OpenCode/Tool.fs:53-86`）四个回调全部是 `Some(...)`。
+
+### 六、验证
+
+| 项                                             | 结果                                                    |
+| :--------------------------------------------- | :------------------------------------------------------ |
+| `eventName` 真实数据解析                       | **0/110 → 110/110**                                     |
+| `tests/oracles/event-name-sources.test.ts`     | 15 例（新增，含三级 Fact 与 `no_event` 假绿反向探针）   |
+| `tests/run/hosted-event-oracles.test.ts`       | 14 例（新增，含缺事件流归因 HARNESS、超时归因 CONTEXT） |
+| `tests/run/delegation-oracle-realdata.test.ts` | 3 例（新增，用 157 ON 真实失败样本验证断言生效）        |
+| 题库校验                                       | **321/321**（原 319 + 新增 2）                          |
+| 全量门禁                                       | 102 文件 / **786 tests** / 0 错误                       |
+
+`delegation-oracle-realdata.test.ts` 是关键：它拿 157 ON 那次**真实委派失败**的 EventStore
+跑新断言，确认能被正确否决——证明断言不是空转。
+
+### 七、独立审查打穿 §52：12 项发现（3 High）
+
+独立 Local Bugbot 审查发现 12 项，3 个 High 全部为真：
+
+**High ①：`eventsPresent` 缺失，空流下 `no_event` 假绿。**
+`readWanxiangEventStore` 在所有失败分支（`not-git` / `no-store-ref` / `git-error` / `empty`）
+都返回 `events: []` 而非 `undefined`，因此 `opts.events === undefined` 在真实路径**永不触发**。
+插件没挂上时：`no_event` 直接通过（假绿）、`event_subsequence` 判失败并归因 `MODEL_TASK`
+（把「没接线」记成「模型没做对」）——正是本次改动声称要防的两种情况。
+修法：新增 `eventsPresent` 参数，`hosted-runner` 传 `store.present`。
+
+**High ②：真实数据测试依赖 gitignore 的产物。**
+`tests/run/delegation-oracle-realdata.test.ts` 硬编码读 `examples/product-eval/runs/...`，
+而 `.gitignore:9` 的 `runs/` 规则已确认命中，`git ls-files` 为 0。CI 全新 checkout 必 ENOENT。
+修法：把真实事件形状内联固化，不依赖产物目录。
+
+**High ③：`paired-task-160` OFF 侧带了环境不可能满足的断言。**
+OFF 环境 `hosted-plain-v1` 既无 `host_plugin` 也无 `durable_log_glob`，EventStore 必然为空，
+带 `event_subsequence` 会让对照组恒失败，配对差值混入常数项。
+修法：委派断言只加 ON 侧；`paired-on-off-parity.test.ts` 增加「环境能力型例外」——
+仅当差异全部是「只在 ON 侧的事件类断言」且该题声明了 `requires_durable_log` 时放行。
+
+其余 9 项（Medium/Low）修复：
+
+| 问题                                       | 修法                                              |
+| :----------------------------------------- | :------------------------------------------------ |
+| 外层 `type` 吞掉 `payload.Fact` 真实事件名 | `payload.Fact` 提到扁平字段之前                   |
+| 普通业务 `fact` 字段被误判成事件名         | papers-v1 的 `fact` 需与 `runtime`/`seq` 同现才认 |
+| 两处 HARNESS 早 `return` 跳过后续 oracle   | 改为 `harnessVeto` 记录并继续评估                 |
+| `names: ['']` 未被拦                       | 增加空串检查                                      |
+| 测试标题称 PROTOCOL 但实际 MODEL_TASK      | 改为断言真实归因                                  |
+| 注释称支持 `payload.eventType` 但未实现    | 补实现                                            |
+| `eventName(null)` 抛 TypeError             | 加运行时判空                                      |
+| 题库规模断言放宽到 `> 0` 失去防回归价值    | 改为下限断言（≥160 / ≥161）                       |
+| changelog 数字 766 与实际 768 不符         | 更新为实测值                                      |
+
+修复后：**102 文件 / 778 tests / 321 题 0 错误**。
+
+### 八、二次审查再打穿：11 项（2 High）
+
+第二轮独立审查发现 11 项，2 个 High 仍为真：
+
+**High ①：`harnessVeto` 的优先级只在 `evaluateHostedOracles` 内部成立。**
+`HostedAdapter.evaluate` 先判 `!workspace_ok` 并用 `resolveWorkspaceFailAttribution` 重新归因，
+实测「事件流未读到 + 工作区断言失败」时内层 `veto.attribution='HARNESS'` 被外层改写成 `MODEL_TASK`，
+message 也优先取 `workspace_failures[0]`——正是本轮声称要防的「把没接线记成模型没做对」。
+修法：runner 层最前面加 `veto.attribution === 'HARNESS'` 短路分支。
+
+**High ②：`paired-task-160` OFF 侧仍带 `protocol_probes` 与 `requires_durable_log`。**
+上一轮只删了事件断言，没删探针与 durable 声明。OFF 环境读不到 EventStore，
+`missingProtocolProbes` 恒非空 → OFF 侧即使工作区全对也恒失败（PROTOCOL）。
+对照 157/158/159 OFF 均为 `probes: []`、`durable: false`，160 OFF 是唯一例外。
+修法：生成器按 side 分别写 `protocol_probes` 与 `requires_durable_log`。
+
+其余 9 项修复：
+
+| 问题                                                          | 修法                                                                 |
+| :------------------------------------------------------------ | :------------------------------------------------------------------- |
+| parity 例外第二道门禁因 `requires_durable_log` 恒真而失效     | 改为三条件：ON 有 durable + ON 有探针 + OFF 无探针                   |
+| `EVENT_ORACLE_TYPES` 含 `event_fold`，但 hosted 不支持        | 移除 `event_fold`                                                    |
+| `else` 分支仍早 return，跳过后续 workspace_assert             | 改为 `harnessVeto` 记录并继续                                        |
+| `payload.eventType` 遮蔽扁平 `type`；非法 Fact 形状遮蔽真实名 | `Fact` 形状不合法时返回空串；`event_type` 优先于 `payload.eventType` |
+| L1 的 `no_event` 空 names 假绿                                | 与 hosted 口径对齐，空名归 HARNESS                                   |
+| `String(null)` 变成 `'null'` 绕过空名检查                     | 先过滤非字符串再判空                                                 |
+| 注释称支持顶层 `Fact` 但未实现                                | 修正注释（该形状当前走 `event_fold`，不经此函数）                    |
+| 测试例数账实不符                                              | 更新为实测值                                                         |
+| 生成器注释与实现矛盾                                          | 改为说明 ON/OFF 差异只允许在环境能力上                               |
+
+修复后：**102 文件 / 786 tests / 321 题 0 错误**。
+
+## 53. 委派闭环数据集落地 + 上游报障单根因修正（2026-11-04）
+
+### 一、新增 `paired-delegation-smoke` 数据集
+
+`paired-task-160` 此前只有 case-revision，没有数据集引用，无法用 `--dataset` 直接跑。
+新建 `examples/product-eval/dataset-releases/paired-delegation-smoke.dataset-release.json`，
+含 160 的 ON/OFF 两侧，`closure_hash` 用 `digest.ts` 的 `closureDigest` 同口径计算
+（`scripts/gen-dataset-delegation.mjs` 生成，避免手工算错）。
+
+不并入 `paired-on-effect-smoke` 的原因：后者是「效果对照」样本，归因口径是「模型能否完成任务」；
+160 测的是「编排链是否接通」，失败原因在 SUT 侧委派，混在一起会让效果对照的归因变浑，
+也会改变已跑过的冻结闭包口径。
+
+### 二、实跑验证
+
+```
+npm run proctor -- run --dataset paired-delegation-smoke \
+  --environment hosted-plugin-v1 --project examples/product-eval
+```
+
+结果符合设计预期：
+
+| 侧  | 结果               | 说明                                                          |
+| :-- | :----------------- | :------------------------------------------------------------ |
+| OFF | **PASS**           | 只看工作区，不依赖事件流                                      |
+| ON  | **FAIL [HARNESS]** | 插件产物缺失 → EventStore 未写入 → 断言拒绝静默放过，归因正确 |
+
+ON 侧的 `[HARNESS]` 归因是关键：修复前这里会假绿（`no_event`）或误记 `MODEL_TASK`（把「没接线」记成「模型没做对」）。
+
+### 三、`commission` 根因定位（四次推翻，仍未定案）
+
+| 版本   | 结论                                         | 推翻依据                                                                                               |
+| :----- | :------------------------------------------- | :----------------------------------------------------------------------------------------------------- |
+| 初版   | `HorizonTool.fs:49-51` 四个宿主回调为 `None` | `commission` 不经过 `HorizonTool`；`Fork/OpenCode/Tool.fs:124` 路由到 `ForkTool`，回调全为 `Some(...)` |
+| 第二版 | `decode` 失败（`expected_tool_calls` 校验）  | 省略 `name` 能返回 `name-required`，证明 `decode` 成功                                                 |
+| 第三版 | 「无法区分候选，需上游加日志」               | 脏检查在 `createSession` 之前，能解释全部实测现象                                                      |
+| 第四版 | 脏工作区（`RejectedDirty`）                  | 修复 commit 后产物 `hosted-git-commit.json` 为 `{ "ok": true }`，仍失败                                |
+
+**已确认的事实**：
+
+1. 参数校验是通的——省略 `name` 返回 `name-required`（`Command.fs:1144`），非法 `calling` 返回 `unknown-calling`（`Command.fs:1148`），两者都在 `decode` 之后、`finishCommissionNewReceipt` 之前；
+2. 失败点在 `finishCommissionNewReceipt`（`Command.fs:1098`），`1124`（回调为 `None`）已排除；
+3. **真实错误被 `Command.fs:1123` 的 `Error _` 丢弃**——`ForkManagerJob` 内部已用 `sprintf "%A" verdict`（`Change/Host/Host.fs:488`）保留了完整 `OrchestratorVerdict`（`RejectedDirty` / `IntegrationFailed` / `Cancelled` / `Empty`），但被压成统一字符串；
+4. 最近一次运行（`runs/20261104-121424517-trcz`）事件 27 个，只有 `Runtime: 1` / `Agent: 26`，**`Change` 子系统事件为 0**——`ChangeRuntime.start` 在写第一个事件前就失败。
+
+**已修复的真实缺陷（但不是唯一原因）**：`ensureHostedGitRepo` 只 `git init` 不 commit，播种材料全是未跟踪文件，而 `ChangeRuntime.start`（`ChangeRuntime.fs:104-108`）在建 manager 会话前先做脏检查。已新增 `commitHostedSeed` 在播种后提交，并加回归测试锁死「播种后必须干净」这个不变量。
+
+**仍需上游定案**：把 `Command.fs:1123` 的 `| Error _ ->` 改为透传错误文本，一行改动即可看到真实 `OrchestratorVerdict`。详见报障单。
+
+### 四、第六轮审查打穿：两个 High
+
+| 发现                                               | 影响                                                                                                                            | 修法                                                                    |
+| :------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------ | :---------------------------------------------------------------------- |
+| `factName` 只取 `fact[1][0]`，三级 Fact 返回子族名 | `['Agent', ['Orchestrator', ['ManagerJobCreated', …]]]` 被读成 `'Orchestrator'`，`paired-task-160` 的断言**即使委派成功也必红** | 增加三级形状识别：`inner[1]` 是数组时取 `inner[1][0]`；两级形状不受影响 |
+| `commitHostedSeed` 未隔离 `commit.gpgsign`         | 宿主全局开启签名时 `git commit` 失败（`gpg failed to sign the data`），工作区仍脏，本次修复整体失效                             | 命令行级 `-c commit.gpgsign=false` 覆盖，不改宿主全局配置               |
+
+两条都补了可证伪的回归测试：
+
+- `event-name-sources.test.ts` 新增三级 Fact 用例（含两级形状不被破坏的反向断言）；
+- `event-store.test.ts` 新增 gpg 签名用例，用独立 `GIT_CONFIG_GLOBAL` 模拟宿主开启签名。
+
+**Red 验证**：临时移除 `-c commit.gpgsign=false` 后，gpg 用例确实失败（`gpg failed to sign the data`）；恢复后通过。
+
+### 五、第七轮审查：口径分裂与假绿
+
+| 发现                                                        | 影响                                                                                                                                                        | 修法                                                                       |
+| :---------------------------------------------------------- | :---------------------------------------------------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------- |
+| `extractAttributionKinds` 只取两级，与 `eventName` 口径分裂 | 三级 Fact 的 kinds 是 `JournalEnvelope\|Agent\|Orchestrator`，`ManagerJobCreated` 进不了集合；任何把事件名当 `protocol_probes` 的题会恒判缺失并归因 HARNESS | 抽出共享的 `factLayers()`，`eventName` 与 `extractAttributionKinds` 都走它 |
+| L2 的 `no_event` 空名假绿（`names: []` 恒通过）             | `String(null)` 变 `'null'` 绕过 trim 检查；L1 与 hosted 都已补空名校验，唯独 L2 漏改                                                                        | 先过滤非字符串再判空，空名归 HARNESS；补 L2 回归测试                       |
+| `delegation-oracle-realdata.test.ts` fixture 形状不保真     | 用两级 `['Runtime', ['Prompt', {}]]` 把族名当事件名——正是修复前的误读，对三级修复零覆盖                                                                     | 改为真实三级 `['Agent', ['Prompt', ['PluginPromptSubmitted', {}]]]`        |
+| `hosted-event-oracles.test.ts` fixture 用不存在的顶层族     | `['Orchestrator', [...]]`——`Orchestrator` 是 AgentFact 子族名，顶层只有 `Runtime` / `Agent`                                                                 | 改用 `Runtime` 两级与 `Agent` 三级两个 helper                              |
+
+**Red 验证**：把 `factLayers` 的下探深度从 2 改回 1，`event_subsequence` 委派测试与三级 Fact 测试同时变红；恢复后全绿。L2 同理（退回 `map(String)` 后空名用例变红）。
+
+### 六、其他修正
+
+| 问题                                            | 修法                                                  |
+| :---------------------------------------------- | :---------------------------------------------------- |
+| `cases-v1-loader.test.ts` 写死 13 个数据集      | 改下限断言并抬到 14，允许新增但不允许静默漏读         |
+| changelog 测试例数账实不符（10/6/2 vs 14/12/3） | 更新为实测值                                          |
+| 两份报障单并存（bug / issue）                   | 合并为 `07-wanxiangshu-commission-bug.md`，只留当前态 |
+| 「`commission` 约 1400 行」                     | 删除。1400 是 `Command.fs` 全文行数（含 fork/resume） |
+| 「`ManagerJobCreated` 在 `Command.fs` 落盘」    | 修正为 `wanxiangli/src/change/ChangeRuntime.fs:63`    |
+
+修复后：**102 文件 / 786 tests / 321 题 0 错误**。
+
+---
+
+## 54. `commission` 根因定案：opencode 改写配置导致工作区变脏（2026-11-05）
+
+### 一、定案结论
+
+`commission` 恒返回 `placement-failed` 的真实原因是
+`RejectedDirty ("Worktree is dirty: opencode.json")`，**根因在本仓，不在万象术**。
+
+脏文件由 opencode 自己写入：它读到缺 `$schema` 的 `opencode.json` 时会补上该行并落盘。
+本仓在 opencode 启动前刚把工作区提交成干净状态，这次补写立刻让工作区变脏，
+万象术 `ChangeRuntime.start`（`wanxiangli/src/change/ChangeRuntime.fs:104-108`）的脏检查随即拒绝建 manager 会话。
+
+### 二、怎么拿到的
+
+在万象术仓把 `Command.fs:1123` 的 `Error _` 临时改成透传 `%A`，重建插件后跑
+`paired-delegation-smoke`，orchestrator 侧立即读到完整错误。**探针改动已还原**
+（`Command.fs` 指纹回到 `7bfd0368...`，上游工作区只剩原有的 `scripts/ci-local.sh`）。
+
+再用独立临时目录做最小复现（不涉及本仓代码）：
+
+```bash
+git init --template= && git add -A && git commit -m seed   # 干净
+opencode run --dir "$T" -m <model> --agent orchestrator "读取 README.md 后回复 OK"
+git status --porcelain   # → M opencode.json
+```
+
+差异只有一行 `+ "$schema": "https://opencode.ai/config.json",`，发生在 reading config 阶段、
+任何工具调用之前。预置 `$schema` 后重跑：`porcelain` 为空，opencode 正常读到文件并回复 `OK`。
+
+### 三、本仓修复
+
+`src/run/hosted-runner.ts` 播种 hosted 配置时显式写 `$schema`。
+回归测试 `tests/run/hosted-opencode-config-clean.test.ts` 两条，第二条是反证探针
+（人为删掉 `$schema` 重新提交，模拟 opencode 补写后 `porcelain` 出现 `opencode.json`）。
+
+**Red 验证**：临时移除修复后第一条失败（`expected undefined to be 'https://opencode.ai/config.json'`）；
+恢复后两条全绿。
+
+### 四、实跑结果
+
+| 项                   | 修复前                | 修复后                                                       |
+| :------------------- | :-------------------- | :----------------------------------------------------------- |
+| `RejectedDirty` 出现 | 每次必现              | **0**（`syv0` 运行，插件真实加载，脏检查零命中）             |
+| OFF 侧               | 修复前 `fyci` 已 PASS | `gr38` PASS —— 但 OFF 不加载插件，与 `$schema` 无关          |
+| ON 侧                | FAIL                  | **委派已建立**：4 个 `ManagerJobCreated` + `WorktreeCreated` |
+
+**本节早期写的「OFF 侧首次通过」已作废**：`runs/20261104-102928596-fyci`（修复前）
+OFF 侧就是 `pass=true`，不存在「首次」。
+
+「`RejectedDirty` 归零」在 `gr38` 那次不成立（缺 `Plugin.js`，插件未加载），
+但已由 `runs/20261105-135851245-syv0` 重新证实：插件真实加载、EventStore 出现
+`ManagerJobCreated` / `WorktreeCreated` / `TerminalOutputCaptured`，全程无 `RejectedDirty`。
+
+`syv0` 仍 `timed_out=true`，原因不是脏检查：4 个 manager 会话并行跑 LLM 流，
+240s deadline 不够，日志末尾仍在 `llm runtime selected` / `stream`。这是 deadline 配置问题，
+不是缺陷。
+
+### 四之二、顺带查出的第二个缺陷：插件依赖装不上
+
+`runs/20261105-132313486-fi09` 的 stderr：
+
+```
+{"operation":"plugin-initialization-failed","result":"Failed to load OpenCode tool module: Cannot find package '@opencode-ai/plugin' imported from [REDACTED]"}
+```
+
+opencode 在隔离 HOME 里解析不到插件依赖时会后台 `npm install`，而 hosted 沙箱不放行
+`registry.npmjs.org`，请求被 403 拒绝，插件加载失败，**被测插件一次都没被调用**，
+运行空转到 deadline。
+
+修复：`src/run/hosted-runner.ts` 新增 `installPluginRuntimeDeps`，播种隔离 HOME 时
+从插件包根复制 `node_modules/@opencode-ai/plugin`，网络零参与。未放行 npm registry
+（那会让被测模型能在沙箱内下载任意包，边界太宽）。
+
+**顺带纠正一个误诊**：曾怀疑「沙箱内 `models.dev` 超时」阻塞 opencode。实测否证——
+opencode 启动只花约 1 秒，全程不请求 `models.dev`；`models.dev/api.json` 是 5.96 MB 的
+模型目录，只有手动 curl 才会慢，与 opencode 启动无关。
+
+### 五、上游建议（非阻塞）
+
+`Command.fs:1123` 的 `Error _` 把 `OrchestratorVerdict` 压成兜底码，
+让这个本可一眼看出的环境问题排查了整整两轮。建议改为透传错误文本，
+或按 verdict 映射独立码（`rejected-dirty` / `integration-failed` / `cancelled` / `empty`）。
+
+### 六、遗留：配对实验前提失效（已修复）
+
+`paired-delegation-smoke` 把 ON/OFF 两侧装进同一 release，而 CLI 只能传一个
+`--environment`。实测 `syv0` 用 `--environment hosted-plugin-v1` 跑，
+**OFF 侧产物 `plugin` 字段同样是 `.../Plugin.js`**，即两侧都挂了插件。
+
+配对实验的设计前提是「同一道题、同一套判定口径，只差插件开关」
+（见 `tests/oracles/paired-on-off-parity.test.ts` 开头注释）。共用环境时该前提不成立：
+OFF 侧的 `pass=true` 不能当「无插件基线」，两侧差值也不再有意义。
+
+**已修**：environment 新增可选 `paired_environments` 映射，run 按 `case_revision_id`
+的 `.off`/`.on` 后缀解析该侧环境（设计见 `docs/09-轴路由cases-v1表达设计.md` §5.1）。
+`hosted-plugin-v1` 声明 `{"off": "hosted-plain-v1"}`。映射目标不存在时报错，不静默回落。
+
+**验证**（`runs/20261105-144025470-oi7b`）：
+
+| 侧  | `plugin` 字段   | 事件流 | 结果 | 耗时 |
+| :-- | :-------------- | :----- | :--- | :--- |
+| OFF | `None`          | 无     | PASS | 66s  |
+| ON  | `.../Plugin.js` | 有     | 超时 | 179s |
+
+配对前提恢复：OFF 真正无插件、材料被改（66s 内真修好了）；ON 挂插件、事件流正常。
+
+### 七、遗留：ON 侧仍未收尾（万象术侧，非本仓）
+
+ON 侧 179s 后放弃（deadline 已放宽到 600s，不是额度问题）。日志末尾：
+
+```
+{"operation":"journal-semantic-cut","result":"journal semantic cut at ...:
+ fact 'semantic-cut' rejected: Journal fact 'HandleWorkAdmission' rejected: WorkStillActive"}
+```
+
+事件流里 `SessionStartedAtBound` 出现多次但无对应结束事件，manager/engineer 子会话
+始终处于活动状态，journal 无法收敛，宿主只能等 deadline。
+
+另有 4 条 `failed to subscribe ... Error starting FSEvents stream`：沙箱不允许
+macOS 文件系统事件监控。opencode 对此只告警不中断，与本超时无直接因果，但会削弱
+其文件变更感知，建议后续单独评估是否放行。
+
+**这属于万象术的会话生命周期行为，按本仓规则「不改万象术业务逻辑」，不在本仓修。**
+需要上游确认：委派出的 manager 会话在任务完成后应如何收敛（是否有显式结束信号）。
+
+### 九、角色校正后重跑（2026-11-09）
+
+`runs/20261109-205719419-4v1i`，命令：
+
+```bash
+SUT_ROOT=/Users/Licw/Desktop/git/wanxiangshu \
+  npm run proctor -- run --dataset paired-delegation-smoke \
+  --environment hosted-plugin-v1 --project examples/product-eval
+```
+
+未设 `PROCTOR_HOSTED_PLUGIN` / `PROCTOR_HOSTED_MODEL` / `PROCTOR_HOSTED_AGENT`。0/2，耗时 678s。
+
+| 侧  | 环境               | 插件        | agent                          | 结果                                                                                                                          |
+| :-- | :----------------- | :---------- | :----------------------------- | :---------------------------------------------------------------------------------------------------------------------------- |
+| OFF | `hosted-plain-v1`  | `None`      | `fast-coder`                   | FAIL `MODEL_TASK`，66s 级内退出码 0，但 `lib/discount.mjs` 未含 `Math.round`；stdout 有暗号 `DELEGATED_FIX`，按口径不单独放行 |
+| ON  | `hosted-plugin-v1` | `Plugin.js` | `orchestrator`（6 个管理角色） | FAIL `CONTEXT`，600284ms 打满，文件未改，无暗号                                                                               |
+
+ON 侧事件种类含 `ManagerJobCreated`、`WorktreeCreated`、`TerminalOutputCaptured`。stderr 建了 14 个会话：manager、3 个 engineer、1 个 devops，其余是 negotiation。截止前 manager 仍在 step 32、devops 仍在 step 4，日志里**没有** `WorkStillActive`。
+
+因此旧说法「编排链未接通 / `placement-failed` 仍是唯一阻塞」作废。当前事实是：配对环境拆分生效；插件角色接管生效；委派会话能建；闭环没在 600s 内改完文件。OFF 这次也没改对，不能把 ON 失败单独解释成插件更差。
+
+### 十、157–159 效果小样本对照（2026-11-09）
+
+按 DoD 跑了 `paired-off-effect-smoke` → `paired-on-effect-smoke` → `compare`。模型固定 `wave-anthropic/claude-sonnet-5`，未设宿主覆盖环境变量。
+
+| 侧  | run                            | 环境               | 结果                                     |
+| :-- | :----------------------------- | :----------------- | :--------------------------------------- |
+| OFF | `runs/20261109-211751421-nacm` | `hosted-plain-v1`  | 0/3，全 `MODEL_TASK`                     |
+| ON  | `runs/20261109-212024960-p0g2` | `hosted-plugin-v1` | 0/3；157 `MODEL_TASK`，158/159 `CONTEXT` |
+
+对照文件：`runs/20261109-212024960-p0g2/effect_compare.md`。`pass_rate` 0 对 0，Δ=0。剔除 `CONTEXT` 后仍没有 ON 通过的题。DoD 第 3 条（OFF 通过率 < ON）不满足，**不得宣称插件更好**。T7 经济四格继续不做。
+
+该次 0/0 后来被证伪为断言误杀：用 OFF 日志中的最终写入重放三题自带测试，全部通过。157 折扣用 `Math.floor` 先算出折扣再相减，测试仍过；158 配置写成 `"port":8443`，测试仍过；159 正则写成 `^[a-zA-Z_]`，测试仍过。断言已放宽到这些等价写法，并保留「旧的整除返回」「说明文档未改」「名称校验仍是 `Boolean(s)`」为失败。
+
+放宽后重跑：
+
+| 侧  | run                            | 结果                                                         |
+| :-- | :----------------------------- | :----------------------------------------------------------- |
+| OFF | `runs/20261109-221233702-3oc7` | 2/3。157、159 过；158 仍漏改 `docs/runbook.md`，`MODEL_TASK` |
+| ON  | `runs/20261109-221441877-tgd3` | 0/3。157 `CONTEXT`；158、159 `MODEL_TASK`                    |
+
+`compare` 写出 `runs/20261109-221441877-tgd3/effect_compare.md`，通过率 0.667 对 0，Δ=−0.667。方向与 DoD 相反，仍不得宣称插件更好。
+
+158、159 的 OFF/ON 截止随后也从 240 秒对齐到 600 秒，与 157 同一实验条件。不进内容摘要。
+
+对齐后重跑：OFF `runs/20261110-001956188-qv7s` 仍 2/3（158 漏改说明）。ON `runs/20261110-002235952-1bxk` 为 0/3。三题 stderr 都有 `AI_InvalidResponseDataError`，宿主以退出码 1 结束且文件没动。当时记成 `MODEL_TASK` 是假红：供应商流被打断，模型行为没跑完。现已改为 `CONTEXT`，文件已改过时仍记 `MODEL_TASK`。该次报告未回写，下次对照按新口径。三题 `host_exit=1`、`materials_mutated=false`，事件里没有 `ManagerJobCreated`。`compare` 写出 `effect_compare.md`，通过率 0.667 对 0，Δ=−0.667。用途未标注，报告已写明仅供诊断。不得宣称插件更好，不画 T7。
+
+本仓随后在清播种目录前，把 `WorktreeCreated` 路径下与播种材料同名的文件抄进 `delegated-worktrees/`。采集失败不抛出，不改 `materials_mutated`，也不把工作树改对记成 PASS。合回播种目录仍是万象术待办，见 [07-wanxiangshu-commission-bug.md](07-wanxiangshu-commission-bug.md)。
+
+157 ON 随后单独加到 600s 重跑：`runs/20261109-231733309-8q6x`，0/1，`CONTEXT`，`materials_mutated=false`。`ManagerJobCreated` 与 `WorktreeCreated` 指向 `/tmp/claude/wanxiangshu-kzvbc2`。超时后播种目录已删除；残留工作树里的折扣与税额已改对，副本留在该 run 的 `delegated-worktree-kzvbc2/`。工作树改对不能算 PASS，因为监考只认播种目录，且超时前没有合回证据。
+
+### 八、门禁
+
+**104 文件 / 803 tests / 321 题 0 错误**，typecheck 与 Prettier 均通过。
+
+### 九、事件子序列未凑齐不再记成模型失败（2026-11-10）
+
+超时或供应商流被打断后，EventStore 可能只写出一部分。`event_subsequence` / `no_event` 读到了流、但断言没满足时，旧逻辑记 `MODEL_TASK`。材料没动时这是没跑完，不是模型做错。
+
+现与「事件流没写出」同一口径：材料未改记 `CONTEXT`；材料已改仍记 `MODEL_TASK`。`PROTOCOL` focus 不得把前者改写成协议失败。工作区失败仍优先于这条。
+
+改前对照：拿掉该分支后，两条新用例期望 `CONTEXT`、实际得到 `MODEL_TASK`。放回后通过。
+
+### 十、交付面信号：不必再人工读载荷（2026-11-10）
+
+三次带载荷诊断的 157 ON 实跑（`runs/20261110-210204157-k428`、`runs/20261110-211452124-2umd`、`runs/20261110-211525858-zlx2`）里，`k428` 与 `zlx2` 都出现「工作树 1 已改 `lib/discount.mjs` + `lib/tax.mjs`、播种目录 `materials_mutated=false`」——改动停在委派分支没回来；`2umd` 更早停掉，连工作树都没建。
+
+`hosted-run.json` 因此新增三个字段，把这条判断固定成可读事实：
+
+| 字段                      | 含义                                                                                   |
+| :------------------------ | :------------------------------------------------------------------------------------- |
+| `delegated_worktrees`     | 本次采到几个委派工作树副本                                                             |
+| `delegated_changed_files` | 副本里与播种指纹不同的材料文件（含被删除、新增）                                       |
+| `stranded_in_worktree`    | `true` 有改动停在分支；`false` 改动都已回播种目录；`null` 无法判定，**不能当作没搁浅** |
+
+口径三条：
+
+1. **三态**。`null` 与 `false` 必须分开：路径被拒、文件读写失败、清单写失败、指纹缺 key、工作树根被清理、`WorktreeCreated` 解析失败，都落 `null`。
+2. **按文件粒度**。用 `mutatedInSeed` 列表逐个文件比，不再用一个全局布尔量——否则 A 文件交付成功会掩盖 B 文件仍搁浅。
+3. **不参与判定**。信号只进产物，不改通过判定与归因码（归因仍是封闭枚举）。
+
+`materialsMutated` 同步拆出 `mutatedSeededFiles`（返回改了哪些文件），`seedSnapshot` 从 `Record<string, string>` 改为 `SeedSnapshot`（`digests` + `unreadable`），把「文件本来不存在」与「快照没这个 key / 读不到」彻底分开。
+
+独立性：四轮 Local Bugbot 累计打穿 14 项（采集失败仍报 false、删除漏报、`?? ''` 混同缺 key、全局布尔掩盖多树、`existsSync` 在 EACCES 下误判、原型链裸名、解析失败静默跳过等），逐条补了可证伪用例。
+
+### 十一、门禁
+
+**111 文件 / 890 tests / 321 题 0 错误**，typecheck 与 Prettier 均通过。诊断载荷产物（`event-payloads/`）已从运行目录清理。

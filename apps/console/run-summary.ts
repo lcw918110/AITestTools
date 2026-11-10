@@ -26,6 +26,7 @@ export interface ResultRow {
   workspace_ok?: boolean;
   timed_out?: boolean;
   host_exit?: number | null;
+  host_spawn_error?: string | null;
   materials_mutated?: boolean;
 }
 
@@ -85,6 +86,7 @@ export interface PassTokenSummaryRow {
   workspace_ok?: boolean;
   timed_out?: boolean;
   host_exit?: number | null;
+  host_spawn_error?: string | null;
   materials_mutated?: boolean;
   workspace_label: string;
   timed_out_label: string;
@@ -167,6 +169,8 @@ function decodeResultRow(line: string, index: number): ResultRow | undefined {
   if (timed_out !== undefined) row.timed_out = timed_out;
   const host_exit = d.host_exit === null ? null : num(d.host_exit);
   if (host_exit !== undefined) row.host_exit = host_exit;
+  const host_spawn_error = str(d.host_spawn_error);
+  if (host_spawn_error !== undefined) row.host_spawn_error = host_spawn_error;
   const materials_mutated = bool(d.materials_mutated);
   if (materials_mutated !== undefined) row.materials_mutated = materials_mutated;
 
@@ -337,6 +341,7 @@ export function summarizePassTokens(rows: ResultRow[]): PassTokenSummaryRow[] {
         host_exit_label: formatHostExitCell({
           host_exit: r.host_exit,
           timed_out: r.timed_out,
+          host_spawn_error: r.host_spawn_error,
         }),
       };
       if (r.pass_token !== undefined) out.pass_token = r.pass_token;

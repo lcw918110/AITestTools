@@ -1,0 +1,11 @@
+{
+  "$schema": "../../../schemas/case.schema.json",
+  "case_id": "paired-task-160",
+  "title": "配对任务 160（委派闭环）：先 commission 再修双文件取整 DELEGATED_FIX",
+  "owner": "product-eval",
+  "tags": ["workspace", "delegation"],
+  "lifecycle": "draft",
+  "automation_readiness": "design_ready",
+  "head_revision_id": "paired-task-160.r1.on",
+  "pair_key": "PAIRED-TASK-160"
+}

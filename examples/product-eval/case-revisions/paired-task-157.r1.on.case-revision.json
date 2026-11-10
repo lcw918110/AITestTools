@@ -4,7 +4,7 @@
   "case_revision_id": "paired-task-157.r1.on",
   "revision_number": 1,
   "legacy_item_id": "EVAL-B-PAIRED-TASK-157-ON",
-  "content_hash": "1ba03fb41c82725ad6514bd1eb88bd8eaa9118265142a1b8bb0328474f9b30b6",
+  "content_hash": "338827d17eee2a254754d2a903343549bc7f4a0e7a29f72003dd76ea6b133d7b",
   "stimulus": {
     "kind": "task_prompt",
     "ref": "bank/materials/PAIRED-TASK-157/prompt.txt",
@@ -26,8 +26,7 @@
         "id": "discount-round",
         "type": "workspace_assert",
         "path": "lib/discount.mjs",
-        "contains": "Math.round",
-        "not_contains": "Math.floor((cents * percent) / 100)"
+        "not_contains": "return Math.floor((cents * percent) / 100)"
       },
       {
         "id": "tax-round",
@@ -61,11 +60,11 @@
   "protocol_probes": ["RuntimeStarted", "JournalEnvelope"],
   "model_id": "wave-anthropic/claude-sonnet-5",
   "execution": {
-    "deadline_ms": 240000,
+    "deadline_ms": 600000,
     "requires_network": true,
     "requires_durable_log": true
   },
   "change_log": {
-    "rev1": "效果实验：必须改仓库的双文件取整题"
+    "rev1": "折扣断言只禁旧的整除返回；先减再向下取整也能让题目测试通过。截止改为 600 秒，与委派冒烟对齐，不进内容摘要"
   }
 }

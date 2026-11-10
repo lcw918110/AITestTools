@@ -43,7 +43,7 @@ describe('效果题 workspace_assert：播种后未改应挂、改对应过', ()
 
     writeFileSync(
       join(workDir, 'lib/discount.mjs'),
-      'export function applyDiscount(cents, percent) {\n  return cents - Math.round((cents * percent) / 100);\n}\n',
+      'export function applyDiscount(cents, percent) {\n  const discount = Math.floor((cents * percent) / 100);\n  return cents - discount;\n}\n',
     );
     writeFileSync(
       join(workDir, 'lib/tax.mjs'),
@@ -57,6 +57,19 @@ describe('效果题 workspace_assert：播种后未改应挂、改对应过', ()
       focus: off.attribution_focus,
     });
     expect(after.veto).toBeUndefined();
+
+    writeFileSync(
+      join(workDir, 'lib/discount.mjs'),
+      'export function applyDiscount(cents, percent) {\n  return Math.floor((cents * percent) / 100);\n}\n',
+    );
+    const oldReturn = evaluateHostedOracles({
+      revision: off,
+      workspace: workDir,
+      exitCode: 0,
+      stdout: 'DUAL_FIX',
+      focus: off.attribution_focus,
+    });
+    expect(oldReturn.veto?.message).toMatch(/discount-round/);
   });
 
   it('158 播种后挂；三处公网端口对齐且 legacy 不动则过', () => {
@@ -72,11 +85,11 @@ describe('效果题 workspace_assert：播种后未改应挂、改对应过', ()
       stdout: 'PORT_SYNC',
       focus: off.attribution_focus,
     });
-    expect(before.veto?.message).toMatch(/config-port.*未含「"port": 8443」/);
+    expect(before.veto?.message).toMatch(/config-port.*未含「8443」/);
 
     writeFileSync(
       join(workDir, 'config/app.json'),
-      '{\n  "name": "billing-api",\n  "port": 8443\n}\n',
+      '{\n  "name": "billing-api",\n  "port":8443\n}\n',
     );
     writeFileSync(
       join(workDir, 'src/listen.js'),
@@ -128,7 +141,7 @@ describe('效果题 workspace_assert：播种后未改应挂、改对应过', ()
     writeFileSync(
       join(workDir, 'lib/validate.js'),
       `export function isValidName(s) {
-  return /^[A-Za-z][A-Za-z0-9_]{1,15}$/.test(s);
+  return /^[a-zA-Z_][a-zA-Z0-9_]*$/.test(s);
 }
 `,
     );

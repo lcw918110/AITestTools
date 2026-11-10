@@ -392,6 +392,15 @@ export function terminateChildProcessTree(
 ): void {
   const pid = child.pid;
   if (pid === undefined) return;
+  // 负 PID = 对整个进程组发信号；pid=1 会退化成 kill(-1)，即向当前用户所有进程广播。
+  if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid) {
+    try {
+      child.kill(signal);
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
   if (process.platform === 'win32') {
     try {
       spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore' });

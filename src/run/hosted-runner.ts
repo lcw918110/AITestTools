@@ -1,4 +1,5 @@
 import {
+  cpSync,
   existsSync,
   mkdirSync,
   mkdtempSync,
@@ -8,22 +9,29 @@ import {
   writeFileSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
 import {
   diagnoseHostedFailure,
   resolveHostedAttribution,
   resolveWorkspaceFailAttribution,
+  isProviderStreamBroken,
 } from '../attribution/hosted-tree.ts';
 import {
   collectNdjsonKinds,
   missingProtocolProbes,
   partitionHostedProtocolProbes,
 } from '../attribution/ndjson-probes.ts';
-import { ensureHostedGitRepo, readWanxiangEventStore } from '../attribution/event-store.ts';
+import {
+  ensureHostedGitRepo,
+  commitHostedSeed,
+  readWanxiangEventStore,
+} from '../attribution/event-store.ts';
 import { loadJournal, sealJournalToManifestFields } from '../drivers/cassette/journal.ts';
 import type { AxisItemResult } from './runner-types.ts';
+import type { Attribution } from '../exam-engine/types.ts';
+import type { CaseRevision } from '../domain/types.ts';
 import { fail } from './runner-shared.ts';
 import type {
   AdapterContext,
@@ -35,12 +43,23 @@ import type {
 } from './execution-adapter.ts';
 import { AdapterError } from './execution-adapter.ts';
 import { evaluateHostedOracles } from './hosted-oracles.ts';
-import { observeHostExit, type HostedHostExitObservation } from './hosted-host-exit.ts';
+import {
+  observeHostExit,
+  isHostCrashed,
+  type HostedHostExitObservation,
+} from './hosted-host-exit.ts';
 import { observeHostedPassToken, type HostedPassTokenObservation } from './hosted-pass-token.ts';
 import { resolveHostedPrompt } from './hosted-prompt.ts';
 import { resolvePluginPath } from './plugin-path.ts';
 import { seedStimulusMaterials } from './seed-stimulus-materials.ts';
-import { materialsMutated, snapshotSeededFiles } from './hosted-workspace-state.ts';
+import {
+  materialsMutated,
+  mutatedSeededFiles,
+  snapshotSeededFiles,
+  type SeedSnapshot,
+} from './hosted-workspace-state.ts';
+import { captureDelegatedWorktrees } from './delegated-worktree-capture.ts';
+import { captureEventPayloads } from './event-payload-capture.ts';
 import { buildCanaryInjection, detectCanaryLeak } from '../security/canary.ts';
 import { evaluateIsolationGate, type IsolationGateResult } from '../security/isolation-backend.ts';
 import {
@@ -67,10 +86,16 @@ export class HostedAdapter implements ExecutionAdapter {
   private isolatedHome: string | undefined;
   private wantIsolated = false;
   private seeded: string[] = [];
-  private seedSnapshot: Record<string, string> = {};
+  private seedSnapshot: SeedSnapshot = { digests: {}, unreadable: [] };
   private hostObs!: ReturnType<typeof observeHostExit>;
   private tokenObs!: ReturnType<typeof observeHostedPassToken>;
   private mutated = false;
+  /** 交付面观察：改动是否只停在委派分支。`null` 表示未采成，不能当作「没搁浅」。 */
+  private deliveryObs: {
+    delegated_worktrees: number;
+    delegated_changed_files: string[];
+    stranded_in_worktree: boolean | null;
+  } = { delegated_worktrees: 0, delegated_changed_files: [], stranded_in_worktree: null };
   private oracleEval!: ReturnType<typeof evaluateHostedOracles>;
   private runLog: Record<string, unknown> = {};
   private sealNote = '';
@@ -78,6 +103,7 @@ export class HostedAdapter implements ExecutionAdapter {
   private staleProbeNote = '';
   private hostNote = '';
   private envAuthFail = false;
+  private providerStreamBroken = false;
   private protocolProbesMissing = false;
   private pairKey: string | undefined;
   // prepare 阶段元数据（供 collect 落盘 runLog / sealNote）
@@ -221,16 +247,33 @@ export class HostedAdapter implements ExecutionAdapter {
     if (this.wantIsolated) {
       writeFileSync(join(this.workDir, 'README.md'), '# proctor hosted workspace\n');
       const gitInit = ensureHostedGitRepo(this.workDir);
-      if (!gitInit.ok && ctx.artifactDir !== undefined) {
-        writeFileSync(
-          join(ctx.artifactDir, 'hosted-git-init.json'),
-          `${JSON.stringify({ ok: false, error: gitInit.error ?? null }, null, 2)}\n`,
+      if (!gitInit.ok) {
+        if (ctx.artifactDir !== undefined) {
+          writeFileSync(
+            join(ctx.artifactDir, 'hosted-git-init.json'),
+            `${JSON.stringify({ ok: false, error: gitInit.error ?? null }, null, 2)}\n`,
+          );
+        }
+        // 必须在这里就阻断：git init 失败后 commitHostedSeed 必然失败，
+        // 若放行到那一步，抛出的会是「提交失败」，把真正的首个原因（init 失败）盖掉，
+        // 产物里两条记录互相矛盾，排查会被引向 commit 而不是 init。
+        this.discardWorkDir();
+        throw new AdapterError(
+          'prepare_failed',
+          'HARNESS',
+          `hosted 工作区 git init 失败，隔离环境不可用：${gitInit.error ?? '未知错误'}`,
         );
       }
       const plugins: string[] = [];
       if (pluginPath !== undefined) plugins.push(pluginPath);
       if (recorderPlugin !== undefined) plugins.push(recorderPlugin);
-      const cfg: Record<string, unknown> = { permission: { '*': 'allow' } };
+      // `$schema` 必须显式写上：opencode 启动时会给缺 `$schema` 的配置补这一行，
+      // 于是播种后本已干净的 opencode.json 变成已修改，万象术 `ChangeRuntime.start`
+      // 的脏检查随即返回 RejectedDirty，commission 恒失败。实测补上后配置零改动。
+      const cfg: Record<string, unknown> = {
+        $schema: 'https://opencode.ai/config.json',
+        permission: { '*': 'allow' },
+      };
       if (plugins.length > 0) cfg.plugin = plugins;
       writeFileSync(join(this.workDir, 'opencode.json'), `${JSON.stringify(cfg, null, 2)}\n`);
     }
@@ -263,6 +306,36 @@ export class HostedAdapter implements ExecutionAdapter {
       writeFileSync(join(cassetteOutDir, 'journal.ndjson'), '');
     }
 
+    // 万象术的 ChangeRuntime.start 在创建 manager 会话前先做脏检查
+    // （wanxiangli/src/change/ChangeRuntime.fs:104-108）：工作区有未提交改动即返回
+    // RejectedDirty，导致 commission 恒返回 placement-failed。而 ensureHostedGitRepo
+    // 只做 git init、从不 commit，播种的题目材料全部处于未跟踪状态，脏检查必然失败。
+    // 故在所有播种（stimulus + canary）完成后补一次提交，让工作区对被测插件呈现为干净。
+    if (this.wantIsolated) {
+      const commit = commitHostedSeed(this.workDir);
+      // 无论成败都留痕：这是委派能否建立的前置条件，失败时必须可观测，
+      // 否则又会退化成「只看到一个 placement-failed 兜底码」。
+      if (ctx.artifactDir !== undefined) {
+        writeFileSync(
+          join(ctx.artifactDir, 'hosted-git-commit.json'),
+          `${JSON.stringify({ ok: commit.ok, error: commit.error ?? null }, null, 2)}\n`,
+        );
+      }
+      // 提交失败必须阻断：万象术的脏检查会拒绝建 manager 会话，委派必然失败。
+      // 若继续跑，工作区断言也会失败，归因会落到 MODEL_TASK——把工装失败记成模型失败，
+      // 正是本仓反复强调要防的假红。这里按 HARNESS 提前终止，让失败原因可读。
+      if (!commit.ok) {
+        // prepare 抛出时 run-orchestrator 拿不到 prepared，不会调 cleanup，
+        // workDir 会永久残留在 tmpdir。这里自行清理后再抛。
+        this.discardWorkDir();
+        throw new AdapterError(
+          'prepare_failed',
+          'HARNESS',
+          `hosted 工作区播种后提交失败，委派前置条件不成立：${commit.error ?? '未知错误'}`,
+        );
+      }
+    }
+
     const prompt = resolveHostedPrompt(ctx.revision, ctx.projectRoot);
     const runArgs = ['run'];
     if (this.wantIsolated || wantDurable) runArgs.push('--dir', this.workDir);
@@ -271,10 +344,15 @@ export class HostedAdapter implements ExecutionAdapter {
     runArgs.push('--print-logs');
     runArgs.push(prompt);
 
-    const deadline = ctx.revision.execution.deadline_ms || 180_000;
     const managedAgentsRaw = ctx.environment.recipe.managed_agents;
     const managedAgents = Array.isArray(managedAgentsRaw) ? managedAgentsRaw.map(String) : [];
-    const hostConfig = prepareIsolatedHostConfig({ managedAgents, model: hostModel });
+    const deadline = resolveHostedDeadline(ctx.revision, managedAgents);
+    const hostConfig = prepareIsolatedHostConfig({
+      managedAgents,
+      model: hostModel,
+      pluginPath,
+      artifactDir: ctx.artifactDir,
+    });
     this.isolatedHome = hostConfig.home;
     // 模型端点域名要并入沙箱放行名单，故记下本次实际继承的 provider 段。
     this.inheritedProvider = inheritedProviderConfig().provider;
@@ -379,7 +457,11 @@ export class HostedAdapter implements ExecutionAdapter {
       timeoutMs: p.deadline,
     });
     const durationMs = Date.now() - startedAt;
-    this.hostObs = observeHostExit(run);
+    this.hostObs = observeHostExit({
+      ...run,
+      deadlineFired: run.timedOut,
+      stdioDestroyed: run.stdioDestroyed,
+    });
 
     const ndjsonPath = join(this.workDir, '.wanxiangshu.ndjson');
     let ndjsonText = existsSync(ndjsonPath) ? readFileSync(ndjsonPath, 'utf8') : '';
@@ -405,6 +487,46 @@ export class HostedAdapter implements ExecutionAdapter {
     const stderrFull = run.stderr || '';
     this.tokenObs = observeHostedPassToken(ctx.revision, stdoutFull);
     this.mutated = materialsMutated(this.workDir, this.seeded, this.seedSnapshot);
+    const mutatedInSeed = mutatedSeededFiles(this.workDir, this.seeded, this.seedSnapshot);
+    let captures: ReturnType<typeof captureDelegatedWorktrees> = [];
+    let captured = false;
+    if (ctx.artifactDir !== undefined) {
+      // 清播种目录前收副本。采集失败只留空，不得抛出改写通过判定。
+      try {
+        captures = captureDelegatedWorktrees({
+          events: store.events,
+          seeded: this.seeded,
+          artifactDir: ctx.artifactDir,
+          seedSnapshot: this.seedSnapshot,
+          mutatedInSeed,
+        });
+        captured = true;
+        if (process.env['PROCTOR_CAPTURE_EVENT_PAYLOADS'] === '1') {
+          captureEventPayloads(
+            this.workDir,
+            ctx.artifactDir,
+            captures.map((capture) => capture.source),
+          );
+        }
+      } catch {
+        /* 副本缺失不改变 this.mutated 与后续 evaluate */
+        captured = false;
+      }
+    }
+    // 交付面信号：改动只停在委派分支、没回到播种目录。
+    // 三态必须分清：没采 / 采集失败 → null；采到 → true/false。空数组不能当成「确认没搁浅」。
+    const stranded = captures.map((capture) => capture.strandedInWorktree);
+    this.deliveryObs = {
+      delegated_worktrees: captures.length,
+      delegated_changed_files: captures.flatMap((capture) => capture.changed),
+      stranded_in_worktree: !captured
+        ? null
+        : stranded.length === 0
+          ? null
+          : stranded.includes(null)
+            ? null
+            : stranded.some((value) => value === true),
+    };
     // 安全红队：canary 泄露检测（工具 judge，程序化）。检测面 = 输出 + 工作区新写入文件。
     if (this.canarySecret !== undefined) {
       this.canaryLeak = detectCanaryLeak(this.canarySecret, [
@@ -418,9 +540,17 @@ export class HostedAdapter implements ExecutionAdapter {
       exitCode: typeof run.status === 'number' ? run.status : 1,
       hostStatus: run.status,
       timedOut: this.hostObs.timed_out,
+      hostSignal: this.hostObs.host_signal,
+      hostSpawnError: this.hostObs.host_spawn_error,
       stdout: stdoutFull,
       stderr: stderrFull,
       focus: ctx.revision.attribution_focus,
+      events: store.events,
+      eventsPresent: store.present,
+      materialsMutated: this.mutated,
+      providerStreamBroken:
+        (typeof run.status === 'number' ? run.status : 1) !== 0 &&
+        isProviderStreamBroken(stderrFull),
     });
 
     const out = `${stdoutFull}\n${stderrFull}`;
@@ -430,10 +560,14 @@ export class HostedAdapter implements ExecutionAdapter {
         outLower,
       );
     this.envAuthFail = authMiss && (this.hostObs.timed_out || this.hostObs.host_exit !== 0);
+    this.providerStreamBroken = this.hostObs.host_exit !== 0 && isProviderStreamBroken(stderrFull);
 
     const missingProbes =
       this.protocolProbes.length > 0 ? missingProtocolProbes(kinds, this.protocolProbes) : [];
-    const skipProtocolVeto = this.hostObs.timed_out && this.oracleEval.workspace_ok;
+    // 超时或供应商流被打断时，探针没写出是没跑完，不是协议没遵守。
+    // 只在工作区已通过时跳过：文件改错仍走工作区失败，不靠探针盖过去。
+    const skipProtocolVeto =
+      (this.hostObs.timed_out || this.providerStreamBroken) && this.oracleEval.workspace_ok;
     this.protocolProbesMissing = missingProbes.length > 0 && !skipProtocolVeto;
 
     return {
@@ -487,10 +621,14 @@ export class HostedAdapter implements ExecutionAdapter {
       workspace_isolated: this.wantIsolated,
       materials_seeded: this.seeded,
       materials_mutated: this.mutated,
+      delegated_worktrees: this.deliveryObs.delegated_worktrees,
+      delegated_changed_files: this.deliveryObs.delegated_changed_files,
+      stranded_in_worktree: this.deliveryObs.stranded_in_worktree,
       timed_out: this.hostObs.timed_out,
       host_exit: this.hostObs.host_exit,
       host_signal: this.hostObs.host_signal,
       host_exit_role: this.hostObs.host_exit_role,
+      stdio_destroyed: this.hostObs.stdio_destroyed,
       workspace_ok: this.oracleEval.workspace_ok,
       workspace_ran: this.oracleEval.workspace_ran,
       workspace_failures: this.oracleEval.workspace_failures,
@@ -586,11 +724,65 @@ export class HostedAdapter implements ExecutionAdapter {
         this.mutated,
       );
 
+    // 宿主崩溃：模型行为无法判定，但若已有确定事实（鉴权失败 / 工作区改错），按事实归因。
+    // 必须排在「试题配错 HARNESS」早返回之前：崩溃同时伴随事件流缺失时，
+    // 那个 HARNESS 来自试题接线，会把「工作区已改错」和「鉴权失败」一起吞掉。
+    if (isHostCrashed(this.hostObs)) {
+      const attr: Attribution = this.oracleEval.workspace_ok
+        ? this.envAuthFail
+          ? 'CONTEXT'
+          : 'HARNESS'
+        : resolveWorkspaceFailAttribution({
+            timedOut: false,
+            materialsMutated: this.mutated,
+            authMiss: this.envAuthFail,
+            hostCrashed: true,
+          });
+      const why =
+        this.oracleEval.workspace_failures[0]?.message ??
+        (this.hostObs.host_spawn_error !== null
+          ? `宿主启动失败（${this.hostObs.host_spawn_error}），模型未执行`
+          : `宿主被信号 ${String(this.hostObs.host_signal)} 终止（非超时崩溃），模型行为无法判定`);
+      return [
+        finish(
+          fail(
+            ctx.revision,
+            attr,
+            `${why}${this.hostNote}${this.sealNote}${this.storeNote}${this.staleProbeNote}`,
+            {
+              artifactDir: ctx.artifactDir,
+              effectPair: this.pairKey,
+              extraFailures: this.oracleEval.workspace_failures,
+            },
+          ),
+        ),
+      ];
+    }
+
+    // 试题/接线配错优先于一切：事件流未读到、names 无效等属 HARNESS，
+    // 不得被「工作区断言失败」或「协议探针缺失」改写成模型/上下文失败。
+    if (this.oracleEval.veto?.attribution === 'HARNESS') {
+      return [
+        finish(
+          fail(
+            ctx.revision,
+            'HARNESS',
+            `${this.oracleEval.veto.message}${this.hostNote}${this.sealNote}${this.storeNote}`,
+            {
+              artifactDir: ctx.artifactDir,
+              effectPair: this.pairKey,
+            },
+          ),
+        ),
+      ];
+    }
+
     if (!this.oracleEval.workspace_ok) {
       const attr = resolveWorkspaceFailAttribution({
         timedOut: this.hostObs.timed_out,
         materialsMutated: this.mutated,
         authMiss: this.envAuthFail,
+        providerStreamBroken: this.providerStreamBroken,
       });
       const why =
         this.oracleEval.workspace_failures[0]?.message ??
@@ -601,7 +793,9 @@ export class HostedAdapter implements ExecutionAdapter {
           ? '超时且材料未改；'
           : this.hostObs.timed_out
             ? '超时；'
-            : '';
+            : this.providerStreamBroken && !this.mutated
+              ? '供应商流被打断且材料未改；'
+              : '';
       return [
         finish(
           fail(
@@ -652,6 +846,22 @@ export class HostedAdapter implements ExecutionAdapter {
       ];
     }
 
+    if (this.providerStreamBroken && !this.mutated) {
+      return [
+        finish(
+          fail(
+            ctx.revision,
+            'CONTEXT',
+            `供应商流被打断且材料未改${this.hostNote}${this.sealNote}${this.storeNote}${this.staleProbeNote}`,
+            {
+              artifactDir: ctx.artifactDir,
+              effectPair: this.pairKey,
+            },
+          ),
+        ),
+      ];
+    }
+
     if (this.oracleEval.veto !== undefined) {
       return [
         finish(
@@ -682,6 +892,18 @@ export class HostedAdapter implements ExecutionAdapter {
   }
 
   async cleanup(_ctx: AdapterContext, _prepared: PreparedState): Promise<{ ok: boolean }> {
+    this.discardWorkDir();
+    return { ok: true };
+  }
+
+  /**
+   * 丢弃隔离工作区与隔离 HOME。
+   *
+   * 单独抽出来是因为 `prepare` 失败时 `run-orchestrator` 拿不到 `prepared`，
+   * 也就不会调 `cleanup`——若不在这里自行清理，`workDir`/`isolatedHome`
+   * 会永久残留在 `tmpdir()` 里。
+   */
+  private discardWorkDir(): void {
     if (this.wantIsolated) {
       try {
         rmSync(this.workDir, { recursive: true, force: true });
@@ -696,7 +918,6 @@ export class HostedAdapter implements ExecutionAdapter {
         /* 清理失败可忽略 */
       }
     }
-    return { ok: true };
   }
 }
 
@@ -794,7 +1015,14 @@ export default function route(role, running, previous) {
  * - OFF/ON 必须只差插件一项；继承开发者个人配置会让对照失去意义
  * provider 段仍需继承，否则隔离后无可用模型。
  */
-function prepareIsolatedHostConfig(opts: { managedAgents: string[]; model?: string | undefined }): {
+function prepareIsolatedHostConfig(opts: {
+  managedAgents: string[];
+  model?: string | undefined;
+  /** 被测插件入口（绝对路径）。opencode 会为它安装运行期依赖，需提前备好。 */
+  pluginPath?: string | undefined;
+  /** 产物目录，用于留痕依赖预装结果。 */
+  artifactDir?: string | undefined;
+}): {
   home: string;
   configHome: string;
   providerNames: string[];
@@ -845,6 +1073,20 @@ function prepareIsolatedHostConfig(opts: { managedAgents: string[]; model?: stri
       writeFileSync(join(dir, 'wanxiangshu.mjs'), controlledSchedulerSource(model));
     }
 
+    // 插件运行期依赖必须预装到隔离 HOME。
+    //
+    // opencode 加载 `plugin` 指向的模块时，若它 import 的包在隔离 HOME 里解析不到，
+    // opencode 会后台跑 `npm install` 去补。沙箱不放行 registry.npmjs.org，
+    // 该请求被代理拒绝（403 host is not on the allow list），插件加载随即失败：
+    //   {"operation":"plugin-initialization-failed", ...}
+    // 结果是被测插件一次都没被调用，运行空转到 deadline 被 SIGKILL。
+    // 实测：预装该依赖后插件正常加载（错误推进到万象术自身的 agent 校验），
+    // 且完全不发起 npm install。故这里复制而非放开网络——放行 registry 等于
+    // 允许被测模型在沙箱内下载任意包，边界太宽。
+    if (opts.pluginPath !== undefined) {
+      installPluginRuntimeDeps(opts.pluginPath, dir, opts.artifactDir);
+    }
+
     const providerNames =
       inherited.provider !== undefined ? Object.keys(inherited.provider as object).sort() : [];
     return {
@@ -863,6 +1105,113 @@ function prepareIsolatedHostConfig(opts: { managedAgents: string[]; model?: stri
     }
     throw e;
   }
+}
+
+/**
+ * 把插件运行期依赖复制进隔离 HOME 的 `node_modules`。
+ *
+ * 为什么需要：opencode 加载 `plugin` 指定的模块时，若其 import 的包在隔离 HOME 里
+ * 解析不到，会后台跑 `npm install` 补装。hosted 沙箱不放行 `registry.npmjs.org`，
+ * 该请求被代理以 403 拒绝，插件加载直接失败（`plugin-initialization-failed`），
+ * 被测插件从未被调用，运行空转到 deadline。
+ *
+ * 注意不能只复制 `@opencode-ai/plugin` 本体：它自身声明了
+ * `@ai-sdk/provider` / `@opencode-ai/sdk` / `effect` / `zod` 等运行时依赖，
+ * 且 `dist/tool.js` 直接 `import { z } from "zod"`。只搬顶层包会让 Node 解析
+ * 上溯失败，重演同一个故障。故按「包 + 其嵌套 node_modules」整棵复制。
+ *
+ * 依赖从插件自身所在的包根向上找最近的 `node_modules`，网络零参与。
+ * 找不到时写产物留痕（不静默跳过），否则事后无法区分「没找到源」与「复制成功」。
+ */
+function installPluginRuntimeDeps(
+  pluginPath: string,
+  configDir: string,
+  artifactDir?: string | undefined,
+): void {
+  const dep = '@opencode-ai/plugin';
+  let dir = dirname(pluginPath);
+  let source: string | undefined;
+  for (;;) {
+    const candidate = join(dir, 'node_modules', dep);
+    if (existsSync(candidate)) {
+      source = candidate;
+      break;
+    }
+    const parent = dirname(dir);
+    if (parent === dir) break;
+    dir = parent;
+  }
+
+  const record = (payload: Record<string, unknown>): void => {
+    if (artifactDir === undefined) return;
+    try {
+      writeFileSync(
+        join(artifactDir, 'hosted-plugin-deps.json'),
+        `${JSON.stringify(payload, null, 2)}\n`,
+      );
+    } catch {
+      /* 留痕失败不影响主流程 */
+    }
+  };
+
+  if (source === undefined) {
+    // 不静默：插件可能来自 `dist/` 直发、不在任何 node_modules 树下。
+    // 那种情况下 opencode 仍会尝试 npm install 并失败，留痕便于事后定位。
+    record({ ok: false, reason: 'dependency-not-found', searched_from: dirname(pluginPath) });
+    return;
+  }
+
+  const target = join(configDir, 'node_modules', dep);
+  mkdirSync(dirname(target), { recursive: true });
+  // 整棵复制：包本体 + 它自己的嵌套 node_modules（含 zod 等运行时依赖）。
+  cpSync(source, target, { recursive: true, dereference: true });
+  record({ ok: true, source, target });
+}
+
+/**
+ * 解析 hosted 运行 deadline。
+ *
+ * 显式声明优先（题目冻结时写死的 `deadline_ms` 就是该题的实验条件，不得擅自覆盖）。
+ * 未声明时按任务规模推导默认值：委派型任务会并行起多个 manager 会话，每个会话
+ * 各自跑 LLM 流，耗时随会话数增长。固定 180s 对单会话够用，对 4 个并行会话必然超时
+ * （实测 `runs/20261105-135851245-syv0`：240s 仍在 `stream`）。
+ *
+ * 推导口径：
+ * - 基础额度 180s（单会话基线）；
+ * - 每多一个可委派到的 manager 会话加 120s；
+ * - 上限 900s，避免配置写错时挂死整轮。
+ *
+ * 只对「存在 manager 角色」的环境做加码：没有 manager 就没有委派，按基线走。
+ */
+export function resolveHostedDeadline(
+  revision: CaseRevision,
+  managedAgents: readonly string[],
+): number {
+  const explicit = revision.execution.deadline_ms;
+  if (typeof explicit === 'number' && explicit > 0) return explicit;
+  const hasManager = managedAgents.some((a) => a === 'manager');
+  if (!hasManager) return 180_000;
+  // 含 manager 的题统一给 300s（180s 基础 + 1 个 manager 会话的 120s）。
+  // 注：当前不按题面委派规模推导——`managerSessions` 恒为 1，实际结果固定 300_000。
+  // 若将来要按规模放宽，需先让题面声明可读的委派规模，再替换此常量。
+  const managerSessions = 1;
+  const extra = Math.max(0, managerSessions) * 120_000;
+  return Math.min(900_000, 180_000 + extra);
+}
+
+/**
+ * 仅供测试：暴露双阶段结算的内部实现。
+ *
+ * 加 `NODE_ENV` 断言而非只靠注释约束——该模块内任何 `src/**` 文件都能 import，
+ * 若被生产代码当作「带 reap 的通用 spawn」误用，会绕过 Adapter 的归因与产物落盘。
+ */
+export function runHostedWithReapForTest(
+  ...args: Parameters<typeof runHostedWithReap>
+): ReturnType<typeof runHostedWithReap> {
+  if (process.env.NODE_ENV !== 'test' && process.env.VITEST === undefined) {
+    throw new Error('runHostedWithReapForTest 仅供测试使用');
+  }
+  return runHostedWithReap(...args);
 }
 
 function mergeHostedKinds(ndjsonText: string, storeKinds: string[]): Set<string> {
@@ -913,11 +1262,21 @@ function attachHostedObs(
     timed_out: hostObs.timed_out,
     host_exit: hostObs.host_exit,
     host_signal: hostObs.host_signal,
+    host_spawn_error: hostObs.host_spawn_error,
     host_exit_role: hostObs.host_exit_role,
     workspace_ok,
     materials_mutated,
   };
 }
+
+/**
+ * `exit` 已触发后的 stdio 宽限期。
+ *
+ * 宿主退出后若孙进程仍占着 stdout/stderr 的 pipe 写端，Node 的 `close` 永不触发。
+ * 500ms 足够读完管道残留缓冲（默认 64KB，正常输出远小于此），
+ * 又远小于 deadline，避免把工装问题拖成 180s 超时。
+ */
+const STDIO_GRACE_MS = 500;
 
 /**
  * 运行真实宿主命令，超时或异常时递归清理整棵进程树。
@@ -938,6 +1297,10 @@ async function runHostedWithReap(
   error: NodeJS.ErrnoException | null;
   stdout: string;
   stderr: string;
+  /** 本平台 deadline 是否真的触发过（区别于外部 OOM killer / 用户 kill）。 */
+  timedOut: boolean;
+  /** 宿主已退出但 stdio 被孙进程占住，平台在宽限期后强制 destroy 了读端。 */
+  stdioDestroyed: boolean;
 }> {
   const isPosix = process.platform !== 'win32';
   return new Promise((resolve) => {
@@ -955,7 +1318,9 @@ async function runHostedWithReap(
     let stderr = '';
     let settled = false;
     let timedOut = false;
-    let forceKillTimer: ReturnType<typeof setTimeout> | undefined;
+    let stdioDestroyed = false;
+    let graceTimer: ReturnType<typeof setTimeout> | undefined;
+    const knownPids = new Set<number>();
 
     const finish = (
       status: number | null,
@@ -965,15 +1330,16 @@ async function runHostedWithReap(
       if (settled) return;
       settled = true;
       clearTimeout(timer);
-      if (forceKillTimer !== undefined) clearTimeout(forceKillTimer);
-      resolve({ status, signal, error, stdout, stderr });
+      if (graceTimer !== undefined) clearTimeout(graceTimer);
+      resolve({ status, signal, error, stdout, stderr, timedOut, stdioDestroyed });
     };
 
     const timer = setTimeout(() => {
       timedOut = true;
-      reapTree(child, 'SIGTERM');
-      forceKillTimer = setTimeout(() => {
-        reapTree(child, 'SIGKILL');
+      reapTree(child, 'SIGTERM', knownPids);
+      setTimeout(() => {
+        reapTree(child, 'SIGKILL', knownPids);
+        killConfirmedProcessGroup(child.pid);
       }, 500);
       // deadline 兜底必须 ref 持有：unref 的事件循环里若其余句柄（如挂起的
       // mux 排水）恰好都不再驱动循环，定时器可能永远不触发，deadline 失守。
@@ -989,6 +1355,46 @@ async function runHostedWithReap(
     child.on('error', (err) => {
       finish(null, null, err as NodeJS.ErrnoException);
     });
+
+    /**
+     * 双阶段结算：`exit` 先到就开宽限期，`close` 正常则用 `close` 结算。
+     *
+     * 为什么不能只用 `close`：opencode 是 client-server 架构，退出时留下的
+     * server 子进程会继承 stdout/stderr 的 pipe 写端；只要有一个孙进程还活着，
+     * pipe 就不关，`close` 永不触发，该题会挂到 deadline（180s）并被误判成超时。
+     *
+     * 为什么不能只用 `exit`：`exit` 触发时管道里可能还有未读完的数据，
+     * 立即结算会丢尾部输出，影响 `stdout_assert` / 暗号类 oracle 的判定。
+     */
+    child.on('exit', (code, signal) => {
+      if (settled) return;
+      // 宿主已退出，deadline 不再适用：必须立刻清掉，否则若 deadline 恰好落在
+      // 500ms 宽限期内（剩余预算不足的题、或 deadline_ms 配得很小的题），
+      // timer 回调会把 timedOut 置真并 reapTree(SIGTERM)，随后宽限期用
+      // 已经正常退出的退出码结算，产出 status=0 + timedOut=true + ETIMEDOUT
+      // 的自相矛盾结果，正常完成的题被记成超时并归因 CONTEXT。
+      clearTimeout(timer);
+      graceTimer = setTimeout(() => {
+        if (settled) return;
+        // 宽限期到：孙进程仍占着 pipe，主动 destroy 读端让 close 得以触发；
+        // 若 close 仍不来，直接用 exit 的结果结算，绝不等到 deadline。
+        // 标记必须在 destroy 之前赋值：真实 Node 中 destroy 可能同步触发 close，
+        // 而 close 处理器会立刻 finish 并读走该标记。
+        stdioDestroyed = true;
+        child.stdout?.destroy();
+        child.stderr?.destroy();
+        // 只 destroy 读端不会让占住 pipe 的孙进程退出；不回收会留下常驻进程，
+        // 批量跑卷时累积并破坏下一题的隔离假设（独占 HOME / workspace）。
+        reapTree(child, 'SIGTERM', knownPids);
+        finish(code, signal ?? null, null);
+      }, STDIO_GRACE_MS);
+      // 用 ref 而非 unref：实测在「pipe 被孙进程占住」场景下 unref 定时器仍会触发
+      // （pipe 读端句柄保活事件循环，510ms 准时触发），但那是隐式前提——
+      // 一旦将来有人在 exit 后 unref 管道或改 stdio 配置，宽限期就会静默失效、
+      // 退回挂到 deadline 的老问题。ref 的 500ms 代价可忽略，且不依赖任何前提。
+      graceTimer.ref();
+    });
+
     child.on('close', (code, signal) => {
       const timedOutErr: NodeJS.ErrnoException | null = timedOut
         ? Object.assign(new Error('ETIMEDOUT'), { code: 'ETIMEDOUT' })
@@ -998,10 +1404,40 @@ async function runHostedWithReap(
   });
 }
 
+/**
+ * 对 detached 子进程的进程组发 SIGKILL。
+ * 不能先用信号 0 探测：组长已退出时探测会报 ESRCH，但组里忽略 SIGTERM 的孙进程还在。
+ * 此时直接发 SIGKILL 仍能打到整组；组已空则忽略错误。
+ */
+function killConfirmedProcessGroup(pid: number | undefined): void {
+  if (pid === undefined || !Number.isInteger(pid) || pid <= 1 || pid === process.pid) return;
+  if (process.platform === 'win32') return;
+  try {
+    process.kill(-pid, 'SIGKILL');
+  } catch {
+    /* 组长消失后，macOS 对进程组发信号会报 ESRCH，即使组员还在。 */
+  }
+}
+
 /** 终止子进程及其进程树（POSIX 负 PID 杀进程组 + pgrep 后代遍历兜底；Windows taskkill /T /F）。 */
-function reapTree(child: ReturnType<typeof spawn>, signal: NodeJS.Signals): void {
+function reapTree(
+  child: ReturnType<typeof spawn>,
+  signal: NodeJS.Signals,
+  knownPids?: Set<number>,
+): void {
   const pid = child.pid;
   if (pid === undefined) return;
+  // 负 PID 的语义是「把信号发给该 pgid 的整个进程组」。pid=1 时 -pid 即 -1，
+  // 等于向当前用户的**全部进程**广播 SIGTERM/SIGKILL（编辑器、终端、其它 App 一起死）。
+  // 只对真实子进程（pid>1 且不等于自身）发组信号，否则退化为单进程 kill。
+  if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid) {
+    try {
+      child.kill(signal);
+    } catch {
+      /* ignore */
+    }
+    return;
+  }
   if (process.platform === 'win32') {
     try {
       spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore' });
@@ -1023,8 +1459,11 @@ function reapTree(child: ReturnType<typeof spawn>, signal: NodeJS.Signals): void
       /* ignore */
     }
   }
-  // 兜底：逐层收集自行换组的后代并单独终止
-  for (const descendant of collectDescendantPids(pid)) {
+  // 兜底：逐层收集自行换组的后代并单独终止。
+  // 记下本次扫到的 PID：父进程退出后，第二次扫描已经看不到被过继的孙进程。
+  const descendants = collectDescendantPids(pid);
+  for (const descendant of descendants) knownPids?.add(descendant);
+  for (const descendant of new Set([...(knownPids ?? []), ...descendants])) {
     try {
       process.kill(descendant, signal);
     } catch {
