@@ -2322,3 +2322,33 @@ ON 侧事件种类含 `ManagerJobCreated`、`WorktreeCreated`、`TerminalOutputC
 ### 十一、门禁
 
 **111 文件 / 890 tests / 321 题 0 错误**，typecheck 与 Prettier 均通过。诊断载荷产物（`event-payloads/`）已从运行目录清理。
+
+### 十二、上游故障单：委派成功后 `join` 停摆（2026-11-10）
+
+按要求「再次确认挖掘，确定是上游就报故障单」，对 `k428` / `2umd` / `zlx2` 三次运行做了逐条复算，
+结论与早前几轮的推测都不同，已落成
+[BUG-20261110](../bugs/BUG-20261110-orchestrator-program-api.md)。
+
+**已确认**：`commission` 是成功的——`hosted-stdout.log:122` 明确记 `outcome = "commissioned"`，
+事件流有 5 个 `ManagerJobCreated` + 5 个 `WorktreeCreated`。工作树也建成了。
+
+**真正卡点**：`hosted-stderr.log:621` 的 `join` 是**全流程最后一次工具调用**，
+之后到 543 秒被 `SIGKILL` 只剩 34 条 `stream`，零工具调用。
+`timed_out=false`，所以不是 600 秒不够。收尾报 `WorkStillActive`。
+
+模型自述（`hosted-stdout.log:122-125`）点出直接原因：`retention` 用尽、必须 `resetScope`。
+上游 `RequestProjection.fs:691-711` 在 `retention.remaining = 0` 时确实强制要求 `resetScope`。
+`resetScope` 之后 `join` 就再没下文——是结果未回传、上下文被清、还是模型放弃，本仓证据不足以区分，
+已在单子里列为待上游确认项。
+
+**这轮推翻的四个早期说法**（写在单子末尾，避免向上游传错）：
+
+| 早期说法                                  | 为何错                                                            |
+| :---------------------------------------- | :---------------------------------------------------------------- |
+| manager 工具面缺写入/执行，转派入口不存在 | 漏了 `devops`（有 `Write`/`Exec`）；编程面 `fork` 按角色是活的    |
+| 编排链上没有任何会话具备改文件→跑测试     | `devops` 能力齐全，只是没被这条链路用上                           |
+| orchestrator 是 75 次调用                 | 75 是字符串出现数，实际工具调用 44 行                             |
+| `Math.floor` 说明没跑过测试               | `Math.floor` 是种子原状，该结果无法区分「跑过没改对」与「没跑过」 |
+
+三次独立审查（含两次推翻结论）的成本，换来的是不再把「API 试探」误当成终局根因。
+上游源码全程只读，未修改任何文件。
