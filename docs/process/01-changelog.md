@@ -2396,7 +2396,63 @@ commission、horizon、park、unpark、abandon」，并去猜 `this.call` / `thi
   恢复后全绿。
 - 全量 `vitest` 912 通过 / `tsc --noEmit` 通过 / `prettier --check` 通过。
 
-### 四、未改的一项
+### 四、文档口径更正（2026-11-11 复核）
 
-`hosted-runner.ts` 的 `installPluginRuntimeDeps` 注释称整棵复制依赖，实际只覆盖 `zod`，
-SUT 改用其它入口会解析失败。属既有行为，本轮未动，仍记在 [06-next-steps.md](06-next-steps.md)。
+`06-next-steps.md` 与本文原先记载「`installPluginRuntimeDeps` 实际只覆盖 `zod`，SUT 改用其它入口会解析失败」。
+本轮复核确认**该说法已不成立**：当前实现（`src/run/hosted-runner.ts:1168`）是
+`cpSync(source, target, { recursive: true, dereference: true })`，整棵递归复制包本体与嵌套
+`node_modules`，与函数注释一致。`git log -S installPluginRuntimeDeps` 显示该函数自引入
+（`f4f350c`）起就是整棵复制，**历史中从未存在 zod-only 版本**，
+属原审查记录本身写错，不存在需要追溯的行为变更。该待办已撤回。
+
+## 56. 宿主 stdio 跨 chunk 的 UTF-8 解码修复（2026-11-11）
+
+### 一、缺陷
+
+`runHostedWithReap` 用 `buf.toString('utf8')` 逐 chunk 解码宿主 stdout/stderr 后拼接。
+多字节字符（如汉字 3 字节）一旦跨 chunk 边界，前后两截各自解码都会产出替换字符 `U+FFFD`。
+
+实测（三个字节分三次写出）：
+
+```
+完整:      "暗号:WANXIANG-DONE"
+逐块拼接:  "������:WANXIANG-DONE"
+```
+
+后果不只是日志难看：`stdout_assert` 与暗号类 oracle 直接比对文本。字被截坏会把
+「模型确实输出了暗号」判成没输出（**假红**），也可能让带替换字符的错误文本意外命中（**假绿**）。
+高速输出下 chunk 边界随机，属长期潜伏的间歇性假红来源。
+
+### 二、修法
+
+改用有状态的 `StringDecoder('utf8')`，并在 `finish` 结算前 `end()` 冲出尾部残留字节：
+
+- `stdout` / `stderr` 各自独立 decoder，互不影响；
+- `end()` 放在 `finish` 内、由既有 `settled` 守卫保证只执行一次，覆盖
+  `error` / 宽限期结算 / `close` 三条路径；
+- 宽限期提前结算时可能仍有未解码尾字节，`end()` 避免末尾文本凭空少一截。
+
+### 三、验证
+
+新增 `tests/run/hosted-stdio-utf8.test.ts`（3 条，真实子进程）：
+
+- 汉字三字节分三次写出，断言 `stdout` 精确等于 `"暗|DONE"` 且不含 `U+FFFD`；
+- `stderr` 跨 chunk 还原，且与 `stdout` 互不干扰；
+- 暗号端到端：`"暗号:WANXIANG-DONE"` 按多处切分写出，断言仍能命中 token。
+
+**红绿验证**：修复前 3 条全部失败，实测报错 `expected '\ufffd\ufffd\ufffd|DONE' to be '暗|DONE'`；
+修复后 3 条全绿。全量 `vitest` 917 通过 / `tsc --noEmit` 通过。
+
+### 四、同轮复核：两项既有待办的处理结论
+
+1. **`resolveHostedDeadline` 的 `managerSessions = 1` 不构成 T6 阻塞（判断已更正）。**
+   原先认为「4 个并行会话 240s 跑不完，默认 300s 必然超时，需按会话数加码」，
+   但核对后发现委派型题的修订**全部显式声明了 `deadline_ms`**（157/158/159/160 均为 600000），
+   而该函数对显式值直接返回，推导分支根本执行不到。全库 374 个修订**无一条缺 `deadline_ms`**
+   （`schemas/case-revision.schema.json` 将其列为必填）。
+   **注意「不可达」的边界**：运行路径并不做 schema 校验——`loadCaseRevisions`
+   （`src/run/exam-engine/loader.ts`）只做 `JSON.parse`。所以准确表述是
+   「在通过 `item validate` 的资产上不可达」；手写或历史资产缺该字段时仍会进入推导分支。
+   无论哪种情况，改 `managerSessions` 常量都不影响本次 T6 的任何题。
+2. **`installPluginRuntimeDeps`「只覆盖 zod」已不成立。** 当前是 `cpSync(..., { recursive: true })`
+   整棵复制，与注释一致；原待办撤回。

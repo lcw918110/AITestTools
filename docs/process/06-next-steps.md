@@ -127,7 +127,8 @@ T4/T5 (已落地) + GAP-3/GAP-4 (已落地) → 等万象术编排链接通 (外
      **测试**：新增 `tests/cli/redteam-paired-environment.test.ts` 与 `tests/cli/run-paired-meta.test.ts`（临时工程 + mock 执行器）。修复前 Red 实测 OFF 题收到 `hosted-plugin-v1`；`run.ts` 的记账行临时改成常量后测试变红，证明不是假绿。
      **同轮独立审查修掉的连带问题**：①`docs/09` 称「加载时校验」与实际不符——实际只在 `resolveDatasetItems` 执行时校验，`proctor item validate` 不查映射目标存在性，已改为如实描述；②`docs/09` 的 `## 5.1` 层级错为二级，已改 `### 5.1`。
      **同轮独立审查记录但未改（既有行为，非本次引入）**：①`write-artifacts.ts` 在 `repeats>1` 时 `items[].pass` 只取最后一个 trial，与 `metrics.json` 的 `a_case_pass_rate` 口径不一致；②`hosted-runner.ts` 的 `installPluginRuntimeDeps` 注释称整棵复制依赖，实际只覆盖 `zod`，SUT 改用其它入口会解析失败。
-     **后续已修（2026-11-11，见 changelog §55）**：第 ① 项已闭环，并连带修掉 `extractCaseId` 误剥 `::reflect`、`host_exit: null` 回落成 `0`、`report.md` 环境列查不到 B-direct 题号、`pass_token` 只取首个 trial 等同类缺陷。第 ② 项仍待处理。
+     **后续已修（2026-11-11，见 changelog §55）**：第 ① 项已闭环，并连带修掉 `extractCaseId` 误剥 `::reflect`、`host_exit: null` 回落成 `0`、`report.md` 环境列查不到 B-direct 题号、`pass_token` 只取首个 trial 等同类缺陷。
+     **第 ② 项复核结论（2026-11-11）：已不成立，无需修。** 当前 `installPluginRuntimeDeps`（`src/run/hosted-runner.ts:1168`）用的是 `cpSync(source, target, { recursive: true, dereference: true })`，是整棵递归复制（包本体 + 嵌套 `node_modules`），与注释一致。`git log -S installPluginRuntimeDeps` 显示该函数自引入（`f4f350c`）起就是整棵复制，**历史中从未存在 zod-only 版本**，故「只覆盖 `zod`」属原审查记录本身写错，不存在需要追溯的行为变更。原待办撤回。
      **待人类拍板（资产配置，非代码）**：`examples/product-eval` 的 `hosted-plugin-v1` 与 `hosted-plain-v1` 除插件外还差 `host_agent`（`orchestrator` vs `fast-coder`）与 `managed_agents`（7 个管理角色 vs 20 个 fast/deep 角色），实测产物已证实两侧 agent 不同。对不要求委派的 ON 题，差值混入角色差异，配对解释力被削弱。
   10. **两侧 agent 差异的根源已查清（结论：不是配置失误，不应对齐）**：上一轮把「两侧角色不一致」当成可修的对齐问题，方向错误。读万象术插件源码 + 实跑其 identity 库后确认：
       - 插件 `src/Wanxiangshu/OpenCode/Host/ManagedAgentConfig.fs` 的 `validate` 会 `rejectLegacy config?agent`（`coder`/`inspector`/`browser`/`inquiry`/`distiller` 等 legacy 名直接 fatal），随后按 `ManagedAgent.requiredNames` 强制 `applyNamedOwnedFields` 接管 agent 条目——`opencode.json` 不是清单来源，插件自己才是。

@@ -10,6 +10,7 @@ import {
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
+import { StringDecoder } from 'node:string_decoder';
 import { fileURLToPath } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
 import {
@@ -1316,6 +1317,12 @@ async function runHostedWithReap(
 
     let stdout = '';
     let stderr = '';
+    // 解码必须有状态：`buf.toString('utf8')` 逐 chunk 解码会在多字节字符被切开时
+    // 产出替换字符（U+FFFD）。`stdout_assert` 与暗号类 oracle 直接比对文本，
+    // 字被截坏会把「确实输出了暗号」判成没输出（假红），也可能让错误文本意外命中（假绿）。
+    // 流结束时必须 `end()`，否则尾部不足一个字符的残留字节会被静默丢弃。
+    const stdoutDecoder = new StringDecoder('utf8');
+    const stderrDecoder = new StringDecoder('utf8');
     let settled = false;
     let timedOut = false;
     let stdioDestroyed = false;
@@ -1331,6 +1338,11 @@ async function runHostedWithReap(
       settled = true;
       clearTimeout(timer);
       if (graceTimer !== undefined) clearTimeout(graceTimer);
+      // 结算只用一次：把解码器里残留的尾部字节冲出来。
+      // 正常 close 路径下管道已读完，end() 返回空串；宽限期提前结算时可能还有
+      // 未解码的尾字节，丢掉会让末尾文本凭空少一截。
+      stdout += stdoutDecoder.end();
+      stderr += stderrDecoder.end();
       resolve({ status, signal, error, stdout, stderr, timedOut, stdioDestroyed });
     };
 
@@ -1347,10 +1359,10 @@ async function runHostedWithReap(
     timer.ref();
 
     child.stdout?.on('data', (buf: Buffer) => {
-      stdout += buf.toString('utf8');
+      stdout += stdoutDecoder.write(buf);
     });
     child.stderr?.on('data', (buf: Buffer) => {
-      stderr += buf.toString('utf8');
+      stderr += stderrDecoder.write(buf);
     });
     child.on('error', (err) => {
       finish(null, null, err as NodeJS.ErrnoException);
