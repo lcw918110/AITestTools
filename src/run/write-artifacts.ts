@@ -18,13 +18,56 @@ export interface RunMeta {
    * 逐题实际使用的环境名（配对题按侧解析后可能与顶层 `environment` 不同）。
    * 缺省表示该题沿用顶层环境，历史 run.json 无需回填。
    */
-  items: Array<{ id: string; rev: number; environment?: string }>;
+  items: Array<{
+    id: string;
+    rev: number;
+    environment?: string;
+    /**
+     * 题级通过：该题全部观测都通过才算通过。
+     *
+     * 与 `metrics.a_case_pass_rate === 1` 等价（限该题），但**不等于**整 run 的
+     * `aggregates.a_case_pass_rate`——后者是跨题加权均值，各题 trial 数不齐时两者数值不同。
+     */
+    pass?: boolean;
+    /**
+     * 归到该题下的观测条数（>1 时写入）。
+     *
+     * 注意不是「trial 数」：B-direct 的 `item_id` 是 `<case>::<模型名>`，repeats=1 时
+     * 多模型也会归到同一题下，此时该值是模型数。
+     */
+    trials?: number;
+    /** 题级通过率 = 通过观测数 / 观测总数（>1 时写入，口径同 `trials`）。 */
+    pass_rate?: number;
+  }>;
 }
 
 export interface WriteArtifactsResult {
   dir: string;
   gate_evaluations: GateEvaluation[];
   gates_pass: boolean;
+}
+
+/**
+ * 把逐 trial 的 `item_id` 归到 `meta.items[].id` 上的题级 id。
+ *
+ * 两种形状都要支持：
+ * - `<case>::r<N>`（hosted / 行为题，trial 后缀直接跟在题号后）；
+ * - `<case>::<模型名>::r<N>`（B-direct，题号与 trial 之间夹模型名）。
+ *
+ * 匹配策略：先剥掉 `::r<N>` 尾缀，再在已知题号里找**最长匹配前缀**（要求后接 `::` 或完全相等）。
+ * 用最长匹配而非「剥到第一个 `::`」，是因为题号本身可能含 `::`；用前缀匹配而非字符串相等，
+ * 是因为中间可能夹模型名。找不到时退回剥后缀结果，保持历史行为。
+ */
+function resolveCaseId(itemId: string, knownItems: Array<{ id: string }>): string {
+  const stripped = extractCaseId(itemId);
+  if (knownItems.some((it) => it.id === stripped)) return stripped;
+  let best: string | undefined;
+  for (const it of knownItems) {
+    if (stripped === it.id || stripped.startsWith(`${it.id}::`)) {
+      if (best === undefined || it.id.length > best.length) best = it.id;
+    }
+  }
+  return best ?? stripped;
 }
 
 export function writeRunArtifacts(opts: {
@@ -35,21 +78,78 @@ export function writeRunArtifacts(opts: {
 }): WriteArtifactsResult {
   const dir = join(opts.runsRoot, opts.meta.run_id);
   mkdirSync(join(dir, 'artifacts'), { recursive: true });
-  // repeats>1 时 item_id 带 `::r<N>` 后缀；用去后缀 key 建 map，使 meta.items 的 id 能匹配。
-  const byId = new Map(opts.results.map((r) => [extractCaseId(r.item_id), r]));
+  // repeats>1 时 item_id 带 `::r<N>` 后缀；按题级 id 分组，使 meta.items 的 id 能匹配。
+  //
+  // 旧实现用 `new Map(results.map(...))` 按题去后缀建 map，同一题的多个 trial 会互相覆盖，
+  // 最终留下的是最后一个 trial——`items[].pass` 于是变成「最后一次 trial 是否通过」，
+  // 与 `metrics.a_case_pass_rate`（全 trial 均值）口径不一致：3 过 1 挂的题会被记成 false，
+  // 而 1 挂 3 过、最后一个 trial 恰好通过的 flaky 题会被记成 true。改为先分组再收敛。
+  //
+  // 题级 id 有两种形状，都必须能匹配 `meta.items[].id`：
+  // - hosted / 行为题：`<case>::r<N>`（trial 后缀直接跟在题号后）；
+  // - B-direct（model-core + model-direct-v1）：`<case>::<模型名>::r<N>`（题号与 trial 之间夹模型名）。
+  // 只剥最后一层 `::rN` 对第二种会得到 `<case>::<模型名>`，与题号不等，`items[].pass` 整段缺失。
+  const byCaseId = new Map<string, AxisItemResult[]>();
+  for (const r of opts.results) {
+    const caseId = resolveCaseId(r.item_id, opts.meta.items);
+    const arr = byCaseId.get(caseId) ?? [];
+    arr.push(r);
+    byCaseId.set(caseId, arr);
+  }
   const items = opts.meta.items.map((it) => {
-    const r = byId.get(it.id);
-    if (r === undefined) return it;
+    const trials = byCaseId.get(it.id);
+    if (trials === undefined || trials.length === 0) return it;
+    const passCount = trials.filter((r) => r.pass).length;
+    const passRate = passCount / trials.length;
+    // 题级 pass：全部观测通过才算通过（等价于该题 `a_case_pass_rate === 1`）。
+    // 单次观测场景 passRate 即该次观测的 pass，行为与旧实现一致。
+    const pass = passCount === trials.length;
+    // 多 trial 的辅助字段按「失败事实不可被掩盖」聚合，避免首个 trial 正常就抹掉后续故障：
+    // - timed_out / materials_mutated：任一 trial 出现即为真（OR）；
+    // - workspace_ok：任一 trial 明确为假即为假（AND），全部未观测则整体不写；
+    // - host_exit：优先保留首个非 0 退出码，其次保留 `null`（被杀/超时），最后才是 0；
+    // - pass_token 系列是单次鉴权观测，取首个有观测的 trial。
+    const anyTimedOut = trials.some((r) => r.timed_out === true);
+    const anyMutated = trials.some((r) => r.materials_mutated === true);
+    // 只把「明确为假」当失败：`runner-types` 约定「无此类 oracle 则为 true」，
+    // 故 `undefined`（未观测）不构成失败证据。若全部 trial 都未观测，
+    // 整体也不写该字段（下方按 some(defined) 判断），避免把「没测」写成「全过」。
+    const allWorkspaceOk = !trials.some((r) => r.workspace_ok === false);
+    // `host_exit: null` 表示宿主被杀或超时（见 runner-types），与 `0` 语义相反：
+    // 若只挑 `number` 非 0，会把「被杀」回落成「正常退出 0」，与 report.md 的「被杀」自相矛盾。
+    const nonZeroExit = trials.find((r) => typeof r.host_exit === 'number' && r.host_exit !== 0);
+    const killedExit = trials.find((r) => r.host_exit === null);
+    // pass_token 取首个「有观测」的 trial：首个 trial 可能因预检失败没有鉴权观测，
+    // 直接取 first 会把后续 trial 的真实观测抹掉。
+    const tokenTrial = trials.find(
+      (r) =>
+        r.pass_token !== undefined ||
+        r.pass_token_present !== undefined ||
+        r.pass_token_role !== undefined,
+    );
     return {
       ...it,
-      pass: r.pass,
-      ...(r.pass_token !== undefined ? { pass_token: r.pass_token } : {}),
-      ...(r.pass_token_present !== undefined ? { pass_token_present: r.pass_token_present } : {}),
-      ...(r.pass_token_role !== undefined ? { pass_token_role: r.pass_token_role } : {}),
-      ...(r.workspace_ok !== undefined ? { workspace_ok: r.workspace_ok } : {}),
-      ...(r.timed_out !== undefined ? { timed_out: r.timed_out } : {}),
-      ...(r.host_exit !== undefined ? { host_exit: r.host_exit } : {}),
-      ...(r.materials_mutated !== undefined ? { materials_mutated: r.materials_mutated } : {}),
+      pass,
+      ...(trials.length > 1 ? { trials: trials.length, pass_rate: passRate } : {}),
+      ...(tokenTrial?.pass_token !== undefined ? { pass_token: tokenTrial.pass_token } : {}),
+      ...(tokenTrial?.pass_token_present !== undefined
+        ? { pass_token_present: tokenTrial.pass_token_present }
+        : {}),
+      ...(tokenTrial?.pass_token_role !== undefined
+        ? { pass_token_role: tokenTrial.pass_token_role }
+        : {}),
+      ...(trials.some((r) => r.workspace_ok !== undefined) ? { workspace_ok: allWorkspaceOk } : {}),
+      ...(trials.some((r) => r.timed_out !== undefined) ? { timed_out: anyTimedOut } : {}),
+      ...(nonZeroExit !== undefined
+        ? { host_exit: nonZeroExit.host_exit }
+        : killedExit !== undefined
+          ? { host_exit: null }
+          : trials.some((r) => r.host_exit !== undefined)
+            ? { host_exit: 0 }
+            : {}),
+      ...(trials.some((r) => r.materials_mutated !== undefined)
+        ? { materials_mutated: anyMutated }
+        : {}),
     };
   });
   writeFileSync(join(dir, 'run.json'), `${JSON.stringify({ ...opts.meta, items }, null, 2)}\n`);
@@ -146,7 +246,11 @@ export function writeRunArtifacts(opts: {
         timed_out: r.timed_out,
         host_spawn_error: r.host_spawn_error,
       });
-      const envCell = envById.get(extractCaseId(r.item_id)) ?? opts.meta.environment;
+      // 环境按题级 id 查：B-direct 的 item_id 是 `<case>::<模型名>::r<N>`，
+      // 只剥 `::rN` 会得到 `<case>::<模型名>`，查不到 `envById` 而回落顶层环境，
+      // 让配对题报告把按侧解析的环境写成基准值（账实不符）。
+      const envCell =
+        envById.get(resolveCaseId(r.item_id, opts.meta.items)) ?? opts.meta.environment;
       const head = hasPerItemEnv
         ? `| ${r.item_id} | ${r.item_rev} | ${envCell} |`
         : `| ${r.item_id} | ${r.item_rev} |`;

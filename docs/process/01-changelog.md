@@ -2358,3 +2358,45 @@ commission、horizon、park、unpark、abandon」，并去猜 `this.call` / `thi
 
 复盘落在 [2026-11-10-delegation-failure-postmortem.md](../bugs/2026-11-10-delegation-failure-postmortem.md)。
 上游源码全程只读。
+
+## 55. 逐题 pass 口径修复：多 trial 覆盖、`::reflect` 误剥与 `host_exit` 回落（2026-11-11）
+
+### 一、修的是什么
+
+`write-artifacts.ts` 在 `repeats>1` 时用 `new Map(results.map(...))` 按题去后缀建 map，
+同一题的多个 trial 互相覆盖，最终留下最后一个——`items[].pass` 于是变成
+「最后一次 trial 是否通过」，与 `metrics.json` 的 `a_case_pass_rate`（全 trial 均值）口径不一致：
+
+- 3 过 1 挂的题被记成 `false`；
+- 1 挂 3 过、最后一个 trial 恰好通过的 flaky 题被记成 `true`。
+
+改为先按题分组再收敛，题级 `pass` 要求全部观测通过（等价于该题 `a_case_pass_rate === 1`）。
+
+### 二、连带修掉的四处同类缺陷
+
+1. **`extractCaseId` 误剥 `::reflect`**：旧实现只做 `lastIndexOf('::r')` 不校验数字，
+   把 B-direct 里以 `r` 开头的模型名（如 `::reflect`）当 trial 后缀剥成 `DEMO-B-01`，
+   于是该模型的结果被错记成「题号本身的一次观测」，模型名整段丢失。
+   改为 `/::r\d+$/`，与 `hasTrialSuffix` 用同一判据。
+2. **`report.md` 环境列查不到 B-direct 题号**：该列仍用 `extractCaseId`，
+   `C1.off::fixture-a::r0` 去后缀后得到 `C1.off::fixture-a`，查不到 `envById` 而回落顶层环境，
+   把配对题按侧解析的环境写成基准值（账实不符）。改用 `resolveCaseId`。
+3. **`host_exit: null` 回落成 `0`**：只挑 `typeof === 'number'` 的非 0 值，`null`（被杀/超时）
+   被过滤后回落成 `0`，run.json 写「正常退出」，而 `report.md` 的 `formatHostExitCell`
+   渲染成「被杀」。改为优先非 0、其次 `null`、最后才是 `0`。
+4. **`pass_token` 只取首个 trial**：首 trial 因预检失败没有鉴权观测时，后续 trial 的真实观测被整段丢掉。改为取首个「有观测」的 trial。
+
+### 三、验证
+
+- 新增 `tests/run/write-artifacts-items-pass.test.ts`（19 条），含 B-direct 形状、
+  题号互为前缀（`A` 与 `A::x`）的最长匹配归属、`::reflect` 归并、`host_exit: null`、
+  `pass_token` 取首个有观测 trial、`report.md` 逐题环境列。
+- **红绿验证**：逐项临时回退实现，确认对应测试变红（`host_exit` 回落 0、`report.md` 用
+  `extractCaseId`、`pass_token` 取 `trials[0]`、聚合取最后一个 trial 四种回退各触发 1 条失败），
+  恢复后全绿。
+- 全量 `vitest` 912 通过 / `tsc --noEmit` 通过 / `prettier --check` 通过。
+
+### 四、未改的一项
+
+`hosted-runner.ts` 的 `installPluginRuntimeDeps` 注释称整棵复制依赖，实际只覆盖 `zod`，
+SUT 改用其它入口会解析失败。属既有行为，本轮未动，仍记在 [06-next-steps.md](06-next-steps.md)。

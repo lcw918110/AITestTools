@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { resolveRepeats } from '../../src/run/repeats.ts';
-import { aggregateConsistency } from '../../src/run/consistency.ts';
+import { aggregateConsistency, extractCaseId, hasTrialSuffix } from '../../src/run/consistency.ts';
 import type { CaseRevision, EnvironmentProfile } from '../../src/domain/types.ts';
 import type { AxisItemResult } from '../../src/run/runner-types.ts';
 
@@ -130,5 +130,31 @@ describe('aggregateConsistency（pass^k 与成功率范围）', () => {
     expect(agg.success_rate_min).toBe(0.75);
     expect(agg.success_rate_max).toBe(0.75);
     expect(agg.flaky).toBe(true);
+  });
+});
+
+describe('extractCaseId / hasTrialSuffix（trial 尾缀判据一致）', () => {
+  it('只剥 ::r + 纯数字尾缀，两者判据一致', () => {
+    expect(extractCaseId('c1::r0')).toBe('c1');
+    expect(hasTrialSuffix('c1::r0')).toBe(true);
+    expect(extractCaseId('c1::r12')).toBe('c1');
+    expect(extractCaseId('c1')).toBe('c1');
+    expect(hasTrialSuffix('c1')).toBe(false);
+  });
+
+  it('模型名以 r 开头时不被误当 trial 尾缀', () => {
+    // `::reflect` / `::r1-mini` 都不是 `::r<数字>`，不得剥。
+    expect(extractCaseId('c1::reflect')).toBe('c1::reflect');
+    expect(hasTrialSuffix('c1::reflect')).toBe(false);
+    expect(extractCaseId('c1::r1-mini')).toBe('c1::r1-mini');
+    expect(hasTrialSuffix('c1::r1-mini')).toBe(false);
+    // 真正的尾缀仍要剥：B-direct 形状 case::模型::rN。
+    expect(extractCaseId('c1::reflect::r2')).toBe('c1::reflect');
+  });
+
+  it('题号自身含 ::r 字样时不被截断', () => {
+    // 题号里出现 ::r 但不是尾缀，必须原样保留。
+    expect(extractCaseId('case::r1-alpha')).toBe('case::r1-alpha');
+    expect(extractCaseId('case::r1-alpha::r0')).toBe('case::r1-alpha');
   });
 });

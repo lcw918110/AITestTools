@@ -65,10 +65,16 @@ export function aggregateConsistency(
   };
 }
 
-/** 从 item_id 提取 case_revision_id（去掉 `::r<N>` 尾缀）。 */
+/**
+ * 从 item_id 提取 case_revision_id（去掉 `::r<N>` 尾缀）。
+ *
+ * 只剥「`::r` + 纯数字」且位于末尾的后缀；`hasTrialSuffix` 用的是同一判据。
+ * 早先只做 `lastIndexOf('::r')` 不校验数字，会把 B-direct 里以 `r` 开头的模型名
+ * （如 `::reflect`）误当 trial 后缀剥掉，凭空把两题并成一题。
+ */
 export function extractCaseId(itemId: string): string {
-  const idx = itemId.lastIndexOf('::r');
-  if (idx > 0) return itemId.slice(0, idx);
+  const m = /::r\d+$/.exec(itemId);
+  if (m !== null && m.index > 0) return itemId.slice(0, m.index);
   return itemId;
 }
 
