@@ -10,7 +10,6 @@ import {
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
-import { StringDecoder } from 'node:string_decoder';
 import { fileURLToPath } from 'node:url';
 import { spawn, spawnSync } from 'node:child_process';
 import {
@@ -53,6 +52,7 @@ import { observeHostedPassToken, type HostedPassTokenObservation } from './hoste
 import { resolveHostedPrompt } from './hosted-prompt.ts';
 import { resolvePluginPath } from './plugin-path.ts';
 import { seedStimulusMaterials } from './seed-stimulus-materials.ts';
+import { createStreamDecoder } from './stream-decode.ts';
 import {
   materialsMutated,
   mutatedSeededFiles,
@@ -1324,8 +1324,8 @@ async function runHostedWithReap(
     // 产出替换字符（U+FFFD）。`stdout_assert` 与暗号类 oracle 直接比对文本，
     // 字被截坏会把「确实输出了暗号」判成没输出（假红），也可能让错误文本意外命中（假绿）。
     // 流结束时必须 `end()`，否则尾部不足一个字符的残留字节会被静默丢弃。
-    const stdoutDecoder = new StringDecoder('utf8');
-    const stderrDecoder = new StringDecoder('utf8');
+    const stdoutDecoder = createStreamDecoder();
+    const stderrDecoder = createStreamDecoder();
     let settled = false;
     let timedOut = false;
     let stdioDestroyed = false;
