@@ -2576,3 +2576,60 @@ draft 的这份 metrics 正是 `applyMetricThresholdPass` 二趟判定的输入�
   **之后**，同名键会覆盖框架字段。现有调用方只传无冲突键，故线上无害。
 - `failHarness` 只存在于注释，仓库内无任何实现；唯一传
   `invariantViolationsExplicit: 0` 的调用点是 `b-runner.ts:115`（B-direct adapter 失败）。
+  生产注释已同步改指向该调用点。
+
+## 58. 修复 `report-trend` 测试写入真实产物目录（2026-11-12）
+
+### 一、缺陷
+
+`tests/cli/report-trend.test.ts` 把测试数据直接写进**仓库内**的
+`examples/demo-project/runs/`：
+
+- `addRun` 用 `mkdtempSync(join(project, 'runs', 'trend-purpose-'))`，虽有 `afterEach` 删除；
+- 「扫描 dataset 指标时间线」用例用 `mkdirSync(join(root, 'runs', 'trend-test-' + Date.now()))`，
+  **建完从不删除**。
+
+两条路径都指向真实产物目录。而 `collectTrendPoints` 会遍历 `project.dirs.runs` 下**全部**目录：
+
+- 单次扫描 5,568 个目录耗时约 475ms（实测），**单独跑该文件 11 条仍全绿**；
+- 但全量并发时，其他测试文件同时在往同一个 `runs/` 写新目录（实测连跑三轮各新增约 81 个），
+  目录数量与写入 I/O 竞争叠加，三条多用途用例稳定越过 vitest 默认 5s 超时：
+
+```
+FAIL  tests/cli/report-trend.test.ts > 拒绝同数据集不同用途，最近条数截断不能绕过检查
+Error: Test timed out in 5000ms.
+```
+
+**准确的归因**：超时来自「测试数据写进共享的真实产物目录，并发下与之争抢 I/O」，
+而非残留目录数量本身（583 个 `trend-test-*` 残留扫描只需 44–147ms）。残留的危害是
+**让该目录无界增长**，进一步放大争抢——它是放大器，不是唯一诱因。
+表现为「单独跑 11 绿、全量跑偶发 2–3 红」，与穷功能无关，但让每次全量验收都不可信。
+
+### 二、修法
+
+把测试的项目根整个搬到 `tmpdir()`，仓库内产物目录一次都不碰：
+
+- `project` 改为 `mkdtempSync(join(tmpdir(), 'trend-project-'))`，并写入最小 `exam.json`
+  （`loadProject` 需要清单才认这个目录，字段取 `name` / `description` /
+  `asset_protocol` / `paths`）；
+- 「扫描 dataset 指标时间线」用例的 `root` 改用该临时项目根，新建的 run 目录登记进
+  `temporaryRuns`，由 `afterEach` 清理；
+- 新增 `afterAll` 删除整个临时项目根。
+
+### 三、验证
+
+- **红**：改动前跑一次测试，`examples/demo-project/runs/` 下 `trend-test-*` 从 3 增至 4，确认污染路径；
+- **绿**：改动后跑 11 条全通过，且 `trend-test-*` 数量运行前后相等（不再新增）；
+- **并发**：连跑三轮全量，**每次 981 通过**；
+- 历史 583 个未被 git 跟踪的 `trend-test-*` 残留已逐个删除。
+
+### 四、未闭环的部分（范围边界）
+
+本题只修掉 `report-trend` 这一个写入源。`examples/demo-project/runs/` 目前仍有
+**5,568 个**真实运行产物目录（`.gitignore` 已忽略 `runs/`，未被版本控制），
+且 `tests/cli/slice7-compare.test.ts`、`tests/cli/concurrency-run.test.ts` 等用例
+**仍在往该目录写新产物**（实测连跑三轮各新增约 81 个）。这三个文件本轮全绿，
+但同类假红风险依旧存在，需后续统一改为隔离目录，已单独登记进 `06-next-steps §5`。
+
+> 备注：`uniqueDataset()` 建的 `trend-dataset-*` 原本就在 `tmpdir()` 下且有 `afterEach` 清理，
+> 不是污染源，未改动。

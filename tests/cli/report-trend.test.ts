@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import {
   collectTrendBuckets,
   collectTrendPoints,
@@ -9,7 +9,32 @@ import {
 } from '../../src/cli/commands/report-trend.ts';
 
 const temporaryRuns: string[] = [];
-const project = join(process.cwd(), 'examples/demo-project');
+
+/**
+ * 独立的临时项目根：每个测试文件一个，绝不在仓库内产物目录里建文件。
+ *
+ * 历史上这里直接指向 `examples/demo-project`，导致 `addRun` 与「扫描 dataset
+ * 指标时间线」用例把测试数据写进真实产物目录，并发时与该目录的趋势扫描争抢
+ * I/O，让 5s 超时假红复现（见 changelog §58、06-next-steps §5）。
+ *
+ * 在 `beforeAll` 里创建而不是模块顶层：这样全部用例被过滤掉时不会在 `$TMPDIR`
+ * 留下无人清理的空目录（`afterAll` 也就不会执行）。
+ */
+let project: string;
+
+beforeAll(() => {
+  project = mkdtempSync(join(tmpdir(), 'trend-project-'));
+  mkdirSync(join(project, 'runs'), { recursive: true });
+  writeFileSync(
+    join(project, 'exam.json'),
+    JSON.stringify({
+      name: 'trend-test-project',
+      description: 'report-trend 测试专用临时考卷库，不落仓库。',
+      asset_protocol: 'cases-v1',
+      paths: { materials: 'materials', scripts: 'scripts' },
+    }),
+  );
+});
 
 function addRun(dataset: string, purpose?: string, startedAt = '2026-10-23T00:00:00Z', val = 1) {
   const dir = mkdtempSync(join(project, 'runs', 'trend-purpose-'));
@@ -32,7 +57,12 @@ function uniqueDataset() {
 
 afterEach(() => {
   vi.restoreAllMocks();
+  // 只清本用例新建的 run 目录与 dataset 目录；临时项目根在 afterAll 统一删除。
   for (const dir of temporaryRuns.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+
+afterAll(() => {
+  if (project !== undefined) rmSync(project, { recursive: true, force: true });
 });
 
 describe('report trend', () => {
@@ -78,9 +108,10 @@ describe('report trend', () => {
   });
 
   it('扫描 dataset 指标时间线', () => {
-    const root = join(process.cwd(), 'examples/demo-project');
+    const root = project;
     const runs = join(root, 'runs', `trend-test-${Date.now()}`);
     mkdirSync(runs, { recursive: true });
+    temporaryRuns.push(runs);
     writeFileSync(
       join(runs, 'run.json'),
       JSON.stringify({
