@@ -2445,19 +2445,15 @@ commission、horizon、park、unpark、abandon」，并去猜 `this.call` / `thi
 
 ### 三、验证
 
-**证伪职责放在确定性单元测试**：新增 `src/run/stream-decode.ts`，把「跨 chunk 保持解码状态
+**证伪职责放在确定性单元测试**：新增 `src/run/stream-decode.ts`，把「跨 chunk 保持解码状态，结算时冲出残片」抽成纯函数（生产路径只用 `createStreamDecoder`；测试用的切片工具留在测试文件内，不进生产模块），`hosted-runner.ts` 改为调用它。对应 `tests/run/stream-decode.test.ts` 共 14 条，直接构造字节块序列，不经过子进程、不依赖 pipe 容量与调度，任何环境结果一致：
 
-- 结算时冲出残片」抽成纯函数（`createStreamDecoder` / `decodeChunks` / `sliceByByteOffsets`），
-  `hosted-runner.ts` 改为调用它。对应 `tests/run/stream-decode.test.ts` 共 14 条，
-  直接构造字节块序列，不经过子进程、不依赖 pipe 容量与调度，任何环境结果一致：
-
-* 汉字切 1+2 字节、连续两汉字切三块、**逐字节切分（最坏情形）**、空块混入、
+- 汉字切 1+2 字节、连续两汉字切三块、**逐字节切分（最坏情形）**、空块混入、
   ASCII 与中文混排多处切分——全部断言精确还原原文；
-* 逐字节喂入时每步都不产出 `U+FFFD`，且结算后无残留；
-* 残片场景：只给 2/3 字节时 `end()` 返回 `U+FFFD`，不调 `end()` 则写入阶段为空串
+- 逐字节喂入时每步都不产出 `U+FFFD`，且结算后无残留；
+- 残片场景：只给 2/3 字节时 `end()` 返回 `U+FFFD`，不调 `end()` 则写入阶段为空串
   （对照证明 `end()` 必要）；尾字节补全时还原字符且无残留；
-* `end()` 重复调用返回空串；`end()` 后再 `write` 按新流解码；
-* 切片工具自身：边界含全文长度不产生多余空块、无偏移返回单块、切块拼接等于原字节。
+- `end()` 重复调用返回空串；`end()` 后再 `write` 按新流解码；
+- 切片工具自身：边界含全文长度不产生多余空块、无偏移返回单块、切块拼接等于原字节。
 
 集成侧 `tests/run/hosted-stdio-utf8.test.ts` 缩为 3 条**接线冒烟**：中文 stdout/stderr
 完整拼回且互不干扰、宿主以半个字符结尾时残片被 `end()` 冲出。文件头明确写清

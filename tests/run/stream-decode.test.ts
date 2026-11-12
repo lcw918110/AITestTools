@@ -1,9 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import {
-  createStreamDecoder,
-  decodeChunks,
-  sliceByByteOffsets,
-} from '../../src/run/stream-decode.ts';
+import { createStreamDecoder, type StreamDecoder } from '../../src/run/stream-decode.ts';
 
 /**
  * 流式 UTF-8 解码的**确定性**回归测试。
@@ -21,12 +17,33 @@ import {
  * 仍保留一组真实子进程用例（见 `hosted-stdio-utf8.test.ts`）验证接线，
  * 但那里只断言「拼回完整文本」，不承担证伪职责。
  */
-describe('decodeChunks：任意字节切分都还原原文', () => {
+
+/** 按给定**字节偏移**切分文本。工具仅测试使用，故留在测试文件内。 */
+function sliceByByteOffsets(text: string, offsets: readonly number[]): Buffer[] {
+  const buf = Buffer.from(text, 'utf8');
+  const bounds = [...offsets, buf.length];
+  const chunks: Buffer[] = [];
+  let prev = 0;
+  for (const bound of bounds) {
+    chunks.push(buf.subarray(prev, bound));
+    prev = bound;
+  }
+  return chunks;
+}
+
+/** 按顺序喂完所有块并结算，还原整段文本。 */
+function decodeAll(decoder: StreamDecoder, chunks: readonly Buffer[]): string {
+  let text = '';
+  for (const chunk of chunks) text += decoder.write(chunk);
+  return text + decoder.end();
+}
+
+describe('createStreamDecoder：任意字节切分都还原原文', () => {
   it('汉字被切成 1+2 字节时还原成原字符，不产生替换字符', () => {
     // '暗' = e6 9a 97，刀落在第 1 字节后：第一块不是合法 UTF-8。
     const chunks = sliceByByteOffsets('暗|DONE', [1]);
 
-    expect(decodeChunks(chunks)).toBe('暗|DONE');
+    expect(decodeAll(createStreamDecoder(), chunks)).toBe('暗|DONE');
   });
 
   it('连续两个汉字切成三块时也能拼回', () => {
@@ -34,25 +51,25 @@ describe('decodeChunks：任意字节切分都还原原文', () => {
     // 块1 = e6（非法）、块2 = 9a 97 e5（非法，尾部半字符）、块3 = 8f b7。
     const chunks = sliceByByteOffsets('暗号', [1, 4]);
 
-    expect(decodeChunks(chunks)).toBe('暗号');
+    expect(decodeAll(createStreamDecoder(), chunks)).toBe('暗号');
   });
 
   it('逐字节切分（最坏情形）仍能拼回', () => {
     const text = '暗号终止';
-    const offsets = Array.from({ length: Buffer.byteLength(text, 'utf8') - 1 }, (_, i) => i + 1);
+    const byteLength = Buffer.byteLength(text, 'utf8');
+    const offsets = Array.from({ length: byteLength - 1 }, (_, i) => i + 1);
     const chunks = sliceByByteOffsets(text, offsets);
 
-    expect(chunks.length).toBe(Buffer.byteLength(text, 'utf8'));
-    expect(decodeChunks(chunks)).toBe(text);
+    expect(chunks.length).toBe(byteLength);
+    expect(decodeAll(createStreamDecoder(), chunks)).toBe(text);
   });
 
   it('每个中间块都不含替换字符，替换字符只可能出现在未结算的残片', () => {
     const decoder = createStreamDecoder();
     // 逐字节喂入，任何一步都不应产出 U+FFFD（除非该字节本身非法）。
     const text = '暗号';
-    const buf = Buffer.from(text, 'utf8');
     let out = '';
-    for (const byte of buf) {
+    for (const byte of Buffer.from(text, 'utf8')) {
       out += decoder.write(Buffer.from([byte]));
     }
     expect(out).toBe(text);
@@ -63,7 +80,7 @@ describe('decodeChunks：任意字节切分都还原原文', () => {
   it('空块混在序列中不影响结果', () => {
     const chunks = sliceByByteOffsets('暗号', [1, 1, 4]);
 
-    expect(decodeChunks(chunks)).toBe('暗号');
+    expect(decodeAll(createStreamDecoder(), chunks)).toBe('暗号');
   });
 
   it('纯 ASCII 与中文混排、多处切分仍还原', () => {
@@ -71,17 +88,17 @@ describe('decodeChunks：任意字节切分都还原原文', () => {
     // 刀分别落在中文与 ASCII 边界上。
     const chunks = sliceByByteOffsets(text, [1, 8, 12, 20]);
 
-    expect(decodeChunks(chunks)).toBe(text);
+    expect(decodeAll(createStreamDecoder(), chunks)).toBe(text);
   });
 });
 
-describe('decodeChunks：结算时冲出尾部残片', () => {
+describe('createStreamDecoder：结算时冲出尾部残片', () => {
   it('不足一个完整字符的尾字节被 end() 冲出，而不是静默丢弃', () => {
     // '暗' = e6 9a 97，只给前 2 字节。
     const chunks = [Buffer.from('暗', 'utf8').subarray(0, 2)];
 
     // 残片被冲出后必然是替换字符：证明数据没丢，只是不完整。
-    expect(decodeChunks(chunks)).toBe('\uFFFD');
+    expect(decodeAll(createStreamDecoder(), chunks)).toBe('\uFFFD');
   });
 
   it('不调 end() 就会丢掉尾部残片（对照：证明 end() 的必要性）', () => {
@@ -127,14 +144,14 @@ describe('切片工具自身的正确性', () => {
 
     expect(chunks.length).toBe(2);
     expect(chunks[1]?.length).toBe(0);
-    expect(decodeChunks(chunks)).toBe('暗');
+    expect(decodeAll(createStreamDecoder(), chunks)).toBe('暗');
   });
 
   it('无偏移时返回单个完整块', () => {
     const chunks = sliceByByteOffsets('暗号', []);
 
     expect(chunks.length).toBe(1);
-    expect(decodeChunks(chunks)).toBe('暗号');
+    expect(decodeAll(createStreamDecoder(), chunks)).toBe('暗号');
   });
 
   it('切出的块拼起来等于原字节序列', () => {

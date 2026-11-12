@@ -37,34 +37,3 @@ export function createStreamDecoder(): StreamDecoder {
     },
   };
 }
-
-/**
- * 把一组字节块按顺序解码成完整文本（含结算）。
- *
- * 供测试与需要一次性还原整段输出的调用方使用；生产路径按 chunk 增量调用
- * `createStreamDecoder()`，语义与 `chunks.reduce(...) + end()` 一致。
- */
-export function decodeChunks(chunks: readonly Buffer[]): string {
-  const decoder = createStreamDecoder();
-  let text = '';
-  for (const chunk of chunks) text += decoder.write(chunk);
-  return text + decoder.end();
-}
-
-/**
- * 按给定**字节偏移**切分文本，用于构造「刀落在多字节字符内部」的用例。
- *
- * 偏移必须单调递增且都落在 `[0, byteLength]` 内；落在字符内部时该字符会被
- * 切成两段，正是需要覆盖的情形。
- */
-export function sliceByByteOffsets(text: string, offsets: readonly number[]): Buffer[] {
-  const buf = Buffer.from(text, 'utf8');
-  const bounds = [...offsets, buf.length];
-  const chunks: Buffer[] = [];
-  let prev = 0;
-  for (const bound of bounds) {
-    chunks.push(buf.subarray(prev, bound));
-    prev = bound;
-  }
-  return chunks;
-}
