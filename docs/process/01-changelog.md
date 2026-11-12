@@ -2399,11 +2399,19 @@ commission、horizon、park、unpark、abandon」，并去猜 `this.call` / `thi
 ### 四、文档口径更正（2026-11-11 复核）
 
 `06-next-steps.md` 与本文原先记载「`installPluginRuntimeDeps` 实际只覆盖 `zod`，SUT 改用其它入口会解析失败」。
-本轮复核确认**该说法已不成立**：当前实现（`src/run/hosted-runner.ts:1168`）是
-`cpSync(source, target, { recursive: true, dereference: true })`，整棵递归复制包本体与嵌套
-`node_modules`，与函数注释一致。`git log -S installPluginRuntimeDeps` 显示该函数自引入
-（`f4f350c`）起就是整棵复制，**历史中从未存在 zod-only 版本**，
-属原审查记录本身写错，不存在需要追溯的行为变更。该待办已撤回。
+
+本轮复核（含第二轮独立审查的实测）确认：**前半句准确，后半句不成立**。
+
+- `@opencode-ai/plugin` 的 `package.json` 声明 4 个依赖，但只有 `zod` 内嵌在包内；
+  `@ai-sdk/provider` / `@opencode-ai/sdk` / `effect` 被 hoist 到上层 `node_modules`。
+  复制到隔离 HOME 后从插件包内 `require.resolve`，只有 `zod` 命中，其余三个 `MODULE_NOT_FOUND`。
+- **但这不构成运行时故障**：插件实际加载的是 `@opencode-ai/plugin/tool` 子入口，
+  其 `dist/tool.js` 只 `import { z } from "zod"`；三个缺失包在该加载路径上不被 import。
+  实测只复制包本体（含内嵌 `zod`）后 `import('@opencode-ai/plugin/tool')` 成功。
+- 故 `cpSync` 整棵复制的行为**是正确的**，原待办「SUT 改用其它入口会解析失败」属推测，已撤回。
+- 需要修的是函数注释：它原先称「自身声明了 `@ai-sdk/provider` / `@opencode-ai/sdk` /
+  `effect` / `zod` 等运行时依赖」，暗示四个都需要，与事实不符，已改为如实说明
+  「只有 `zod` 在加载路径上，其余三个缺失不影响加载」。
 
 ## 56. 宿主 stdio 跨 chunk 的 UTF-8 解码修复（2026-11-11）
 
@@ -2430,18 +2438,32 @@ commission、horizon、park、unpark、abandon」，并去猜 `this.call` / `thi
 - `stdout` / `stderr` 各自独立 decoder，互不影响；
 - `end()` 放在 `finish` 内、由既有 `settled` 守卫保证只执行一次，覆盖
   `error` / 宽限期结算 / `close` 三条路径；
-- 宽限期提前结算时可能仍有未解码尾字节，`end()` 避免末尾文本凭空少一截。
+- `end()` 只解决「残字节已进入 decoder 但未解码」这一种丢尾。
+  宽限期 `destroy()` 时还有另一种丢尾：pipe 缓冲里尚未被父进程读走的数据
+  （实测 64KB 管道容量打满后，写 1MB 只读回 65536 字节）。那部分数据从未进入
+  decoder，`end()` 无能为力。属既有实现隐患，非本次引入，也不在本次修复范围。
 
 ### 三、验证
 
-新增 `tests/run/hosted-stdio-utf8.test.ts`（3 条，真实子进程）：
+新增 `tests/run/hosted-stdio-utf8.test.ts`（7 条：5 条真实子进程 + 2 条 decoder 契约）：
 
-- 汉字三字节分三次写出，断言 `stdout` 精确等于 `"暗|DONE"` 且不含 `U+FFFD`；
+- 汉字切成 1+2 字节（刀落在字符内部），断言 `stdout` 精确等于 `"暗|DONE"` 且不含 `U+FFFD`；
+- 连续两个汉字逐字节切成三块，断言拼回 `"暗号"`；
 - `stderr` 跨 chunk 还原，且与 `stdout` 互不干扰；
-- 暗号端到端：`"暗号:WANXIANG-DONE"` 按多处切分写出，断言仍能命中 token。
+- 暗号端到端：`"暗号:WANXIANG-DONE"` 按多处切分写出，断言仍能命中 token；
+- **宿主退出时只写出半个字符**，断言残片被 `end()` 冲出（这条专测 `end()`，删掉它即变红）；
+- 2 条 `StringDecoder` 契约用例，覆盖 `write` 残留与补全两种边界。
 
-**红绿验证**：修复前 3 条全部失败，实测报错 `expected '\ufffd\ufffd\ufffd|DONE' to be '暗|DONE'`；
-修复后 3 条全绿。全量 `vitest` 917 通过 / `tsc --noEmit` 通过。
+**chunk 边界如何保证与调度无关**：测试用**文件握手**——子进程写第 N 块后轮询等 ack，
+父进程侧用非阻塞定时器创建 ack。子进程必须等父进程处理完第 N 块才写第 N+1 块，
+故 chunk 必然独立。这替换了早先的「子进程忙等 200ms」方案：实测父进程同步阻塞 500ms 时，
+忙等方案的三次写会全部落进 pipe 缓冲合并成一个 chunk，旧实现照样通过（假绿）。
+
+**红绿验证**：
+
+- 回退解码为 `buf.toString('utf8')` → 4 条集成用例全红（每条均跑满 511ms 阻塞，证明握手生效）；
+- 删除 `finish` 里的 `end()` → 「半个字符」用例精确变红，其余 6 条仍绿；
+- 恢复后 7 条全绿。全量 `vitest` 920 通过 / `tsc --noEmit` 通过。
 
 ### 四、同轮复核：两项既有待办的处理结论
 
@@ -2451,8 +2473,16 @@ commission、horizon、park、unpark、abandon」，并去猜 `this.call` / `thi
    而该函数对显式值直接返回，推导分支根本执行不到。全库 374 个修订**无一条缺 `deadline_ms`**
    （`schemas/case-revision.schema.json` 将其列为必填）。
    **注意「不可达」的边界**：运行路径并不做 schema 校验——`loadCaseRevisions`
-   （`src/run/exam-engine/loader.ts`）只做 `JSON.parse`。所以准确表述是
+   （`src/exam-engine/loader.ts`）只做 `JSON.parse`。所以准确表述是
    「在通过 `item validate` 的资产上不可达」；手写或历史资产缺该字段时仍会进入推导分支。
    无论哪种情况，改 `managerSessions` 常量都不影响本次 T6 的任何题。
-2. **`installPluginRuntimeDeps`「只覆盖 zod」已不成立。** 当前是 `cpSync(..., { recursive: true })`
-   整棵复制，与注释一致；原待办撤回。
+2. **`installPluginRuntimeDeps`「只覆盖 zod」：原待办方向正确，但表述需精确。**
+   实测 `@opencode-ai/plugin` 的 `package.json` 声明 4 个依赖，但只有 `zod` 内嵌在包内，
+   `@ai-sdk/provider` / `@opencode-ai/sdk` / `effect` 被 hoist 到上层 `node_modules`；
+   复制到隔离 HOME 后，只有 `zod` 能解析，其余三个 `MODULE_NOT_FOUND`。
+   **但这不构成运行时故障**：插件实际加载的是 `@opencode-ai/plugin/tool` 子入口，
+   其 `dist/tool.js` 只 `import { z } from "zod"`；三个缺失包在该加载路径上不被 import。
+   实测只复制包本体（含内嵌 `zod`）后 `import('@opencode-ai/plugin/tool')` 成功。
+   故 `cpSync` 整棵复制的行为是**正确的**，需要修的是函数注释——它原先称
+   「自身声明了 `@ai-sdk/provider` / `@opencode-ai/sdk` / `effect` / `zod` 等运行时依赖」，
+   暗示四个都需要，与事实不符，已改为如实说明「只有 `zod` 在加载路径上」。

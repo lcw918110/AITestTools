@@ -1116,10 +1116,13 @@ function prepareIsolatedHostConfig(opts: {
  * 该请求被代理以 403 拒绝，插件加载直接失败（`plugin-initialization-failed`），
  * 被测插件从未被调用，运行空转到 deadline。
  *
- * 注意不能只复制 `@opencode-ai/plugin` 本体：它自身声明了
- * `@ai-sdk/provider` / `@opencode-ai/sdk` / `effect` / `zod` 等运行时依赖，
- * 且 `dist/tool.js` 直接 `import { z } from "zod"`。只搬顶层包会让 Node 解析
- * 上溯失败，重演同一个故障。故按「包 + 其嵌套 node_modules」整棵复制。
+ * 注意不能只复制 `@opencode-ai/plugin` 本体而丢掉它内嵌的 `node_modules`：
+ * 插件实际加载的是 `@opencode-ai/plugin/tool` 子入口，其 `dist/tool.js` 直接
+ * `import { z } from "zod"`，而 `zod` 正是该包内嵌的那一份（`package.json` 里
+ * 另外声明的 `@ai-sdk/provider` / `@opencode-ai/sdk` / `effect` 在 `tool` 入口的
+ * 加载路径上**不被 import**，缺失不影响加载，但也不要指望它们存在）。
+ * 故按「包 + 其嵌套 node_modules」整棵复制，把内嵌 `zod` 一并带过去。
+ * 实测：只复制包本体（含内嵌 `zod`）后 `import('@opencode-ai/plugin/tool')` 成功。
  *
  * 依赖从插件自身所在的包根向上找最近的 `node_modules`，网络零参与。
  * 找不到时写产物留痕（不静默跳过），否则事后无法区分「没找到源」与「复制成功」。
