@@ -1,10 +1,13 @@
 /**
  * HTTP 层集成测试：用 node:http createServer 包裹 handleRequest，经真实 socket + fetch 验证。
  * 覆盖：GET 正常/404、POST/PUT 入参错误路径、静态文件 MIME、作业查询生命周期。
- * 只测只读与入参校验路径，不触发真实命令执行、不写入真实 product-eval 项目。
+ *
+ * 其中「本机隔离探测通过后才接受真实运行」用例会走 `live: true` 分支，真实 spawn
+ * `npm run proctor run --dataset eval-model`。因此项目根必须隔离到临时目录，
+ * 否则会往仓库内 `examples/product-eval/runs/` 写真实评测产物。
  */
 import { createServer, type Server } from 'node:http';
-import { mkdtempSync, rmSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
@@ -13,10 +16,69 @@ import type { Job } from '../../apps/console/job-queue.ts';
 import type { jobs as JobsMap } from '../../apps/console/job-queue.ts';
 import type { handleRequest as HandleRequest } from '../../apps/console/router.ts';
 
+/**
+ * 隔离的项目根：`apps/console/config.ts` 的 `PROJECT` 在 import 时求值，
+ * 故必须在任何动态 import 之前设好环境变量。
+ *
+ * 软链的目录只承载**读**路径，且当前用例集不会经 HTTP 触达其写接口：
+ * - `dataset-releases`：`resolveRunPlan` 校验测试集名单所需；
+ * - `bank`：`listTasks(PROJECT)` 解析测试计划所需；
+ * - `environments`：解析可跑引擎条目所需；
+ * - `cases` / `case-revisions`：`collectItemIds` 统计条目所需
+ *   （空目录会让 `/api/run` 返回「本次运行环境没有可跑的引擎条目」）。
+ *
+ * `eval-tasks` 建真实空目录：`eval-tasks.ts` 有写入分支，软链会写穿真实资产。
+ * `runs` 建真实空目录：产物必须落临时区。
+ *
+ * ⚠️ 若将来新增用例要打 `POST /api/test-sets`、`PUT /api/bank/tasks/:id`、
+ * `POST /api/eval-tasks`、`POST /api/env/models` 等写接口，必须先把对应目录
+ * 从 `READONLY_LINKS` 移到 `EMPTY_DIRS`，否则会写穿真实资产。
+ */
+const isolatedProject = mkdtempSync(join(tmpdir(), 'proctor-server-http-project-'));
+const REAL_PRODUCT_EVAL = resolve('examples/product-eval');
+const READONLY_LINKS = [
+  'dataset-releases',
+  'bank',
+  'environments',
+  'cases',
+  'case-revisions',
+  'protocol',
+] as const;
+const EMPTY_DIRS = ['candidates', 'eval-tasks', 'runs'] as const;
+
+for (const dir of READONLY_LINKS) {
+  const target = join(REAL_PRODUCT_EVAL, dir);
+  if (existsSync(target)) symlinkSync(target, join(isolatedProject, dir));
+}
+for (const dir of EMPTY_DIRS) {
+  mkdirSync(join(isolatedProject, dir), { recursive: true });
+}
+writeFileSync(
+  join(isolatedProject, 'exam.json'),
+  JSON.stringify({
+    name: 'server-http-test-project',
+    description: 'HTTP 层测试专用临时考卷库：只读资产软链真实 product-eval，产物写临时目录。',
+    asset_protocol: 'cases-v1',
+    paths: {},
+  }),
+);
+process.env.PROCTOR_CONSOLE_PROJECT = isolatedProject;
+
 const isolationGate = vi.hoisted(() => ({ allowed: false, reason: '测试桩：隔离探测未通过' }));
 vi.mock('../../src/security/isolation-backend.ts', () => ({
   evaluateIsolationGate: vi.fn(async () => isolationGate),
 }));
+
+/**
+ * `executeJob` 会真实 spawn 评测子进程（`detached: true`，测试无法等待其结束）。
+ * 「隔离探测通过」用例只需验证「受理而非拒绝」，故把它替换为空实现，
+ * 避免测试期间启动真实评测、也避免 afterAll 删临时根时子进程仍在跑。
+ */
+const executeJobMock = vi.hoisted(() => vi.fn(async () => {}));
+vi.mock('../../apps/console/job-queue.ts', async (importOriginal) => {
+  const actual = await importOriginal<Record<string, unknown>>();
+  return { ...actual, executeJob: executeJobMock };
+});
 
 let server: Server;
 let baseUrl = '';
@@ -51,8 +113,10 @@ afterAll(async () => {
     server.close((err) => (err ? reject(err) : res()));
   });
   delete process.env.PROCTOR_CONSOLE_JOBS_DIR;
+  delete process.env.PROCTOR_CONSOLE_PROJECT;
   vi.resetModules();
   if (testJobsDir) rmSync(testJobsDir, { recursive: true, force: true });
+  rmSync(isolatedProject, { recursive: true, force: true });
 });
 
 afterEach(() => {
@@ -69,7 +133,10 @@ describe('HTTP 层集成测试', () => {
     expect(res.status).toBe(200);
     const body = (await res.json()) as { ok: boolean; project: string };
     expect(body.ok).toBe(true);
-    expect(body.project).toBe(resolve('examples/product-eval'));
+    // 断言「不在仓库内」而非「等于同源变量」：若 `PROCTOR_CONSOLE_PROJECT` 未生效，
+    // 两边会一起变成真实路径，同源断言仍绿、却已重新污染真实目录。
+    expect(body.project).not.toContain('examples/product-eval');
+    expect(body.project.startsWith(tmpdir())).toBe(true);
   });
 
   it('GET /api/presets 返回 200 与三个预设项', async () => {
@@ -250,7 +317,12 @@ describe('HTTP 层集成测试', () => {
       body: JSON.stringify({ experiment: 'model', live: true }),
     });
     isolationGate.allowed = false;
-    expect(res.status).not.toBe(400);
+
+    // 隔离门放行后应「受理」而非拒绝（`executeJob` 已被 mock，不启动真实评测）。
+    expect(res.status).toBe(202);
+    const { jobId } = (await res.json()) as { jobId: string };
+    expect(jobId).toBeTruthy();
+    expect(executeJobMock).toHaveBeenCalledTimes(1);
   });
 
   it('跨站点防护：POST 携带 Sec-Fetch-Site: cross-site 返回 403', async () => {

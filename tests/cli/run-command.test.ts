@@ -1,11 +1,27 @@
 import { existsSync, rmSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { loadProject } from '../../src/exam-engine/project.ts';
 import { runCommand } from '../../src/cli/commands/run.ts';
+import {
+  createIsolatedProjectRoot,
+  removeIsolatedProjectRoot,
+} from '../helpers/isolated-project.ts';
 
-const demo = fileURLToPath(new URL('../../examples/demo-project', import.meta.url));
+/**
+ * 产物必须落临时目录：本用例真实执行 `runCommand`，
+ * 若直接指向 `examples/demo-project`，会往仓库内 `runs/` 写真实 run 目录
+ * （`afterEach` 虽会删，但并发窗口内仍与趋势扫描争抢 I/O）。
+ */
+let demo: string;
+
+beforeAll(() => {
+  demo = createIsolatedProjectRoot();
+});
+
+afterAll(() => {
+  removeIsolatedProjectRoot(demo);
+});
 
 /**
  * run 命令端到端 smoke（cases-v1 数据源 + runner 分发）。

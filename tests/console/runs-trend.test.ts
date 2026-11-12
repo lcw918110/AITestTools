@@ -1,11 +1,45 @@
 import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it } from 'vitest';
-import { runsTrend } from '../../apps/console/controllers/runs.ts';
-import { PROJECT } from '../../apps/console/config.ts';
+import { afterAll, afterEach, describe, expect, it } from 'vitest';
+
+/**
+ * `apps/console/config.ts` 的 `PROJECT` 在 import 时求值，因此必须在 import 之前
+ * 把控制台项目根指到临时目录。
+ *
+ * 否则 `addRun` 会往仓库内 `examples/product-eval/runs/` 写目录（`afterEach` 虽会删，
+ * 但并发窗口内仍与趋势扫描争抢 I/O）。
+ *
+ * 注意：此处必须在模块顶层创建（不能挪到 `beforeAll`）——动态 `import` 依赖它。
+ * 代价是全部用例被过滤时 `$TMPDIR` 会留下一个空目录，属已知的轻微泄漏。
+ */
+const isolatedProject = mkdtempSync(join(tmpdir(), 'console-trend-project-'));
+mkdirSync(join(isolatedProject, 'runs'), { recursive: true });
+writeFileSync(
+  join(isolatedProject, 'exam.json'),
+  JSON.stringify({
+    name: 'console-trend-test-project',
+    description: 'runsTrend 测试专用临时考卷库，不落仓库。',
+    asset_protocol: 'cases-v1',
+    paths: {},
+  }),
+);
+process.env.PROCTOR_CONSOLE_PROJECT = isolatedProject;
+
+const { runsTrend } = await import('../../apps/console/controllers/runs.ts');
+const { PROJECT } = await import('../../apps/console/config.ts');
 
 const temporaryRuns: string[] = [];
+
+describe('隔离自证', () => {
+  it('PROJECT 落在 tmpdir 下，未回落到 examples/product-eval', () => {
+    // 守门断言：若 `PROCTOR_CONSOLE_PROJECT` 未生效（被 setupFile 覆盖、或 config.ts
+    // 改了求值方式），PROJECT 会变成真实的 examples/product-eval，测试仍会全绿
+    // 但会重新污染真实目录。故断言「不在仓库内」而非「等于某个同源变量」。
+    expect(PROJECT.startsWith(tmpdir())).toBe(true);
+    expect(PROJECT).not.toContain('examples/product-eval');
+  });
+});
 
 function addRun(dataset: string, purpose?: string, startedAt = '2026-10-23T00:00:00Z', val = 1) {
   const runsDir = join(PROJECT, 'runs');
@@ -30,6 +64,10 @@ function uniqueDataset() {
 
 afterEach(() => {
   for (const dir of temporaryRuns.splice(0)) rmSync(dir, { recursive: true, force: true });
+});
+
+afterAll(() => {
+  rmSync(isolatedProject, { recursive: true, force: true });
 });
 
 describe('Console runsTrend controller (GAP-4)', () => {

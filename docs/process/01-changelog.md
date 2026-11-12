@@ -2633,3 +2633,79 @@ Error: Test timed out in 5000ms.
 
 > 备注：`uniqueDataset()` 建的 `trend-dataset-*` 原本就在 `tmpdir()` 下且有 `afterEach` 清理，
 > 不是污染源，未改动。
+
+## 59. 测试产物全面隔离与历史产物清理（2026-11-12）
+
+§58 只修掉了 `report-trend` 一个写入源。本轮把其余写入源隔离，并清理历史产物。
+
+### 一、污染源清单（逐个文件实测）
+
+| 文件                                        | 写入点                            | 处理                                |
+| :------------------------------------------ | :-------------------------------- | :---------------------------------- |
+| `tests/cli/slice7-compare.test.ts`          | 3 处真实 `main(['run', ...])`     | 已隔离                              |
+| `tests/cli/concurrency-run.test.ts`         | 串行/并发各跑一次                 | 已隔离                              |
+| `tests/cli/main.test.ts`                    | L1×2 / L2 / B 矩阵 / baseline pin | 已隔离（仅 run 类调用）             |
+| `tests/cli/run-command.test.ts`             | `runCommand({ project: demo })`   | 已隔离                              |
+| `tests/console/runs-trend.test.ts`          | 写 `examples/product-eval/runs/`  | 已隔离（`PROCTOR_CONSOLE_PROJECT`） |
+| `tests/console/server-http.test.ts`         | `live: true` 用例真实 spawn 评测  | 已隔离（同上）                      |
+| `tests/run/*`、`tests/drivers/fold.test.ts` | 无（只读资产或纯内存计算）        | 不需要                              |
+
+> 注意：`run-command.test.ts` 与 `runs-trend.test.ts` 的写入是**瞬时**的（自己 `afterEach` 删掉），
+> 靠「跑前跑后目录数对比」看不出来，必须紧轮询或读代码才能发现。首轮静态排查漏了这两处，
+> 由独立审查指出后补修。
+>
+> `server-http.test.ts` 更隐蔽：只在 `isolationGate.allowed = true` 那一条用例里真实 spawn
+> 评测子进程，而文件头原本写着「不触发真实命令执行」，注释与事实相反。
+
+### 二、修法：共用隔离 helper
+
+新增 `tests/helpers/isolated-project.ts` 的 `createIsolatedProjectRoot()`：
+
+- 在 `$TMPDIR` 下建临时根，用**符号链接**把真实 demo 的资产目录链进去（零复制）；
+- 只把 `runs` 建成**真实目录**：它是所有 run 的产物落点，必须隔离；
+- 写入最小 `exam.json`（`paths: {}` 走默认相对路径）。
+
+**两个非显然的坑**：
+
+1. `sut/` 必须一起软链。L1 fold 题的 `execution_profile.fold_entry`（`sut/todo-fold.mjs`）
+   是相对 `project.root` 解析的，与 `paths` 声明无关；漏了会报「无法 import Fold 模块」，
+   容易误判成资产问题。
+2. `cassettes` 必须软链而非建空目录。`examples/demo-project/cassettes/` 下有被 git 跟踪的
+   录制，`smoke-a-l3` 等 `mode=cassette` 的题靠它跑通；建空目录会让这些题必然假红。
+   其写入分支只在 `PROCTOR_RECORD_CASSETTE` 非空时触发，helper 会显式清除该变量。
+
+`symlinkSync` 前先 `existsSync(target)` 判断：`symlinkSync` 对不存在的目标**不会**报错，
+而是建一个悬空软链，错误会延迟到被测代码里以「资产缺失」的形态暴露，难以定位。
+
+`runs-trend.test.ts` 与 `server-http.test.ts` 走另一条路：`apps/console/config.ts` 的 `PROJECT`
+在 import 时求值，故在模块顶层（动态 `import` 之前）设 `PROCTOR_CONSOLE_PROJECT` 指向临时根。
+二者的「隔离自证」断言写成「不在 `examples/product-eval` 下且在 `tmpdir()` 下」，
+而不是「等于某个同源变量」——同源断言在环境变量失效时会两边一起变成真实路径，仍绿但已污染。
+
+`server-http.test.ts` 还有一层：它原本的「隔离探测通过」用例会以 `live: true` 真实 spawn
+评测子进程（`detached: true`，测试不等待、afterAll 又删掉其项目根）。现改为
+`vi.mock` 掉 `executeJob`，只断言「受理而非拒绝」（202 + 调用一次），不再启动真实评测。
+
+### 三、验证
+
+- **红**：改动前逐文件实测，`slice7-compare` +3、`concurrency-run` +2、`main.test.ts` +5；
+- **绿**：改动后各跑一次，增量均为 **0**，用例数不变（`slice7-compare` 7 / `concurrency-run` 1 / `main.test.ts` 15 / `run-command` 1 / `runs-trend` 7 / `server-http` 25 全绿）；
+- **全量**：982 通过，`examples/demo-project/runs/` 与 `examples/product-eval/runs/` 增量均为 **0**。
+
+### 四、历史产物清理
+
+`examples/demo-project/runs/` 累积 **5,618 个**目录、**239MB**（2026-07-26 ~ 2026-11-12，
+未被 git 跟踪，`.gitignore` 已忽略 `runs/`）。清理前确认：
+
+- `git ls-files` 对该路径返回 0；
+- `baselines/` 是**自包含快照**（自带 `run.json` / `results.ndjson` / `artifacts/`），
+  其 `baseline.json` 的 `source_run` 仅作来源记录，全仓无代码读该路径。
+
+清理后 `runs/` 为空，全量 982 仍全绿、跑完仍为 0 个目录。
+
+`examples/demo-project/baselines/` 下的 `ci-smoke`（308K）与 `phase1-smoke-A`（36K）也是历史
+测试产物（`.gitignore` 已忽略），但本次**未删**：`main.test.ts` 的 `baseline pin` 已改指向临时根、
+不再新增，且它们是 `baseline` 功能的现成样例，删除收益低。若后续确认无人使用，可一并清理。
+
+`examples/product-eval/runs/` 的 361 个目录**保留未动**：按日期命名，全是真实评测产物
+（非测试垃圾），且 `baselines/paired-off` 的 `source_run` 与每行 `artifact_dir` 仍指向其中记录。

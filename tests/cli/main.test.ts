@@ -1,9 +1,27 @@
 import { fileURLToPath } from 'node:url';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import { main } from '../../src/cli/main.ts';
+import {
+  createIsolatedProjectRoot,
+  removeIsolatedProjectRoot,
+} from '../helpers/isolated-project.ts';
 
 const demoProject = fileURLToPath(new URL('../../examples/demo-project', import.meta.url));
 const brokenProject = fileURLToPath(new URL('../fixtures/broken-project', import.meta.url));
+
+/**
+ * `run` 子命令的产物落临时目录，避免往仓库内 `examples/demo-project/runs/` 写真实 run。
+ * 只读命令（`item validate` / `case validate`）仍用真实 demoProject。
+ */
+let runProject: string;
+
+beforeAll(() => {
+  runProject = createIsolatedProjectRoot();
+});
+
+afterAll(() => {
+  removeIsolatedProjectRoot(runProject);
+});
 
 let out: string[];
 
@@ -95,7 +113,7 @@ describe('L1 run', () => {
         '--environment',
         'fold-v1',
         '--project',
-        demoProject,
+        runProject,
       ]),
     ).toBe(0);
   });
@@ -109,7 +127,7 @@ describe('L1 run', () => {
         '--environment',
         'fold-v1',
         '--project',
-        demoProject,
+        runProject,
         '--only',
         'demo-a-todo-fold-01.r1',
       ]),
@@ -125,7 +143,7 @@ describe('L1 run', () => {
         '--environment',
         'fold-v1',
         '--project',
-        demoProject,
+        runProject,
         '--only',
         'NO-SUCH-ITEM',
       ]),
@@ -144,7 +162,7 @@ describe('L2 run', () => {
         '--environment',
         'fake-host-v1',
         '--project',
-        demoProject,
+        runProject,
       ]),
     ).toBe(0);
   });
@@ -162,7 +180,7 @@ describe('B fixture matrix', () => {
         '--environment',
         'model-direct-v1',
         '--project',
-        demoProject,
+        runProject,
       ]),
     ).toBe(0);
   });
@@ -178,7 +196,7 @@ describe('baseline pin + report show', () => {
         '--environment',
         'fake-host-v1',
         '--project',
-        demoProject,
+        runProject,
       ]),
     ).toBe(0);
     const runLine = out.find((l) => l.startsWith('run 完成：'));
@@ -195,7 +213,7 @@ describe('baseline pin + report show', () => {
         '--name',
         'ci-smoke',
         '--project',
-        demoProject,
+        runProject,
       ]),
     ).toBe(0);
     expect(out.join('\n')).toContain('已钉选 baseline');

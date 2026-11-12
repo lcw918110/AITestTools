@@ -1,11 +1,26 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
 import { main } from '../../src/cli/main.ts';
 import { compareRuns } from '../../src/report/compare.ts';
+import {
+  createIsolatedProjectRoot,
+  removeIsolatedProjectRoot,
+} from '../helpers/isolated-project.ts';
 
-const demoProject = fileURLToPath(new URL('../../examples/demo-project', import.meta.url));
+/**
+ * 产物必须落临时目录：本用例真实执行两次 `main(['run', ...])`，
+ * 若直接指向 `examples/demo-project`，每次都会往仓库内 `runs/` 写 2 个真实 run 目录。
+ */
+let demoProject: string;
+
+beforeAll(() => {
+  demoProject = createIsolatedProjectRoot();
+});
+
+afterAll(() => {
+  removeIsolatedProjectRoot(demoProject);
+});
 
 function normalizeNdjson(runDir: string): string {
   const rows = readFileSync(join(runDir, 'results.ndjson'), 'utf8')
