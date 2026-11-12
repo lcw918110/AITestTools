@@ -62,14 +62,15 @@ function ackChunkedWriter(opts: {
 }): string {
   const stream = opts.toStderr === true ? 'process.stderr' : 'process.stdout';
   const full = Buffer.byteLength(opts.text, 'utf8');
-  // truncateAtEnd 时终点取最后一刀，不写完整字符。
-  const lastCut = opts.byteCuts[opts.byteCuts.length - 1] ?? full;
-  const end = opts.truncateAtEnd === true ? lastCut : full;
+  // truncateAtEnd 时终点取最后一刀，不写完整字符：
+  // 直接丢弃末尾的 full，否则会追加一个与最后一刀重复的边界，
+  // 产生长度为 0 的空块并多触发一次握手。
+  const bounds = opts.truncateAtEnd === true ? [...opts.byteCuts] : [...opts.byteCuts, full];
   return [
     "const fs = require('node:fs');",
     `const ack = ${JSON.stringify(opts.ackPath)};`,
     `const b = Buffer.from(${JSON.stringify(opts.text)}, 'utf8');`,
-    `const bounds = ${JSON.stringify([...opts.byteCuts, end])};`,
+    `const bounds = ${JSON.stringify(bounds)};`,
     'let prev = 0;',
     'let idx = 0;',
     'const pump = () => {',
@@ -94,7 +95,7 @@ function ackChunkedWriter(opts: {
  *
  * `blockMs` 模拟「父进程被长时间占住」——它是本文件的核心保障：
  * 即使父进程在开局阻塞，chunk 也不会合并，因为子进程要等 ack 才写下一块，
- * 而 ack 只在父进程的 `data` 回调里创建。
+ * 而 ack 由父进程侧的非阻塞定时器创建。
  */
 async function runAckCase(opts: {
   text: string;
