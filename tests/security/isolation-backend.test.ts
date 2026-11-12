@@ -59,6 +59,52 @@ describe('隔离后端失败关闭', () => {
     expect(gate.missing).toEqual(['egress_denied']);
   });
 
+  it('同一证明出现重复项且其中一条失败时拒绝，不因另一条通过而放行', async () => {
+    // 失败关闭：任一来源对同一 proof 报 failed，就说明该能力未被稳定证明。
+    // 若实现用 `some(passed)` 判定，重复项会让失败被通过项掩盖（fail-open）。
+    const evidence: IsolationProbeEvidence[] = [
+      ...passedEvidence(),
+      { proof: 'credential_read_denied', passed: false, detail: '复测时凭据可读' },
+    ];
+    const gate = await evaluateIsolationGate(runtime({ platform: 'darwin', evidence }));
+    expect(gate.allowed).toBe(false);
+    expect(gate.missing).toEqual(['credential_read_denied']);
+  });
+
+  it('失败项在前、通过项在后时仍拒绝，不取「最后一条」为准', async () => {
+    // 上一条用例把失败项追加在末尾，`last-wins` 实现恰好也能通过它。
+    // 这条把失败项放在最前，专门杀死「以最后一条为准」这一 fail-open 变体。
+    const evidence: IsolationProbeEvidence[] = [
+      { proof: 'credential_read_denied', passed: false, detail: '首次探测凭据可读' },
+      ...passedEvidence(),
+    ];
+    const gate = await evaluateIsolationGate(runtime({ platform: 'darwin', evidence }));
+    expect(gate.allowed).toBe(false);
+    expect(gate.missing).toEqual(['credential_read_denied']);
+  });
+
+  it('通过项在前、失败项居中、通过项在后时仍拒绝', async () => {
+    // 同时杀死 first-wins 与 last-wins 两种实现。
+    const evidence: IsolationProbeEvidence[] = [
+      ...passedEvidence(),
+      { proof: 'egress_denied', passed: false, detail: '中途复测出站放行' },
+      { proof: 'egress_denied', passed: true, detail: '末次复测又拒绝' },
+    ];
+    const gate = await evaluateIsolationGate(runtime({ platform: 'darwin', evidence }));
+    expect(gate.allowed).toBe(false);
+    expect(gate.missing).toEqual(['egress_denied']);
+  });
+
+  it('证明项重复且全部通过时仍放行，不因重复本身误判', async () => {
+    const evidence: IsolationProbeEvidence[] = [
+      ...passedEvidence(),
+      { proof: 'egress_denied', passed: true, detail: '复测仍拒绝' },
+    ];
+    const gate = await evaluateIsolationGate(runtime({ platform: 'darwin', evidence }));
+    expect(gate.allowed).toBe(true);
+    expect(gate.missing).toEqual([]);
+  });
+
   it('Windows 探测未通过时保持降级并拒绝', async () => {
     const gate = await evaluateIsolationGate(runtime({ platform: 'win32' }));
     expect(gate.allowed).toBe(false);

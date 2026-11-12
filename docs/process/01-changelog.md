@@ -2709,3 +2709,69 @@ Error: Test timed out in 5000ms.
 
 `examples/product-eval/runs/` 的 361 个目录**保留未动**：按日期命名，全是真实评测产物
 （非测试垃圾），且 `baselines/paired-off` 的 `source_run` 与每行 `artifact_dir` 仍指向其中记录。
+
+## 60. 隔离门禁 fail-open 修复与 L1 折叠执行路径补测（2026-11-13）
+
+### 一、缺陷：`missingProofs` 对重复证明项 fail-open
+
+`src/security/isolation-backend.ts` 原实现：
+
+```ts
+REQUIRED_ISOLATION_PROOFS.filter(
+  (proof) => !evidence.some((item) => item.proof === proof && item.passed),
+);
+```
+
+同一 `proof` 出现多条 evidence 时，只要有一条 `passed: true` 就判为已证明，
+后出现的 `passed: false` 被完全掩盖。实测：四项全通过 + 追加一条
+`credential_read_denied / passed: false`，原实现返回 `missing: []`、`allowed: true`。
+
+这是**失败关闭**门禁的语义错误——门禁的价值在于「任一条探测失败就不放行」，
+而不是「任一条探测成功就放行」。当前 `runProbe` 固定每项各返回一条，
+故现网不可达；但 `evaluateIsolationGate` 接受任意 `IsolationRuntime` 注入，
+探测复测、多 backend 合并 evidence 都会产生重复项。
+
+**修法**：改为「取该 proof 的全部行，任一行未通过即视为未证明」。
+
+```ts
+return REQUIRED_ISOLATION_PROOFS.filter((proof) => {
+  const rows = evidence.filter((item) => item.proof === proof);
+  return rows.length === 0 || rows.some((item) => !item.passed);
+});
+```
+
+### 二、L1 折叠执行路径此前只被端到端间接覆盖
+
+`run-fold.ts` 覆盖率 31%、`resolve-entry.ts` 69.6%，两者的错误分支决定上层归因：
+`FoldResolveError` → HARNESS，被测逻辑抛错 → PROTOCOL。归因错了会把
+「配置写错」误判成「被测逻辑有问题」。新增两个直接测试文件（28 条）：
+
+- `tests/drivers/run-fold.test.ts`（18 条）：模块 import 失败 / 导出缺失 / 非函数 /
+  arity 不符 / session 选取（profile 优先、取众数、小写字段、无有效值）/ 被测逻辑抛错归
+  PROTOCOL / 真实 `FoldResolveError` 原样透传 / async fold / `json_clone` 与 `none` /
+  `data:` URL
+- `tests/drivers/resolve-fold-entry.test.ts`（10 条）：`fold_entry` 缺失、不在环境中、
+  `event_schema` 不一致、`resolve_root` 分支、`normalize` 透传
+
+### 三、验证
+
+**覆盖率**：`run-fold.ts` 31% → **100%**，`resolve-entry.ts` 69.6% → **100%**，
+`src/drivers/fold` 53.6% → **95%**，全仓 75.24% → 75.63%。测试数 982 → **1014**。
+
+**变异测试**（证明测试真能捕获回归，而非假绿）：
+
+| 变异                                                          | 结果        |
+| :------------------------------------------------------------ | :---------- |
+| `missingProofs` 改 `!rows[rows.length-1].passed`（last-wins） | 2 条失败 ✅ |
+| `missingProofs` 改 `!rows[0].passed`（first-wins）            | 2 条失败 ✅ |
+| `run-fold.ts` 去掉 `await Promise.resolve(...)`               | 2 条失败 ✅ |
+| 删掉 `if (e instanceof FoldResolveError) throw e`             | 3 条失败 ✅ |
+| 模块 import 失败改抛普通 `Error`                              | 1 条失败 ✅ |
+| `resolve-entry.ts` 两条分支改抛普通 `Error`                   | 3 条失败 ✅ |
+
+**独立审查**（Local Bugbot，两轮）：第一轮 9 项发现（2 High / 3 Medium / 4 Low），
+核心是「新增用例无法捕获 last-wins 回归」与「用例名与断言矛盾、真实透传分支未覆盖」，
+均已修复并复验。第二轮确认 7/9 修好，另指出 `resolve-fold-entry.test.ts` 两条分支
+仍缺类型断言（已补，变异验证有效）。
+
+`npm run verify` 全绿：117 文件 / 1014 用例 / format / lint / typecheck / validate:examples。

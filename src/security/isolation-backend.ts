@@ -346,10 +346,18 @@ function runWrapped(
   });
 }
 
+/**
+ * 找出尚未被证明的必需项。
+ *
+ * 失败关闭：同一 proof 若出现多条记录，**任一条** `passed: false` 即视为未证明。
+ * 用 `some(passed)` 判定会让后出现的失败被先前的通过掩盖（fail-open）——
+ * 探测复测、多个 backend 合并 evidence 等场景都可能产生重复项。
+ */
 function missingProofs(evidence: IsolationProbeEvidence[]): string[] {
-  return REQUIRED_ISOLATION_PROOFS.filter(
-    (proof) => !evidence.some((item) => item.proof === proof && item.passed),
-  );
+  return REQUIRED_ISOLATION_PROOFS.filter((proof) => {
+    const rows = evidence.filter((item) => item.proof === proof);
+    return rows.length === 0 || rows.some((item) => !item.passed);
+  });
 }
 
 /**
