@@ -2455,9 +2455,17 @@ commission、horizon、park、unpark、abandon」，并去猜 `this.call` / `thi
 - `end()` 重复调用返回空串；`end()` 后再 `write` 按新流解码；
 - 切片工具自身：边界含全文长度不产生多余空块、无偏移返回单块、切块拼接等于原字节。
 
-集成侧 `tests/run/hosted-stdio-utf8.test.ts` 缩为 3 条**接线冒烟**：中文 stdout/stderr
-完整拼回且互不干扰、宿主以半个字符结尾时残片被 `end()` 冲出。文件头明确写清
-「这里不承担证伪职责，即使全绿也不说明解码是跨 chunk 有状态的」。
+集成侧 `tests/run/hosted-stdio-utf8.test.ts` 为 5 条**接线冒烟**，覆盖：
+
+- stdout / stderr 各自完整拼回中文，两者互不干扰；
+- stdout 以半个字符结尾 → 残片被 `end()` 冲出；
+- stderr 以半个字符结尾 → 残片被 `end()` 冲出，且 stdout 保持空；
+- stderr 同时含完整中文与尾部残片 → 两者都正确结算。
+
+**能抓到的接线错误**：stderr 漏调 `end()`、stderr 误用 stdout 的 decoder、通道写错、
+结算顺序错乱。**抓不到的**：stderr 用无状态解码——两次 `write` 在父进程读取前会合并成
+一个 chunk，无状态解码同样拿到完整字节。跨 chunk 截断的证伪由单元测试负责。
+文件头已如实写清这条边界。
 
 **为什么放弃在集成测试里制造 chunk 边界**：先后试过四种手段，全部被实测推翻——
 
@@ -2475,7 +2483,7 @@ commission、horizon、park、unpark、abandon」，并去猜 `this.call` / `thi
 - 回退 `write` 为 `chunk.toString('utf8')` → **9 红**；
 - 回退 `end()` 为返回空串 → **3 红**；
 - 正常实现连跑 5 次，每次 17 绿；30 个 CPU 密集进程满载下再跑 5 轮，仍 17 绿。
-  全量 `vitest` 931 通过 / `tsc --noEmit` / `eslint` / `prettier` 通过。
+  全量 `vitest` 933 通过 / `tsc --noEmit` / `eslint` / `prettier` 通过。
 
 ### 四、同轮复核：两项既有待办的处理结论
 

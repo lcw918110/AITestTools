@@ -4,8 +4,24 @@ import { runHostedWithReapForTest } from '../../src/run/hosted-runner.ts';
 /**
  * 宿主 stdio 接线的**冒烟**测试。
  *
- * 这里只验证一件事：`runHostedWithReap` 确实把子进程的 stdout/stderr 接到了
- * 有状态的流解码器上，并且结算时调用了 `end()`。
+ * 这里验证 `runHostedWithReap` 确实把子进程的 stdout 与 stderr **各自**接到了
+ * 有状态的流解码器上，并且结算时对两者都调用了 `end()`。
+ *
+ * 覆盖范围（每条都是「只走该通道」或「两通道各写一次」，以便定位接线错误）：
+ *
+ * - stdout 中文完整拼回、stderr 中文完整拼回，两者互不干扰；
+ * - stdout 以半个字符结尾 → 残片被 `end()` 冲出；
+ * - stderr 以半个字符结尾 → 残片被 `end()` 冲出，且 stdout 保持空
+ *   （若 stderr 漏调 `end()` 或误用 stdout 的 decoder，这条会红）；
+ * - stderr 同时含完整中文与尾部残片 → 两者都正确结算（抓漏调 `end()`）。
+ *
+ * **能抓到的接线错误**：stderr 漏调 `end()`、stderr 误用 stdout 的 decoder、
+ * 通道写错、结算顺序错乱。
+ *
+ * **抓不到的**：stderr 用无状态解码（`buf.toString('utf8')`）。因为两次 write
+ * 在父进程读取前会合并成一个 chunk，无状态解码同样能拿到完整字节。
+ * 跨 chunk 截断的证伪由 `tests/run/stream-decode.test.ts` 负责——
+ * 那里边界由测试自己指定，不依赖 OS 缓冲行为。
  *
  * ## 为什么不在这里证伪「跨 chunk 截断」
  *
@@ -67,5 +83,43 @@ describe('宿主 stdio 接线', () => {
     });
 
     expect(run.stdout).toBe('\uFFFD');
+  }, 40_000);
+
+  it('stderr 的残片同样被 end() 冲出（stdout 干净，证明走的是 stderr 通道）', async () => {
+    // 只往 stderr 写半个字符，stdout 保持空。
+    // 若 stderr 漏调 end()，stderr 会是空串；若误用 stdout 的 decoder，
+    // 残片会跑到 stdout 上——两种错误都能被这条断言抓到。
+    const script = `process.stderr.write(Buffer.from('暗', 'utf8').subarray(0, 2));`;
+    const run = await runHostedWithReapForTest(process.execPath, ['-e', script], {
+      env: {},
+      cwd: '/tmp',
+      timeoutMs: 30_000,
+    });
+
+    expect(run.stderr).toBe('\uFFFD');
+    expect(run.stdout).toBe('');
+  }, 40_000);
+
+  it('stderr 同时含完整中文与尾部残片时，两者都被正确结算', async () => {
+    // 这条抓「漏调 end()」：尾部残片不冲出来就会少一截。
+    // 注意它**抓不到**「stderr 用无状态解码」——两次 write 在父进程读之前
+    // 会合并成一个 chunk，无状态解码同样能拿到完整字节。跨 chunk 截断的证伪
+    // 由 tests/run/stream-decode.test.ts 负责（那里边界由测试自己指定）。
+    const full = '错误';
+    const script = [
+      `const b = Buffer.from(${JSON.stringify(full)}, 'utf8');`,
+      `process.stderr.write(b);`,
+      `process.stderr.write(Buffer.from('暗', 'utf8').subarray(0, 2));`,
+    ].join('\n');
+
+    const run = await runHostedWithReapForTest(process.execPath, ['-e', script], {
+      env: {},
+      cwd: '/tmp',
+      timeoutMs: 30_000,
+    });
+
+    // 完整中文必须原样出现；尾部残片必须被冲出成替换字符。
+    expect(run.stderr).toBe(`${full}\uFFFD`);
+    expect(run.stdout).toBe('');
   }, 40_000);
 });

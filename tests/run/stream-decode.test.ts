@@ -139,11 +139,13 @@ describe('createStreamDecoder：结算时冲出尾部残片', () => {
 });
 
 describe('切片工具自身的正确性', () => {
-  it('边界含全文长度时不产生多余的空块', () => {
+  it('边界恰好等于全文长度时，切出一个完整块加一个空块', () => {
     const chunks = sliceByByteOffsets('暗', [3]);
 
     expect(chunks.length).toBe(2);
+    expect(chunks[0]?.length).toBe(3);
     expect(chunks[1]?.length).toBe(0);
+    // 空块不影响解码结果。
     expect(decodeAll(createStreamDecoder(), chunks)).toBe('暗');
   });
 
