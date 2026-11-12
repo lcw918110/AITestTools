@@ -2506,3 +2506,73 @@ commission、horizon、park、unpark、abandon」，并去猜 `this.call` / `thi
    故 `cpSync` 整棵复制的行为是**正确的**，需要修的是函数注释——它原先称
    「自身声明了 `@ai-sdk/provider` / `@opencode-ai/sdk` / `effect` / `zod` 等运行时依赖」，
    暗示四个都需要，与事实不符，已改为如实说明「只有 `zod` 在加载路径上」。
+
+## 57. 补齐 `runner-shared` 归因语义的确定性测试（2026-11-12）
+
+### 一、缺口怎么发现的
+
+`src/run/runner-shared.ts` 的 5 个导出函数（`loadContract` / `fail` /
+`computeAxisDraftMetrics` / `finalizeAxisResult` / `applyMetricThresholdPass`）
+被 l1/l2/l3/b/c/hosted 多个 runner 共用，**此前没有任何直接测试**，
+只靠各 runner 的集成用例间接触及。本次补齐 4 个纯逻辑函数的测试；
+`loadContract`（bundled 优先、失败回落 `contracts/<id>.json`）仍无直测，缺口留待后续。
+
+用变异测试探底：在 `git archive HEAD` 的干净副本（**不含本文件**，基线 933 条）上逐个改坏生产代码，
+看既有测试是否会失败。结果**三个归因逻辑的变异全部存活（测试无一失败）**：
+
+| 变异                                                            | 后果                                         |
+| :-------------------------------------------------------------- | :------------------------------------------- |
+| `fail()` 的 `invariantViolationsExplicit` 判断取反              | l1 工具链故障被记成题面不变量违反 → 门禁假红 |
+| `computeAxisDraftMetrics` 取「第一个失败」改成「最后一个」      | 归因性质由末个失败决定 → 归因结论错位        |
+| `finalizeAxisResult` 的 attribution 兜底 `PROTOCOL` → `CONTEXT` | 未知失败被记成环境问题 → 效果结论被污染      |
+
+三处都在归因链路上：写错会把「模型答错」记成「环境故障」或反之，直接污染效果结论。
+
+### 二、修法与验证
+
+新增 `tests/run/runner-shared.test.ts` 共 45 条，覆盖：
+
+- `fail()` —— 六种 attribution（含 `MODEL_SCHEMA` / `TOOL`）在
+  「默认口径」与「显式 `invariantViolationsExplicit: 0`」两种模式下的
+  `a_invariant_violations`；`modelSuffix` 按 `undefined` 而非真值拼接（空串仍拼）；
+  `extraMetrics` / `extraFailures` / `artifactDir` / `effectPair` 的组装与写入条件。
+- `computeAxisDraftMetrics` —— 只取**第一个**失败的归因（后续失败不改变结论）、
+  六种归因各自的口径、空列表视为通过。
+- `finalizeAxisResult` —— 通过时无 attribution、失败取首个归因、
+  **无归因兜底 `PROTOCOL`**、六种归因各自的违反计数（`PROTOCOL` / `CONTEXT` 记 1，
+  其余四种记 0，逐个断言）、`evidence_ref` 按原顺序保留、
+  `artifact_dir` / `fold_state` 的写入条件。
+- `applyMetricThresholdPass` —— 只处理 `metric_threshold` 类型；`min` / `max`
+  双向判定与**两端等值边界**（`actual === min` / `=== max` 判过）；区间内判过；
+  空 `metric`（无 `name`）→ `HARNESS`（配置错误不是模型失败）；
+  指标未产出时沿用传入 attribution、未传则兜底 `HARNESS`。
+  **另固化一条现状**：`metric` 缺省但给了 `name` 时，实现按 `name` 正常判定
+  （`oracle.metric ?? oracle.name ?? ''`），配置错误会被静默放过——用例如实断言
+  「可判过」，不粉饰成 HARNESS。
+
+**变异复验**：对新测试再跑 14 个变异（含 `max` 比较方向反转、`min` 边界改 `<=`、
+`TOOL` / `MODEL_SCHEMA` 误算违反、`extraMetrics` 展开顺序前移、指标未产出丢弃
+传入 attribution 等），**14 个全部被抓**，基线 45 条稳定全绿。
+
+全量：978 通过 / 115 文件，`tsc --noEmit`、`eslint --max-warnings 0`、
+`prettier --check` 均通过。
+
+### 三、审查发现的既有口径分歧（已如实记录，未改动生产代码）
+
+两个函数对「失败但无 attribution」的处理**不一致**，本次用测试把现状固化而非掩盖：
+
+- `computeAxisDraftMetrics`：不兜底，`undefined` 直接判否 → `a_invariant_violations = 0`；
+- `finalizeAxisResult`：兜底 `PROTOCOL` → `a_invariant_violations = 1`。
+
+draft 的这份 metrics 正是 `applyMetricThresholdPass` 二趟判定的输入，因此配置了
+`{metric: 'a_invariant_violations', max: 0}` 的 `metric_threshold` oracle
+会先看到 0 而放过，最终产物却是 1。两者是否应该统一属产品口径问题，需另行决策，
+不在本次测试补强范围内。（注意：这与 `src/run/gates.ts` 的 `evaluateGates`
+（吃 `aggregates`）是两套独立机制。）
+
+另记两条已知事实（测试注释已如实写明，避免后来者误判）：
+
+- `fail()` 的 `extraMetrics` 展开位于 `a_case_pass_rate` / `a_invariant_violations`
+  **之后**，同名键会覆盖框架字段。现有调用方只传无冲突键，故线上无害。
+- `failHarness` 只存在于注释，仓库内无任何实现；唯一传
+  `invariantViolationsExplicit: 0` 的调用点是 `b-runner.ts:115`（B-direct adapter 失败）。
