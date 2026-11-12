@@ -26,7 +26,8 @@ export function loadContract(
  * 规范化 fail helper。
  * - l2/l3/c: 直接 `fail(item, attr, msg)`
  * - b: 多 modelSuffix + b_schema_obedience_rate
- * - l1(failHarness): 始终 HARNESS，invariant_violations=0
+ * - b 轴 direct adapter 失败：传 `invariantViolationsExplicit: 0` + `modelSuffix`，
+ *   明确表示「不计题面不变量违反」（唯一调用点见 `b-runner.ts`）
  * 通过 opts 显式说明差异；未指定时按 l2/l3/c 默认语义（attribution 决定 invariant_violations）。
  */
 export function fail(
