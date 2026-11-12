@@ -1342,8 +1342,9 @@ async function runHostedWithReap(
       clearTimeout(timer);
       if (graceTimer !== undefined) clearTimeout(graceTimer);
       // 结算只用一次：把解码器里残留的尾部字节冲出来。
-      // 正常 close 路径下管道已读完，end() 返回空串；宽限期提前结算时可能还有
-      // 未解码的尾字节，丢掉会让末尾文本凭空少一截。
+      // 宿主若以半个字符结尾，残片会留在 decoder 内部，不冲出来 stdout 末尾就
+      // 凭空少一截。这一情形在正常 close 路径同样存在（不只是宽限期），
+      // 故 end() 对三条结算路径都必要。
       stdout += stdoutDecoder.end();
       stderr += stderrDecoder.end();
       resolve({ status, signal, error, stdout, stderr, timedOut, stdioDestroyed });

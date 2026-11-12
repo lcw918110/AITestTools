@@ -204,9 +204,13 @@ hosted 沙箱不放行 `registry.npmjs.org`，请求被代理以 403 拒绝，�
 这些重试是非阻塞的，插件已经加载成功，但「预装 = 依赖已满足」这个假设不成立，
 后续若出现插件行为异常需回来查这条线。
 
-另：`@opencode-ai/plugin` 自身声明了 `@ai-sdk/provider` / `@opencode-ai/sdk` /
-`effect` / `zod` 等运行时依赖，且 `dist/tool.js` 直接 `import { z } from "zod"`。
-只复制顶层包会让 Node 解析上溯失败，故 `installPluginRuntimeDeps` 按整棵依赖树复制。
+另：`@opencode-ai/plugin` 的 `package.json` 声明了 `@ai-sdk/provider` / `@opencode-ai/sdk` /
+`effect` / `zod` 四个运行时依赖。**2026-11-11 复核更正**：其中只有 `zod` 内嵌在该包
+`node_modules` 内，其余三个被 hoist 到上层。插件实际加载的是 `/tool` 子入口，
+其 `dist/tool.js` 只 `import { z } from "zod"`，三个被 hoist 的包在该加载路径上
+不被 import、缺失不影响加载（实测只复制包本体后 `import('@opencode-ai/plugin/tool')` 成功）。
+故 `installPluginRuntimeDeps` 按「包 + 其嵌套 `node_modules`」整棵复制的做法正确，
+但不要据此认为那三个包在隔离环境中可用。
 
 ## 影响面
 

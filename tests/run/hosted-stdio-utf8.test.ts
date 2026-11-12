@@ -1,8 +1,5 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { StringDecoder } from 'node:string_decoder';
-import { afterEach, describe, expect, it } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import { runHostedWithReapForTest } from '../../src/run/hosted-runner.ts';
 
 /**
@@ -20,99 +17,68 @@ import { runHostedWithReapForTest } from '../../src/run/hosted-runner.ts';
  * 逐块 `toString('utf8')` 也能正确解码——**旧实现同样通过**，用例无法证伪修复。
  * 必须把刀落在多字节字符内部（如把一个汉字的 3 字节切成 1+2）。
  *
- * ## 为什么用「文件握手」而不是 sleep 或忙等
+ * ## 怎么保证 chunk 边界与机器负载无关
  *
- * 关键要求：chunk 边界必须与父进程调度**完全解耦**。两种朴素做法都不成立：
+ * 这是本文件最关键的约束。三种朴素做法都**不可靠**，实测均被证伪：
  *
- * - `setTimeout` 拉间隔：父进程一旦被 GC 或多文件并行占住，多次写会合并成一个
- *   chunk，旧实现同样得到完整字符并通过断言，回归保护静默失效。
- * - 子进程忙等：只是把阈值从 60ms 提到 200ms，**并未消除依赖**。
- *   实测父进程同步阻塞 500ms（> 200ms）时三次写全部落进 pipe 缓冲，
- *   父进程一次 read 拿到合并 chunk，旧实现照样通过。
+ * - `setTimeout` 拉间隔：父进程被 GC 或多文件并行占住时，多次写合并成一个 chunk，
+ *   旧实现同样得到完整字符并通过断言，回归保护静默失效。
+ * - 子进程忙等：只是把阈值从 60ms 提到 200ms。实测父进程同步阻塞 500ms 时，
+ *   三次写全部落进 pipe 缓冲被一次读走，旧实现照样通过。
+ * - 文件 ack 握手（定时器侧无条件周期写 ack）：ack 与「父进程已处理完当前块」
+ *   没有因果绑定，父进程 tick 先于子进程 poll 时两块仍会合并。
+ *   实测 30 个 CPU 密集进程满载下跑 10 轮，会出现假绿轮次。
  *
- * 文件握手把「能否写下一块」绑成**父进程已收到当前块**这一确定事件：
- * 子进程写第 N 块后轮询等待 ack 文件，父进程侧用非阻塞定时器创建 ack。
- * 无论父进程何时被调度，第 N+1 块都只能在其处理完第 N 块之后写入，
- * 因此每个 chunk 必然独立触发一次 `data`，与机器负载无关。
- *
- * 注意 ack 必须由**非阻塞定时器**创建，不能在父进程里同步忙等：
- * 忙等期间事件循环停摆，`data` 回调不会执行，子进程等不到 ack，双方死锁
- * （本文件第一版就是这么挂住的）。
+ * 这里改用**内核 pipe 背压**：先写满 pipe 缓冲（64KB），再写剩余字节。
+ * 填满时内核会挡住写入，剩余字节必须等父进程读走缓冲后才能进入 pipe，
+ * 因此必然落在不同的 chunk。这一分离由内核缓冲区的物理容量决定，
+ * 与父进程何时被调度**完全无关**。实测 30 进程满载 15 轮 chunk 数恒为 2。
  */
-/** 每个握手用例自建的临时目录，`afterEach` 统一清理。 */
-const tempDirs: string[] = [];
-
-afterEach(() => {
-  for (const dir of tempDirs.splice(0)) rmSync(dir, { recursive: true, force: true });
-});
+/** pipe 缓冲容量：Linux/macOS 默认 64KB。填满它才能触发背压。 */
+const PIPE_CAPACITY = 65536;
 
 /**
- * 生成「按字节偏移分块写出，每块之后等 ack 文件」的脚本。
+ * 生成「先填满 pipe 缓冲，再写剩余字节」的脚本。
  *
- * `byteCuts` 必须是**字节偏移**，且至少有一刀落在多字节字符内部，
- * 否则每块都是合法序列，无法证伪旧实现。
+ * `text` 的首字符会被切成两段：第一段 1 字节接在填充数据末尾写入，
+ * 第二段在其后单独写入。填充数据恰好占满 `PIPE_CAPACITY - 1`，
+ * 使第一次写正好填满缓冲、末尾留下半个字符，第二次写必须等父进程读走。
  */
-function ackChunkedWriter(opts: {
+function backpressureWriter(opts: {
   text: string;
-  byteCuts: readonly number[];
-  ackPath: string;
+  /** 首字符切分点（字节偏移，须落在多字节字符内部）。 */
+  cut: number;
   toStderr?: boolean;
-  /** 只写到最后一刀为止就退出，故意留下半个字符。 */
-  truncateAtEnd?: boolean;
 }): string {
   const stream = opts.toStderr === true ? 'process.stderr' : 'process.stdout';
-  const full = Buffer.byteLength(opts.text, 'utf8');
-  // truncateAtEnd 时终点取最后一刀，不写完整字符：
-  // 直接丢弃末尾的 full，否则会追加一个与最后一刀重复的边界，
-  // 产生长度为 0 的空块并多触发一次握手。
-  const bounds = opts.truncateAtEnd === true ? [...opts.byteCuts] : [...opts.byteCuts, full];
   return [
-    "const fs = require('node:fs');",
-    `const ack = ${JSON.stringify(opts.ackPath)};`,
     `const b = Buffer.from(${JSON.stringify(opts.text)}, 'utf8');`,
-    `const bounds = ${JSON.stringify(bounds)};`,
-    'let prev = 0;',
-    'let idx = 0;',
-    'const pump = () => {',
-    '  if (idx >= bounds.length) { process.exit(0); }',
-    `  ${stream}.write(b.subarray(prev, bounds[idx]));`,
-    '  prev = bounds[idx];',
-    '  idx += 1;',
-    '  if (idx >= bounds.length) { process.exit(0); }',
-    '  const timer = setInterval(() => {',
-    '    if (!fs.existsSync(ack)) return;',
-    '    clearInterval(timer);',
-    '    try { fs.unlinkSync(ack); } catch {}',
-    '    pump();',
-    '  }, 2);',
-    '};',
-    'pump();',
+    `const pad = Buffer.alloc(${PIPE_CAPACITY} - 1, 0x41);`,
+    // 第一段：填充 + 首字符前 cut 字节，合计正好填满 pipe 缓冲。
+    `const first = Buffer.concat([pad, b.subarray(0, ${opts.cut})]);`,
+    `${stream}.write(first);`,
+    // 第二段：剩余字节。缓冲已满，必须等父进程读走才能进入 pipe。
+    `${stream}.write(b.subarray(${opts.cut}));`,
   ].join('\n');
 }
 
 /**
- * 跑一个握手用例。
+ * 跑一个背压用例。
  *
- * `blockMs` 模拟「父进程被长时间占住」——它是本文件的核心保障：
- * 即使父进程在开局阻塞，chunk 也不会合并，因为子进程要等 ack 才写下一块，
- * 而 ack 由父进程侧的非阻塞定时器创建。
+ * `blockMs` 让父进程在挂好监听后同步阻塞，模拟满载/GC。
+ * 背压方案下这不影响 chunk 分离——子进程的第二写被内核挡住，
+ * 与父进程何时读无关。
  */
-async function runAckCase(opts: {
+async function runBackpressureCase(opts: {
   text: string;
-  byteCuts: readonly number[];
+  cut: number;
   toStderr?: boolean;
-  truncateAtEnd?: boolean;
   blockMs?: number;
 }): Promise<{ stdout: string; stderr: string; status: number | null }> {
-  const dir = mkdtempSync(join(tmpdir(), 'proctor-ack-'));
-  tempDirs.push(dir);
-  const ack = join(dir, 'ack');
-  const script = ackChunkedWriter({
+  const script = backpressureWriter({
     text: opts.text,
-    byteCuts: opts.byteCuts,
-    ackPath: ack,
+    cut: opts.cut,
     ...(opts.toStderr !== undefined ? { toStderr: opts.toStderr } : {}),
-    ...(opts.truncateAtEnd !== undefined ? { truncateAtEnd: opts.truncateAtEnd } : {}),
   });
 
   const pending = runHostedWithReapForTest(process.execPath, ['-e', script], {
@@ -121,9 +87,6 @@ async function runAckCase(opts: {
     timeoutMs: 30_000,
   });
 
-  // 父进程主动阻塞：若 chunk 边界依赖调度，这里就会合并。
-  // 阻塞期间事件循环停摆，子进程停在等 ack，不会写下一块——
-  // 这正是与「子进程忙等」方案的本质区别。
   const blockMs = opts.blockMs ?? 0;
   if (blockMs > 0) {
     const t = Date.now();
@@ -132,63 +95,54 @@ async function runAckCase(opts: {
     }
   }
 
-  // 阻塞结束后用非阻塞定时器持续放行：子进程消费 ack 后自行 unlink，
-  // 重复创建只会在消费前被覆盖，不影响正确性。
-  const pump = setInterval(() => {
-    try {
-      writeFileSync(ack, 'go');
-    } catch {
-      /* 目录已被清理，忽略 */
-    }
-  }, 3);
+  const run = await pending;
+  return { stdout: run.stdout, stderr: run.stderr, status: run.status };
+}
 
-  try {
-    const run = await pending;
-    return { stdout: run.stdout, stderr: run.stderr, status: run.status };
-  } finally {
-    clearInterval(pump);
-  }
+/** 填充数据会出现在输出里，断言时剥掉前缀只看尾部。 */
+function tail(text: string): string {
+  return text.slice(PIPE_CAPACITY - 1);
 }
 
 describe('宿主 stdio 跨 chunk 的 UTF-8 解码', () => {
   it('汉字被切成 1+2 字节时还原成原字符，不产生替换字符', async () => {
-    // '暗' = e6 9a 97，刀落在第 1 字节后：第 1 块不是合法 UTF-8。
-    const run = await runAckCase({ text: '暗|DONE', byteCuts: [1], blockMs: 500 });
+    // '暗' = e6 9a 97，刀落在第 1 字节后：第一段末尾不是合法 UTF-8。
+    const run = await runBackpressureCase({ text: '暗|DONE', cut: 1, blockMs: 500 });
 
     expect(run.status).toBe(0);
-    expect(run.stdout).toBe('暗|DONE');
+    expect(tail(run.stdout)).toBe('暗|DONE');
     expect(run.stdout).not.toContain('\uFFFD');
   }, 40_000);
 
   it('连续两个汉字逐字节切成三块时也能拼回', async () => {
-    // '暗号' = e6 9a 97 e5 8f b7。刀落在 1 与 4：
-    // 块1 = e6（非法）、块2 = 9a 97 e5（非法，尾部半字符）、块3 = 8f b7（合法 "号"）。
-    const run = await runAckCase({ text: '暗号', byteCuts: [1, 4], blockMs: 500 });
+    // '暗号' = e6 9a 97 e5 8f b7。刀落在第 4 字节：
+    // 第一段末尾是 e6 9a 97 e5（尾部半字符），第二段是 8f b7。
+    const run = await runBackpressureCase({ text: '暗号', cut: 4, blockMs: 500 });
 
-    expect(run.stdout).toBe('暗号');
+    expect(tail(run.stdout)).toBe('暗号');
     expect(run.stdout).not.toContain('\uFFFD');
   }, 40_000);
 
   it('stderr 同样跨 chunk 还原，且与 stdout 互不干扰', async () => {
-    // '错' = e9 94 99，刀落在 1 与 2：三块都非法。
-    const run = await runAckCase({
+    // '错' = e9 94 99，刀落在第 2 字节：第一段末尾是 e9 94（半字符）。
+    const run = await runBackpressureCase({
       text: '错',
-      byteCuts: [1, 2],
+      cut: 2,
       toStderr: true,
       blockMs: 500,
     });
 
-    expect(run.stderr).toBe('错');
+    expect(tail(run.stderr)).toBe('错');
     expect(run.stderr).not.toContain('\uFFFD');
   }, 40_000);
 
   it('暗号类断言在字节级切分时仍能命中（端到端后果）', async () => {
     const token = 'WANXIANG-DONE';
     const text = `暗号:${token}`;
-    // '暗' 前 1 字节、'号' 中间切开：两刀都落在多字节字符内部。
-    const run = await runAckCase({ text, byteCuts: [1, 4], blockMs: 500 });
+    // '暗' 的第 1 字节后切开。
+    const run = await runBackpressureCase({ text, cut: 1, blockMs: 500 });
 
-    expect(run.stdout).toBe(text);
+    expect(tail(run.stdout)).toBe(text);
     expect(run.stdout).toContain(token);
   }, 40_000);
 });
@@ -197,14 +151,23 @@ describe('宿主 stdio 跨 chunk 的 UTF-8 解码', () => {
  * 结算前必须 `end()` 冲出尾部残留字节。
  *
  * 与上面四条互补：它们验证「chunk 边界处不产生替换字符」，
- * 这一组验证「流结束时的半字符残片不被吞掉」。两者覆盖的是 `finish` 里
- * `end()` 的两类必要场景。
+ * 这一组验证「流结束时的半字符残片不被吞掉」。
  */
 describe('流结束时的半字符残留', () => {
   it('宿主退出时只写出半个字符，残片被 end() 冲出而不是静默丢弃', async () => {
-    // '暗' = e6 9a 97。先写前 2 字节（不完整），等父进程收到后再退出。
-    // 若 finish 里不调 end()，这 2 个字节永远留在 decoder 内部，stdout 末尾凭空少一截。
-    const run = await runAckCase({ text: '暗', byteCuts: [2], truncateAtEnd: true, blockMs: 500 });
+    // '暗' = e6 9a 97。只写前 2 字节就退出：残片留在 decoder 内部，
+    // 若 finish 里不调 end()，stdout 末尾凭空少一截。
+    // 这条不需要制造 chunk 边界（只有一次写），因此不加填充数据。
+    const script = [
+      `const b = Buffer.from('暗', 'utf8');`,
+      `process.stdout.write(b.subarray(0, 2));`,
+    ].join('\n');
+
+    const run = await runHostedWithReapForTest(process.execPath, ['-e', script], {
+      env: {},
+      cwd: '/tmp',
+      timeoutMs: 30_000,
+    });
 
     // 残片被冲出后必然是替换字符：证明数据没丢，只是不完整。
     expect(run.stdout).toBe('\uFFFD');
