@@ -182,8 +182,11 @@ export function resolveAdapterOptions(
 
 export class HerdchestraAdapter implements ExecutionAdapter {
   readonly adapterId = 'herdchestra';
+  private readonly options: Partial<HerdchestraAdapterOptions>;
 
-  constructor(private readonly options: Partial<HerdchestraAdapterOptions> = {}) {}
+  constructor(options: Partial<HerdchestraAdapterOptions> = {}) {
+    this.options = options;
+  }
 
   async discover(ctx: AdapterContext): Promise<DiscoveredInput> {
     const options = { ...resolveAdapterOptions(ctx), ...this.options };

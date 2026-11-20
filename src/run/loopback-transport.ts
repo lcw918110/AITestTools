@@ -315,8 +315,11 @@ export function parseEdn(text: string): EdnValue {
 
 class EdnParser {
   private pos = 0;
+  private readonly text: string;
 
-  constructor(private readonly text: string) {}
+  constructor(text: string) {
+    this.text = text;
+  }
 
   readValue(): EdnValue {
     this.skipWhitespace();
