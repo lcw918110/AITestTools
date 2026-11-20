@@ -192,9 +192,7 @@ describe('parseEndpointState', () => {
   });
 
   it('字符串字段中出现 :port 字样时不被误取', () => {
-    const state = parseEndpointState(
-      '{:started-at "note :port 9999", :port 1234, :token "abc"}',
-    );
+    const state = parseEndpointState('{:started-at "note :port 9999", :port 1234, :token "abc"}');
     expect(state?.port).toBe(1234);
   });
 
@@ -371,9 +369,9 @@ describe('sendControlRequest', () => {
 
   it('服务端不回行直接关连接时抛 EMPTY_REPLY', async () => {
     const { port } = await startFakeServer(() => null);
-    await expect(
-      sendControlRequest({ port, token: 'tok' }, { op: 'ping' }),
-    ).rejects.toMatchObject({ code: 'EMPTY_REPLY' });
+    await expect(sendControlRequest({ port, token: 'tok' }, { op: 'ping' })).rejects.toMatchObject({
+      code: 'EMPTY_REPLY',
+    });
   });
 
   it('端口无人监听时抛 UNREACHABLE', async () => {
@@ -409,16 +407,16 @@ describe('sendControlRequest', () => {
   it('回复超过上限时抛 REPLY_TOO_LARGE', async () => {
     const huge = `{:ok? true, :pad "${'x'.repeat(1024 * 1024 + 1)}"}`;
     const { port } = await startFakeServer(() => huge);
-    await expect(
-      sendControlRequest({ port, token: 'tok' }, { op: 'ping' }),
-    ).rejects.toMatchObject({ code: 'REPLY_TOO_LARGE' });
+    await expect(sendControlRequest({ port, token: 'tok' }, { op: 'ping' })).rejects.toMatchObject({
+      code: 'REPLY_TOO_LARGE',
+    });
   });
 
   it('回复为畸形 EDN 时抛 BAD_REPLY', async () => {
     const { port } = await startFakeServer(() => '{:ok? tru');
-    await expect(
-      sendControlRequest({ port, token: 'tok' }, { op: 'ping' }),
-    ).rejects.toMatchObject({ code: 'BAD_REPLY' });
+    await expect(sendControlRequest({ port, token: 'tok' }, { op: 'ping' })).rejects.toMatchObject({
+      code: 'BAD_REPLY',
+    });
   });
 });
 
@@ -439,8 +437,8 @@ describe('probeInstance', () => {
   });
 
   it('ping 回复 ok? false 时返回 null', async () => {
-    const { port } = await startFakeServer(() =>
-      '{:ok? false, :error {:code :SINGLETON_UNAUTHORIZED}}',
+    const { port } = await startFakeServer(
+      () => '{:ok? false, :error {:code :SINGLETON_UNAUTHORIZED}}',
     );
     const options = writeEndpointFile(`{:port ${port}, :token "tok"}`);
     expect(await probeInstance(options)).toBeNull();

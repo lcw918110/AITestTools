@@ -180,7 +180,10 @@ describe('HerdchestraAdapter.evaluate（service 形态）', () => {
 
     expect(results[0]?.pass).toBe(false);
     expect(
-      results[0]?.oracle_failures.map((f) => f.oracle_id).filter((id) => id !== 'harness').sort(),
+      results[0]?.oracle_failures
+        .map((f) => f.oracle_id)
+        .filter((id) => id !== 'harness')
+        .sort(),
     ).toEqual(['bad1', 'bad2']);
   });
 
@@ -222,7 +225,9 @@ describe('HerdchestraAdapter.evaluate（service 形态）', () => {
       makeCollected({ commandAccepted: false, commandError: 'MODEL_TOOLS_UNAVAILABLE' }) as never,
     );
     const modelWrong = await adapter.evaluate(
-      makeCtx([{ type: 'workspace_assert', id: 'w1', path: 'out.txt', contains: '完全不同的内容' }]),
+      makeCtx([
+        { type: 'workspace_assert', id: 'w1', path: 'out.txt', contains: '完全不同的内容' },
+      ]),
       makeCollected() as never,
     );
 
@@ -280,16 +285,14 @@ describe('HerdchestraAdapter.evaluate（service 形态）', () => {
     expect(results[0]?.oracle_failures[0]?.message).not.toContain('0 秒');
   });
 
-  it('collect 遇到未被接受的命令时返回占位采集结果而不抛错', async () => {    const adapter = new HerdchestraAdapter();
-    const collected = (await adapter.collect(
-      makeCollectedContext(),
-      {
-        sessionId: 'sess-1',
-        commandAccepted: false,
-        commandError: 'MODEL_TOOLS_UNAVAILABLE',
-        workspaceDir: workspace,
-      } as never,
-    )) as Record<string, unknown>;
+  it('collect 遇到未被接受的命令时返回占位采集结果而不抛错', async () => {
+    const adapter = new HerdchestraAdapter();
+    const collected = (await adapter.collect(makeCollectedContext(), {
+      sessionId: 'sess-1',
+      commandAccepted: false,
+      commandError: 'MODEL_TOOLS_UNAVAILABLE',
+      workspaceDir: workspace,
+    } as never)) as Record<string, unknown>;
 
     expect(collected.commandAccepted).toBe(false);
     expect(collected.replied).toBe(false);
@@ -313,7 +316,12 @@ describe('HerdchestraAdapter.evaluate（service 形态）', () => {
     const adapter = new HerdchestraAdapter();
     const results = await adapter.evaluate(
       makeCtx([{ type: 'workspace_assert', id: 'w1', path: 'out.txt', contains: 'hello' }]),
-      makeCollected({ replied: false, timedOut: true, readFailed: true, elapsedMs: 300_000 }) as never,
+      makeCollected({
+        replied: false,
+        timedOut: true,
+        readFailed: true,
+        elapsedMs: 300_000,
+      }) as never,
     );
 
     expect(results[0]?.pass).toBe(false);

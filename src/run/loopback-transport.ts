@@ -45,13 +45,7 @@ export class LoopbackError extends Error {
 
 /** 最小 EDN 值域：够表达控制通道的请求与回复。 */
 export type EdnValue =
-  | string
-  | number
-  | boolean
-  | null
-  | EdnKeyword
-  | EdnValue[]
-  | { [key: string]: EdnValue };
+  string | number | boolean | null | EdnKeyword | EdnValue[] | { [key: string]: EdnValue };
 
 /** EDN 关键词，保留为带前缀的字符串以便区分 `"ping"` 与 `:ping`。 */
 export type EdnKeyword = `:${string}`;
@@ -69,9 +63,7 @@ const MAX_LINE_CHARS = 1024 * 1024;
  * 注意：Java 的 `java.io.tmpdir` 在 macOS 上带结尾分隔符，Node 的 `tmpdir()`
  * 不带；`join` 会归一化，故二者结果一致。
  */
-export function resolveEndpointDir(
-  options: { tmpDir?: string; userName?: string } = {},
-): string {
+export function resolveEndpointDir(options: { tmpDir?: string; userName?: string } = {}): string {
   const base = options.tmpDir ?? tmpdir();
   const rawUser = options.userName ?? userInfo().username;
   const safeUser = rawUser.replace(/[^A-Za-z0-9._-]/g, '_');
@@ -170,9 +162,7 @@ function encodeEdnValue(value: unknown): string {
         `控制通道请求不支持该对象类型：${value.constructor?.name ?? '未知'}`,
       );
     }
-    const entries = Object.entries(value).map(
-      ([key, item]) => `:${key} ${encodeEdnValue(item)}`,
-    );
+    const entries = Object.entries(value).map(([key, item]) => `:${key} ${encodeEdnValue(item)}`);
     return `{${entries.join(', ')}}`;
   }
   throw new LoopbackError('UNSUPPORTED_VALUE', `控制通道请求不支持该值类型：${typeof value}`);
@@ -252,9 +242,7 @@ export function encodeEdnString(text: string): string {
       default: {
         // 协议按行切分，其余控制字符也必须转义，否则会截断该行并注入下一条请求。
         const code = char.codePointAt(0) ?? 0;
-        escaped += code < 0x20 || code === 0x7f
-          ? `\\u${code.toString(16).padStart(4, '0')}`
-          : char;
+        escaped += code < 0x20 || code === 0x7f ? `\\u${code.toString(16).padStart(4, '0')}` : char;
       }
     }
   }
@@ -539,22 +527,16 @@ export async function sendControlRequest(
     });
 
     socket.on('timeout', () => {
-      finish(() =>
-        reject(new LoopbackError('TIMEOUT', `控制通道请求超时（${timeoutMs}ms）`)),
-      );
+      finish(() => reject(new LoopbackError('TIMEOUT', `控制通道请求超时（${timeoutMs}ms）`)));
     });
 
     socket.on('error', (error: Error) => {
-      finish(() =>
-        reject(new LoopbackError('UNREACHABLE', `控制通道不可达：${error.message}`)),
-      );
+      finish(() => reject(new LoopbackError('UNREACHABLE', `控制通道不可达：${error.message}`)));
     });
 
     socket.on('close', () => {
       // 服务端未回行就关连接（`singleton.clj` 的 `SINGLETON_EMPTY_REPLY`）。
-      finish(() =>
-        reject(new LoopbackError('EMPTY_REPLY', '控制通道在回复前关闭了连接')),
-      );
+      finish(() => reject(new LoopbackError('EMPTY_REPLY', '控制通道在回复前关闭了连接')));
     });
   });
 }

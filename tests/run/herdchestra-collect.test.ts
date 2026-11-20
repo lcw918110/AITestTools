@@ -227,7 +227,8 @@ describe('service 形态端到端：工作区变更 → collect → evaluate', (
   });
 });
 
-describe('waitForAssistantReply 的基线过滤（防假绿）', () => {  let closer: (() => Promise<void>) | null = null;
+describe('waitForAssistantReply 的基线过滤（防假绿）', () => {
+  let closer: (() => Promise<void>) | null = null;
 
   afterEach(async () => {
     if (closer !== null) await closer();
@@ -254,18 +255,13 @@ describe('waitForAssistantReply 的基线过滤（防假绿）', () => {  let cl
   });
 
   it('出现基线之外的新助手消息时判 replied，且只返回新消息', async () => {
-    let current: unknown[] = [
-      { role: ':assistant', 'message-id': 'a-old', content: '上一轮回复' },
-    ];
+    let current: unknown[] = [{ role: ':assistant', 'message-id': 'a-old', content: '上一轮回复' }];
     const server = await startHistoryServer(() => current);
     closer = server.close;
 
     // 150ms 后推入新回复，模拟模型本轮返回
     const timer = setTimeout(() => {
-      current = [
-        ...current,
-        { role: ':assistant', 'message-id': 'a-new', content: '本轮回复' },
-      ];
+      current = [...current, { role: ':assistant', 'message-id': 'a-new', content: '本轮回复' }];
     }, 150);
 
     const outcome = await waitForAssistantReply(server.endpoint, 'sess-1', {

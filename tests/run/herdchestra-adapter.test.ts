@@ -127,7 +127,10 @@ function makeContext(overrides: { sutRoot?: string; stimulusRef?: string } = {})
   const facts: Array<{ kind: string; key: string; value: unknown }> = [];
   return {
     revision,
-    environment: { environment_id: 'env-1', name: 'herdchestra' } as unknown as AdapterContext['environment'],
+    environment: {
+      environment_id: 'env-1',
+      name: 'herdchestra',
+    } as unknown as AdapterContext['environment'],
     projectRoot: '/tmp',
     models: [],
     ...(overrides.sutRoot !== undefined ? { sutRoot: overrides.sutRoot } : {}),
@@ -176,10 +179,7 @@ describe('buildCommandPayload', () => {
     // 真实实例实测：:kind 传字符串会被拒绝为 COMMAND_KIND_REQUIRED，
     // 故这里锁死报文形态，防止退回字符串写法。
     const payload = buildCommandPayload('msg', 'sess-1');
-    const line = encodeRequest(
-      { op: 'command', 'session-id': 'sess-1', payload },
-      'tok',
-    );
+    const line = encodeRequest({ op: 'command', 'session-id': 'sess-1', payload }, 'tok');
     expect(line).toMatch(/:payload \{[^}]*:kind :send-message/);
     expect(line).not.toMatch(/:kind "/);
   });

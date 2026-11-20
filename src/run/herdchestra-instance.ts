@@ -1,5 +1,13 @@
 import { spawn, type ChildProcess } from 'node:child_process';
-import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
+import {
+  existsSync,
+  mkdirSync,
+  readdirSync,
+  readFileSync,
+  rmSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { join, sep } from 'node:path';
 import {
   LoopbackError,
@@ -157,7 +165,10 @@ function prepareDirs(rootDir: string): { dataDir: string; workspaceDir: string }
 }
 
 /** 把子进程输出挂到累计缓冲上，只保留尾部。 */
-function captureOutput(child: ChildProcess): { text: () => string; append: (chunk: string) => void } {
+function captureOutput(child: ChildProcess): {
+  text: () => string;
+  append: (chunk: string) => void;
+} {
   let buffer = '';
   const append = (chunk: string): void => {
     buffer += chunk;
@@ -388,10 +399,7 @@ export async function launchInstance(
  * `:active-session-id`），再不行就报错——**绝不猜测 id**，猜错会让后续
  * 命令投递到别的会话上。
  */
-export async function createSession(
-  endpoint: LoopbackEndpoint,
-  title: string,
-): Promise<string> {
+export async function createSession(endpoint: LoopbackEndpoint, title: string): Promise<string> {
   const reply = await sendControlRequest(endpoint, {
     op: 'create-session',
     title,
@@ -526,9 +534,7 @@ function toSessionMessage(item: unknown): SessionMessage {
   const rawRole = map['role'];
   const roleText = typeof rawRole === 'string' ? rawRole.replace(/^:/, '') : '';
   const role: SessionMessage['role'] =
-    roleText === 'user' || roleText === 'assistant' || roleText === 'system'
-      ? roleText
-      : 'unknown';
+    roleText === 'user' || roleText === 'assistant' || roleText === 'system' ? roleText : 'unknown';
   const content = typeof map['content'] === 'string' ? map['content'] : '';
   const messageId =
     typeof map['message-id'] === 'string'
@@ -592,12 +598,7 @@ export function snapshotWorkspace(rootDir: string): WorkspaceSnapshot {
 /** 递归深度上限：防止异常目录树把同步递归拖死事件循环。 */
 const MAX_DEPTH = 32;
 
-function collectFiles(
-  dir: string,
-  prefix: string,
-  out: WorkspaceSnapshot,
-  depth: number,
-): void {
+function collectFiles(dir: string, prefix: string, out: WorkspaceSnapshot, depth: number): void {
   if (depth > MAX_DEPTH) return;
   let entries;
   try {

@@ -219,9 +219,7 @@ export class HerdchestraAdapter implements ExecutionAdapter {
         repoRoot: String(discovered.repoRoot),
         rootDir,
         ...(options.command !== undefined ? { command: options.command } : {}),
-        ...(options.readyTimeoutMs !== undefined
-          ? { readyTimeoutMs: options.readyTimeoutMs }
-          : {}),
+        ...(options.readyTimeoutMs !== undefined ? { readyTimeoutMs: options.readyTimeoutMs } : {}),
         ...(model !== null ? { model } : {}),
       });
     } catch (error) {
@@ -251,16 +249,14 @@ export class HerdchestraAdapter implements ExecutionAdapter {
     let sessionId: string | null = null;
     let sessionError: string | null = null;
     try {
-      sessionId = await createSession(
-        instance.endpoint,
-        String(discovered.sessionTitle ?? ''),
-      );
+      sessionId = await createSession(instance.endpoint, String(discovered.sessionTitle ?? ''));
       ctx.facts.observe('sut', 'session_id', sessionId);
     } catch (error) {
       // 会话建不出来不在这里抛：实例已占用，必须走到 cleanup 才能释放。
       // 但错误码要留住，交给 submit 原样上报，否则诊断信息全丢。
       const loopback = error instanceof LoopbackError ? error : null;
-      sessionError = loopback !== null ? `${loopback.code}: ${loopback.message}` : (error as Error).message;
+      sessionError =
+        loopback !== null ? `${loopback.code}: ${loopback.message}` : (error as Error).message;
       ctx.facts.observe('sut', 'session_error', sessionError);
     }
 
@@ -307,9 +303,7 @@ export class HerdchestraAdapter implements ExecutionAdapter {
       // 基线读不出来时，无法区分「本轮新回复」与「上一轮旧回复」，
       // 该状态必须一路传到 evaluate，否则旧回复会被当成本轮回复，造成假绿。
       baselineReliable: assistantBaseline.reliable,
-      ...(assistantBaseline.error !== undefined
-        ? { baselineError: assistantBaseline.error }
-        : {}),
+      ...(assistantBaseline.error !== undefined ? { baselineError: assistantBaseline.error } : {}),
     };
     return prepared;
   }
@@ -365,11 +359,7 @@ export class HerdchestraAdapter implements ExecutionAdapter {
     const options = { ...resolveAdapterOptions(ctx), ...this.options };
 
     if (typeof submitted.sessionId !== 'string') {
-      throw new AdapterError(
-        'collect_failed',
-        'HARNESS',
-        '采集句柄缺少会话 id，无法读取本轮结果',
-      );
+      throw new AdapterError('collect_failed', 'HARNESS', '采集句柄缺少会话 id，无法读取本轮结果');
     }
 
     // 命令未被接受时**不抛错**：这是配错（如模型未声明 tools），要让 evaluate
@@ -394,14 +384,10 @@ export class HerdchestraAdapter implements ExecutionAdapter {
     }
 
     // 等助手回复出现再读工作区：模型可能分多步写文件，提前快照会漏掉后半段。
-    const outcome = await waitForAssistantReply(
-      submitted.instance.endpoint,
-      submitted.sessionId,
-      {
-        timeoutMs: options.collectTimeoutMs ?? DEFAULT_COLLECT_TIMEOUT_MS,
-        baselineMessageIds: submitted.baselineAssistantIds,
-      },
-    );
+    const outcome = await waitForAssistantReply(submitted.instance.endpoint, submitted.sessionId, {
+      timeoutMs: options.collectTimeoutMs ?? DEFAULT_COLLECT_TIMEOUT_MS,
+      baselineMessageIds: submitted.baselineAssistantIds,
+    });
 
     const after = snapshotWorkspace(submitted.workspaceDir);
     const workspace = diffWorkspace(submitted.baseline, after);
@@ -469,10 +455,7 @@ export class HerdchestraAdapter implements ExecutionAdapter {
 
     // 命令没被接受：这是试题/环境配错（如模型未声明 tools），不是模型能力问题
     if (state.commandAccepted === false) {
-      return failWith(
-        'HARNESS',
-        `命令未被接受：${state.commandError ?? '未给出原因'}`,
-      );
+      return failWith('HARNESS', `命令未被接受：${state.commandError ?? '未给出原因'}`);
     }
 
     // 没回复：先分清是「通道/环境坏了」还是「模型没产出」
@@ -539,7 +522,9 @@ export class HerdchestraAdapter implements ExecutionAdapter {
     // 报「该形态不支持」，不静默跳过——否则配错的 oracle 会让题目假绿。
     for (const [index, oracle] of otherOracles.entries()) {
       const oracleId =
-        typeof oracle.id === 'string' && oracle.id.length > 0 ? oracle.id : `${oracle.type}#${index}`;
+        typeof oracle.id === 'string' && oracle.id.length > 0
+          ? oracle.id
+          : `${oracle.type}#${index}`;
       failures.push({
         oracle_id: oracleId,
         message: `service 形态不支持 ${oracle.type} 断言（只有 workspace_assert 可用）`,
