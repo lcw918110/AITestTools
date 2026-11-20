@@ -138,6 +138,19 @@ export interface HerdchestraAdapterOptions {
   sessionTitle?: string;
   /** 等助手回复的上限（毫秒）。 */
   collectTimeoutMs?: number;
+  /** 等回复时的轮询间隔（毫秒）。 */
+  pollIntervalMs?: number;
+  /** 回复内容需连续静止多久才算写完（毫秒）。 */
+  settleMs?: number;
+  /** 启动参数前缀（测试注入假实例时用）。 */
+  commandArgs?: string[];
+  /**
+   * endpoint（`instance.edn`）所在目录。
+   *
+   * 真实运行留空即可。测试注入假实例时必须给独立目录，否则会与真实实例
+   * 写同一个 `instance.edn`，既污染真实环境又让并发用例互相踩踏。
+   */
+  endpointDir?: string;
   /** 模型连接；不给则读环境变量，仍没有则不起模型。 */
   model?: HerdchestraModelConfig;
 }
@@ -222,7 +235,10 @@ export class HerdchestraAdapter implements ExecutionAdapter {
         repoRoot: String(discovered.repoRoot),
         rootDir,
         ...(options.command !== undefined ? { command: options.command } : {}),
+        ...(options.commandArgs !== undefined ? { commandArgs: options.commandArgs } : {}),
+        ...(options.endpointDir !== undefined ? { endpointDir: options.endpointDir } : {}),
         ...(options.readyTimeoutMs !== undefined ? { readyTimeoutMs: options.readyTimeoutMs } : {}),
+        ...(options.pollIntervalMs !== undefined ? { pollIntervalMs: options.pollIntervalMs } : {}),
         ...(model !== null ? { model } : {}),
       });
     } catch (error) {
@@ -390,6 +406,8 @@ export class HerdchestraAdapter implements ExecutionAdapter {
     const outcome = await waitForAssistantReply(submitted.instance.endpoint, submitted.sessionId, {
       timeoutMs: options.collectTimeoutMs ?? DEFAULT_COLLECT_TIMEOUT_MS,
       baselineMessageIds: submitted.baselineAssistantIds,
+      ...(options.pollIntervalMs !== undefined ? { pollIntervalMs: options.pollIntervalMs } : {}),
+      ...(options.settleMs !== undefined ? { settleMs: options.settleMs } : {}),
     });
 
     const after = snapshotWorkspace(submitted.workspaceDir);

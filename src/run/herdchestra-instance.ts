@@ -15,6 +15,7 @@ import {
   encodeEdnString,
   probeInstance,
   readEndpointState,
+  resolveEndpointDir,
   sendControlRequest,
   type EdnSymbol,
   type LoopbackEndpoint,
@@ -85,6 +86,14 @@ export interface HerdchestraLaunchOptions {
   readyTimeoutMs?: number;
   /** 轮询间隔（毫秒）。默认 500。 */
   pollIntervalMs?: number;
+  /**
+   * endpoint 所在目录的**根**（对应 `java.io.tmpdir`）。
+   *
+   * 真实运行留空即可（用系统临时目录）。测试注入假实例时必须给一个独立根目录，
+   * 否则假实例会与真实实例写同一个 `instance.edn`，既污染真实环境又让并发用例
+   * 互相踩踏。实际路径由 `resolveEndpointDir` 在其下拼 `herdchestra-<user>` 得出。
+   */
+  endpointDir?: string;
   /**
    * 模型连接。给了就写一份 `config.edn` 用 `--config` 传入，不给则用
    * Herdchestra 的默认配置（没有模型，投递的消息永远不会被执行）。
@@ -197,11 +206,20 @@ async function sleep(ms: number): Promise<void> {
  * 两个 case 的结果就混在一起了。
  */
 async function waitUntilReady(
-  options: { readyTimeoutMs: number; pollIntervalMs: number; expectedPid: number | undefined },
+  options: {
+    readyTimeoutMs: number;
+    pollIntervalMs: number;
+    expectedPid: number | undefined;
+    /** endpoint 所在目录；不传则用全局默认目录。 */
+    endpointDir?: string;
+  },
   output: () => string,
   /** 返回非 null 表示子进程已终止，值即归因码。 */
   exitReason: () => 'SPAWN_FAILED' | 'PROCESS_EXITED' | null,
 ): Promise<LoopbackEndpoint> {
+  const probeOptions = {
+    ...(options.endpointDir !== undefined ? { tmpDir: options.endpointDir } : {}),
+  };
   const deadline = Date.now() + options.readyTimeoutMs;
   for (;;) {
     const reason = exitReason();
@@ -212,14 +230,14 @@ async function waitUntilReady(
         output(),
       );
     }
-    const endpoint = await probeInstance({ timeoutMs: 2000 });
+    const endpoint = await probeInstance({ ...probeOptions, timeoutMs: 2000 });
     if (endpoint && endpointMatches(endpoint, options.expectedPid)) return endpoint;
 
     if (Date.now() >= deadline) {
       const detail = [
         output(),
         options.expectedPid !== undefined
-          ? `期望 pid=${options.expectedPid}，实际 endpoint=${JSON.stringify(await probeInstance({ timeoutMs: 1000 }))}`
+          ? `期望 pid=${options.expectedPid}，实际 endpoint=${JSON.stringify(await probeInstance({ ...probeOptions, timeoutMs: 1000 }))}`
           : '',
       ]
         .filter((part) => part.length > 0)
@@ -258,7 +276,10 @@ export async function launchInstance(
   const pollIntervalMs = options.pollIntervalMs ?? 500;
 
   // 单例锁约束：已有实例存活时必须报错，不能抢锁
-  const existing = await probeInstance({ timeoutMs: 1500 });
+  const existing = await probeInstance({
+    ...(options.endpointDir !== undefined ? { tmpDir: options.endpointDir } : {}),
+    timeoutMs: 1500,
+  });
   if (existing) {
     throw new HerdchestraLaunchError(
       'INSTANCE_OCCUPIED',
@@ -295,6 +316,10 @@ export async function launchInstance(
     ...(configPath !== null ? ['--config', configPath] : []),
     '--data-dir',
     dataDir,
+    ...(options.endpointDir !== undefined
+      ? // 传给子进程的是推导后的最终目录：真实实例本就用默认目录，假实例则直接写这里
+        ['--endpoint-dir', resolveEndpointDir({ tmpDir: options.endpointDir })]
+      : []),
     '--workspace-root',
     workspaceDir,
     '--port',
@@ -373,6 +398,7 @@ export async function launchInstance(
         readyTimeoutMs,
         pollIntervalMs,
         expectedPid: child.pid,
+        ...(options.endpointDir !== undefined ? { endpointDir: options.endpointDir } : {}),
       },
       captured.text,
       () => (spawnFailed ? 'SPAWN_FAILED' : exited ? 'PROCESS_EXITED' : null),

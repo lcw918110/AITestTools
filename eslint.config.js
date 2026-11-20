@@ -13,6 +13,7 @@ export default tseslint.config(
       'eslint.config.js',
       'src/contract/verify/**',
       'src/drivers/cassette/**/*.mjs',
+      'tests/run/fixtures/**/*.mjs',
       'scripts/**',
       'apps/console/public/**',
       '.diagnostics/**',

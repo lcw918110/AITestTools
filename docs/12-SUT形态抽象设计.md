@@ -524,6 +524,23 @@ export class HerdchestraAdapter implements ExecutionAdapter {
 
 ---
 
+## 8.1 端到端冒烟测试（2026-11-20）
+
+真实模型端点不稳定时，链路本身仍需被验证。用**假 SUT**（真子进程 + 真 TCP + 真写盘）跑完整五步，不依赖任何模型。
+
+| 项         | 做法                                                                                                                                                                        |
+| :--------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 接入方式   | `options.command` 换成 `node`，`commandArgs` 指向 `tests/run/fixtures/fake-herdchestra.mjs`                                                                                 |
+| 隔离方式   | `endpointDir` 注入独立根目录；实际路径由 `resolveEndpointDir` 在其下拼 `herdchestra-<user>`，与真实实例完全隔离                                                             |
+| 协议对齐   | 回复顶层字段必须是 `:ok?`（带问号）；命令走 `{:op :command, :payload {:kind :send-message …}}` 的**嵌套**形状；读历史同为 `:command` + `kind=history/messages`，不是独立 op |
+| 覆盖场景   | 正常判绿、内容不符判 `TOOL`、未写文件判失败、只收不回判 `CONTEXT`、实例不就绪报 `HARNESS`、cleanup 无残留、已有文件改判 `modified`                                          |
+| 测试       | `tests/run/herdchestra-e2e.test.ts` 7 个用例，全部真起子进程                                                                                                                |
+| 可证伪验证 | 去掉「等回复」→ 1 条变红；不传 `--endpoint-dir` → 6 条变红；断言指向不存在文件 → 1 条变红；恢复后全绿                                                                       |
+
+**结论**：此前从未被真实跑通的「改文件 → diff 捕获 → 断言判绿」路径，现已由假 SUT 完整验证。真实模型接入只需换端点，链路不再有待验证环节。
+
+---
+
 ## 9. 与既有文档的关系
 
 | 文档            | 关系                                                                |
