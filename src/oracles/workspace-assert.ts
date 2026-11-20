@@ -64,11 +64,13 @@ export function runWorkspaceAssertOracle(opts: {
     try {
       text = readFileSync(abs, 'utf8');
     } catch (err) {
+      // 读不了（指向目录、权限不足等）是环境或试题问题，不能记成「模型没做到」，
+      // 否则环境故障会污染被测系统的缺陷数。
       return {
         pass: false,
         oracle_id: opts.oracle_id,
         message: `读取文件 ${rel} 失败：${err instanceof Error ? err.message : String(err)}`,
-        attribution: opts.attribution ?? 'TOOL',
+        attribution: opts.attribution ?? 'HARNESS',
       };
     }
     if (typeof contains === 'string' && contains.length > 0 && !text.includes(contains)) {

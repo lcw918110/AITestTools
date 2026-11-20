@@ -6,7 +6,7 @@ import { canonicalize, revisionDigest } from '../../exam-engine/digest.ts';
 import { loadProject } from '../../exam-engine/project.ts';
 import type { CaseRevision } from '../../exam-engine/types.ts';
 
-const MODES = ['fold', 'scripted', 'cassette', 'hosted', 'direct_tool'] as const;
+const MODES = ['fold', 'scripted', 'cassette', 'hosted', 'direct_tool', 'service'] as const;
 type Mode = (typeof MODES)[number];
 
 /** case_id 须小写连字符（对齐 case.schema.json pattern）。 */
@@ -41,7 +41,7 @@ function stimulusKindOf(mode: Mode): string {
   if (mode === 'fold') return 'event_sequence';
   if (mode === 'cassette') return 'cassette';
   if (mode === 'direct_tool') return 'tool_args';
-  if (mode === 'hosted') return 'task_prompt';
+  if (mode === 'hosted' || mode === 'service') return 'task_prompt';
   return 'hook_script';
 }
 

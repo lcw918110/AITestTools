@@ -227,7 +227,7 @@ export interface CaseRevision {
   strata?: TaskStrata;
   /** 执行驱动配置（原 papers-v1 item.freeze 迁移；轴废除后用 mode/layer 表达路由）。 */
   execution_profile?: {
-    mode: 'fold' | 'scripted' | 'cassette' | 'hosted' | 'direct_tool';
+    mode: 'fold' | 'scripted' | 'cassette' | 'hosted' | 'direct_tool' | 'service';
     layer?: 'L1' | 'L2' | 'L3';
     fold_entry?: string;
     event_schema?: string;

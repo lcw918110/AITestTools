@@ -270,6 +270,15 @@ export class RunOrchestrator {
       attempt.ended_at = new Date().toISOString();
       caseExecution.execution_outcome = 'completed';
       const first = results[0];
+      // 适配器显式声明「该阶段尚未实现」时不能算被测系统失败——否则能力缺失
+      // 会污染通过率与被测系统缺陷数。用 not_evaluated 表达「没评测」。
+      if (first !== undefined && first.not_implemented === true) {
+        caseExecution.evaluation_outcome = 'not_evaluated';
+        if (first.attribution !== undefined) {
+          caseExecution.attribution = first.attribution;
+        }
+        return { caseExecution, results };
+      }
       caseExecution.evaluation_outcome = first !== undefined && first.pass ? 'pass' : 'fail';
       if (first !== undefined && !first.pass && first.attribution !== undefined) {
         caseExecution.attribution = first.attribution;

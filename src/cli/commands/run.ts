@@ -10,6 +10,7 @@ import type { CaseRevision, EnvironmentProfile } from '../../domain/types.ts';
 import { BDirectAdapter } from '../../run/b-runner.ts';
 import { CAdapter } from '../../run/c-runner.ts';
 import { HostedAdapter } from '../../run/hosted-runner.ts';
+import { HerdchestraAdapter } from '../../run/herdchestra-adapter.ts';
 import { L1Adapter } from '../../run/l1-runner.ts';
 import { L2Adapter } from '../../run/l2-runner.ts';
 import { L3Adapter } from '../../run/l3-runner.ts';
@@ -83,6 +84,8 @@ function resolveAdapter(revision: CaseRevision, environment: EnvironmentProfile)
       return new BDirectAdapter();
     case 'direct_tool':
       return new CAdapter();
+    case 'service':
+      return new HerdchestraAdapter();
     default:
       throw new Error(`试题 ${revision.case_revision_id} 的 mode=${String(mode)} 尚未支持`);
   }

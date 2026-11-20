@@ -56,6 +56,52 @@ describe('RunOrchestrator 状态机（阶段 4b）', () => {
     expect(() => orch.sealRun('completed')).toThrow();
   });
 
+  it('executeCase 声明 not_implemented 时记 not_evaluated，不算被测系统失败', async () => {
+    const orch = new RunOrchestrator();
+    orch.beginRun({});
+    orch.transitionRun('preflight');
+    orch.transitionRun('running');
+
+    const adapter = {
+      adapterId: 'stub-not-impl',
+      discover: async () => ({ resolved: {} }),
+      prepare: async () => ({ prepared: true }),
+      submit: async () => ({ handle: 'h' }),
+      collect: async () => ({ output: {} }),
+      evaluate: async () => [
+        {
+          item_id: 'stub-not-impl.r1',
+          item_rev: 1,
+          pass: false,
+          oracle_failures: [],
+          metrics: { a_case_pass_rate: 0, a_invariant_violations: 0 },
+          attribution: 'HARNESS',
+          not_implemented: true,
+        },
+      ],
+    };
+
+    const { caseExecutions } = await orch.executeCase(
+      {
+        id: 'EVAL-STUB-NOT-IMPL',
+        rev: 1,
+        axis: 'B',
+        intent: { attribution_focus: 'TOOL' },
+        stimulus: { ref: 'x' },
+        execution_profile: { mode: 'fold' },
+        execution: {},
+        expect: { oracles: [] },
+      } as never,
+      {} as never,
+      adapter as never,
+      { projectRoot: '/tmp', models: [] },
+    );
+
+    expect(caseExecutions.length).toBe(1);
+    // 能力缺失不能被计成被测系统失败，也不能计成通过
+    expect(caseExecutions[0]?.evaluation_outcome).toBe('not_evaluated');
+  });
+
   it('executeCase 创建 CaseExecution + Attempt 并映射终态', async () => {
     const orch = new RunOrchestrator();
     orch.beginRun({});

@@ -59,4 +59,9 @@ export interface AxisItemResult {
   host_signal?: string | null;
   host_spawn_error?: string | null;
   host_exit_role?: 'auxiliary';
+  /**
+   * 该形态的 evaluate 尚未实现，此结果为占位而不是被测系统的真实失败。
+   * 下游聚合应把它排除在通过率之外，避免「能力缺失」被计成「被测系统缺陷」。
+   */
+  not_implemented?: true;
 }

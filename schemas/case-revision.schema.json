@@ -85,7 +85,7 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "mode": { "enum": ["fold", "scripted", "cassette", "hosted", "direct_tool"] },
+        "mode": { "enum": ["fold", "scripted", "cassette", "hosted", "direct_tool", "service"] },
         "layer": { "enum": ["L1", "L2", "L3"] },
         "fold_entry": { "type": "string" },
         "event_schema": { "type": "string" },
