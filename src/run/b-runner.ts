@@ -9,7 +9,7 @@ import {
   type OracleOutcome,
 } from '../oracles/index.ts';
 import { fail, applyMetricThresholdPass } from './runner-shared.ts';
-import type { ToolCallTrace } from '../oracles/tool-trace.ts';
+import { effectiveNames, type ToolCallTrace } from '../oracles/tool-trace.ts';
 import type {
   AdapterContext,
   CollectedOutput,
@@ -73,13 +73,11 @@ export class BDirectAdapter implements ExecutionAdapter {
       prompt_ref: ctx.revision.stimulus.ref,
     };
     if (Array.isArray(mustCallOracle?.must_call)) {
-      jobItem.must_call = mustCallOracle.must_call.map(String);
+      jobItem.must_call = effectiveNames(mustCallOracle.must_call);
     }
     if (schemaOracle !== undefined) {
       const tool = String(schemaOracle.tool ?? '');
-      const fields = Array.isArray(schemaOracle.required_fields)
-        ? schemaOracle.required_fields.map(String)
-        : [];
+      const fields = effectiveNames(schemaOracle.required_fields);
       jobItem.required_fields = { [tool]: fields };
     }
 
@@ -145,7 +143,7 @@ export class BDirectAdapter implements ExecutionAdapter {
       for (const [i, oracle] of ctx.revision.expect.oracles.entries()) {
         const oid = typeof oracle.id === 'string' ? oracle.id : `${oracle.type}#${i}`;
         if (oracle.type === 'tool_trace') {
-          const must = Array.isArray(oracle.must_call) ? oracle.must_call.map(String) : [];
+          const must = effectiveNames(oracle.must_call);
           failures.push(
             runToolTraceOracle({
               oracle_id: oid,
@@ -155,9 +153,7 @@ export class BDirectAdapter implements ExecutionAdapter {
             }),
           );
         } else if (oracle.type === 'schema_obedience') {
-          const fields = Array.isArray(oracle.required_fields)
-            ? oracle.required_fields.map(String)
-            : [];
+          const fields = effectiveNames(oracle.required_fields);
           failures.push(
             runSchemaObedienceOracle({
               oracle_id: oid,

@@ -47,12 +47,18 @@ function err(code: string, message: string, file: string, instancePath?: string)
 // ── cases-v1 校验（V2.17 深迁移阶段 6e） ──
 
 /**
- * 断言正则静态可编译性检查。
+ * oracle 静态门禁：正则可编译性 + 名单 / 名词语义有效性。
  *
  * 背景：`stdout_assert` 的 `contains_regex` / `not_contains_regex` /
  * `semantic_variants` 在真跑时才由 `new RegExp` 解析，若写错（缺括号等）
  * 引擎归因 HARNESS，却被上层计为「题目失败」——静态门禁全绿、真跑才炸。
  * 这里在录题/校验阶段就把非法正则拦成 error，避免污染评测结论。
+ *
+ * `tool_trace.must_call` / `schema_obedience.required_fields` / `schema_obedience.tool`
+ * 同理：空名单在运行期恒真（假绿），空白名 / 空工具名在运行期恒判负并归 HARNESS。
+ * 空数组与非字符串元素由 JSON Schema（`minItems` / `items`）拦截，
+ * 本函数补拦 schema 表达不了的「纯空白」语义；只有 schema 已通过时才执行到，
+ * 因此两道门禁是互补而非重复。
  */
 function validateOracleRegexes(doc: CaseRevision, file: string): Issue[] {
   const issues: Issue[] = [];
@@ -87,11 +93,49 @@ function validateOracleRegexes(doc: CaseRevision, file: string): Issue[] {
   for (const [i, raw] of oracles.entries()) {
     if (raw === null || typeof raw !== 'object') continue;
     const oracle = raw as Record<string, unknown>;
+    const base = `/expect/oracles/${i}`;
+
+    // tool_trace / schema_obedience 的名单校验：
+    // 「空数组」已由 schema 的 minItems 拦住；空白名（`"  "` 能满足 minLength）与
+    // 非字符串元素则拦不全，运行期会被过滤成空清单 → 判负归 HARNESS。
+    // 这里补语义检查，让录题阶段就报错，而不是等真跑才发现。
+    if (oracle['type'] === 'tool_trace' || oracle['type'] === 'schema_obedience') {
+      const key = oracle['type'] === 'tool_trace' ? 'must_call' : 'required_fields';
+      const code =
+        oracle['type'] === 'tool_trace' ? 'ORACLE_TOOL_TRACE' : 'ORACLE_SCHEMA_OBEDIENCE';
+      const list = oracle[key];
+      if (Array.isArray(list) && list.some((x) => typeof x !== 'string' || x.trim().length === 0)) {
+        issues.push(
+          err(
+            `${code}_INVALID`,
+            `${key} 含非字符串或空白名（过滤后等价于空名单，等于无断言）`,
+            file,
+            `${base}/${key}`,
+          ),
+        );
+      }
+      // 空工具名会让 schema_obedience 与所有调用名失配 → 恒「未找到工具」，
+      // 运行期按试题配错归 HARNESS，录题阶段就该拦。
+      if (oracle['type'] === 'schema_obedience') {
+        const tool = oracle['tool'];
+        if (typeof tool === 'string' && tool.trim() === '') {
+          issues.push(
+            err(
+              'ORACLE_SCHEMA_OBEDIENCE_INVALID',
+              'tool 为空白（会与所有调用名失配，恒判未找到工具）',
+              file,
+              `${base}/tool`,
+            ),
+          );
+        }
+      }
+      continue;
+    }
+
     if (oracle['type'] !== 'stdout_assert') continue;
 
     const flagsRaw = oracle['regex_flags'];
     const flags = typeof flagsRaw === 'string' ? flagsRaw : 'i';
-    const base = `/expect/oracles/${i}`;
 
     if (typeof flagsRaw === 'string') {
       try {

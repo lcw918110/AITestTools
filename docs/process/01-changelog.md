@@ -2848,3 +2848,22 @@ return REQUIRED_ISOLATION_PROOFS.filter((proof) => {
 - 新增 `tests/console/bank-dataset-closure.test.ts`（9 例）：录题/删题后闭包哈希一致、校验失败回滚逐字节还原、on 名单缺失（off 已追加）时两侧还原、回滚清理新建 case / case-revision / materials、目录占位不被写成空文件、畸形引用条目不参与匹配、端到端整库校验无 `DATASET_CLOSURE_HASH_MISMATCH`。
 - 可证伪验证：把追加/移除改回「只改数组」→ 2 条红；把目录原状态退回「当文件写空串」→ 1 条红；恢复后全绿。
 - 门禁：`format:check` / `lint` / `typecheck` 全过；`vitest` 127 文件 / **1201** 用例；`scripts/console-l0.sh` 全绿。
+
+---
+
+## 64. 空清单断言不再静默通过：`tool_trace` / `schema_obedience`（2026-11-21）
+
+**发现**：`must_call: []` 与 `required_fields: []` 在实现里恒真——没有必须出现的工具 → `missing` 恒空；没有必须存在的字段 → 每次调用都「字段齐全」。题面声明了「要检查工具调用纪律」，实际什么都没查，却报 PASS；更糟的是 `b-runner` 用 `map(String)` 构造名单，会把 `0` 变成 `"0"`、`null` 变成 `"null"`，配错被记成被测模型失败（`MODEL_SCHEMA`），与 `l1/l2` 已有的 `no_event` / `event_subsequence` 空清单守卫口径不一致。
+
+**修复**
+
+1. 运行期守卫：名单按「非空白字符串」过滤，过滤后为空即判负并归 `HARNESS`（试题配错，不进被测结论）；不做 `String()` 强转，杜绝 `0`/`null` 的假名。`schema_obedience.tool` 为空同样判负归 `HARNESS`（否则与所有调用名失配 → 恒「未找到工具」，会被记成模型没调用）。
+2. `b-runner` 的 `discover` 与 `evaluate` 统一复用 `effectiveNames`，不再各自 `map(String)`（否则 `must_call` 会以假名形式进入 EvalJob）；过滤语义收敛在 `tool-trace.ts` 单一函数，重复调用幂等，不存在「discover 用假名、evaluate 不用」的漂移。
+3. 静态门禁：`schemas/case-revision.schema.json` 给两个名单加 `minItems: 1` 与 `items.minLength: 1`；`validate.ts` 补语义检查 `ORACLE_TOOL_TRACE_INVALID` / `ORACLE_SCHEMA_OBEDIENCE_INVALID`，拦下 schema 表达不了的纯空白名与空 `tool`。空数组与非字符串元素由 schema 拦截，不重复造错误码。
+
+**验证**
+
+- 新增 `tests/oracles/declared-empty-lists.test.ts`（运行期）、`tests/exam-engine/oracle-empty-list-static.test.ts`（静态）、`tests/oracles/oracle-attribution.test.ts`（纯逻辑 oracle 归因）、`tests/run/b-direct-runner.test.ts` 增补 B-direct 运行期与 EvalJob 两条用例。
+- B-direct 用例按 `oracle_failures[].oracle_id` + 消息字段断言失败来源，而非只看 `attribution`——编排层对 adapter 异常/cleanup 失败同样兜底产出 `HARNESS` 行，只看归因会被兜底行天然满足（假绿）。
+- 可证伪验证：修复前空清单恒通过（Red：`expected true to be false`）且归 `MODEL_SCHEMA`；去掉静态语义检查 → 2 条红；让空工具名守卫短路 → B-direct 用例 1 条红；恢复后全绿。
+- 门禁：`npm run verify` 全过（130 文件 / **1225** 用例、examples 321/321）。
