@@ -95,91 +95,29 @@
 
 **共性**：四者都是「拿一个东西 → 让它干活 → 看它干得怎么样 → 还回去」。差异只在**通道**。
 
-### 3.2 需要新增的两个契约
+### 3.2 「统一通道接口」的自我证伪结论（第 8 步）
 
-#### 契约一：`SutTransport`（SUT 通道）
+本节原设计了一个跨形态的 `SutTransport`（`open/submit/poll/events/close`）与一份 `SutObservation` 观测能力声明。**第 8 步用 `BDirectAdapter` 证伪后，两者都不落地为代码接口**，理由如下（结论先给，细节在 §3.3）：
 
-把「怎么跟 SUT 说话」从 adapter 里抽出来，adapter 只负责编排阶段。
+| 形态                           | 对统一 `open/submit/poll/events/close` 的可表达性                                                                                                                     |
+| :----------------------------- | :-------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 服务类（`HerdchestraAdapter`） | 可表达，但 `open` 实际是「起实例 + 等健康 + 读 endpoint」，`poll`/`events` 只是它内部循环的碎片，抽出去反而把一个连续等待拆成三个必须按序调用的方法                   |
+| 模型类（`BDirectAdapter`）     | **无法表达**。一次调用即得终态，没有 `poll`，没有 `events`；`open` 与 `close` 都是空操作。硬塞进来会得到三个必须实现但永远 `return []` / `return { ok: true }` 的方法 |
+| 插件类（`HostedAdapter`）      | 勉强可表达，但 `events` 跨 stdout、git ref、`.Herdchestra/wanxiangshu/events` 三处读取，`poll` 与 `events` 边界重叠（读事件就是判活），拆开会产生重复 I/O             |
 
-```typescript
-/**
- * SUT 通道：屏蔽「进程 / 服务 / HTTP」三种形态的差异。
- * adapter 通过它投递任务与读取状态，不直接接触 spawn / socket / http。
- */
-export interface SutTransport {
-  readonly transportId: string;
+**判定：抽象过度。** 「拿一个东西 → 让它干活 → 看它干得怎么样 → 还回去」在四阶段（07 的 8 阶段）层面确实共形，但再往下抽「通道」就不共形了：形态差异不是「同一个通道的不同实现」，而是**通道本身是否存在**。强行统一的代价是每个 adapter 都要为不存在的能力写空实现，读者还需要在两套抽象之间来回跳。
 
-  /** 建立通道（进程型=spawn；服务型=连接或拉起并等健康；HTTP=建客户端）。 */
-  open(ctx: TransportContext): Promise<TransportHandle>;
+**保留的部分**：8 阶段 `ExecutionAdapter` 契约（07）不变，它已被三种形态各自实现，是真正的共性边界。
 
-  /** 投递一次任务，返回可用于后续查询的句柄。 */
-  submit(handle: TransportHandle, task: SutTask): Promise<SutSubmission>;
+### 3.3 实际采用的隔离方式
 
-  /** 查询当前状态（可多次调用，直到终态）。 */
-  poll(handle: TransportHandle, submission: SutSubmission): Promise<SutStatus>;
+| 形态   | 隔离位置                                                                                                                                                                                                                                                                                                                                                                                                                  | 现状                                                                         |
+| :----- | :------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | :--------------------------------------------------------------------------- |
+| 服务类 | `LoopbackTransport` **不是**类，而是 `src/run/loopback-transport.ts` 里的协议原语集合：`readEndpointState` / `sendControlRequest` / `probeInstance` / `encodeRequest` / `parseReply`。会话与等待语义留在 `herdchestra-instance.ts`（`launchInstance` / `createSession` / `submitCommand` / `readSessionMessages` / `waitForAssistantReply` / `snapshotWorkspace` / `diffWorkspace`），由 `HerdchestraAdapter` 串成 8 阶段 | ✅ 已落地，57 个协议单测 + 7 个真子进程端到端                                |
+| 模型类 | `BDirectAdapter` 直接持有 `runPromptfooAdapter`，`submit` 即终态                                                                                                                                                                                                                                                                                                                                                          | ✅ 已落地                                                                    |
+| 插件类 | `HostedAdapter` 内部消化隔离 HOME、Seatbelt、插件安装、事件读取                                                                                                                                                                                                                                                                                                                                                           | ✅ 已落地（不抽 `PluginHostTransport`——只有一种插件类 SUT 时抽出即为空抽象） |
 
-  /** 读取事件流（形态各异：stdout / git ref / 数据库 / HTTP）。 */
-  events(handle: TransportHandle, submission: SutSubmission): Promise<SutEvent[]>;
-
-  /** 释放通道（进程型=kill；服务型=停实例；HTTP=无操作）。 */
-  close(handle: TransportHandle): Promise<CloseResult>;
-}
-```
-
-**为什么这样切**：`HostedAdapter` 里的脏检查、调度器覆盖、`$schema` 补丁，本质都是「为了让 `submit` 成功而做的准备」，属于 `SutTransport.open` 的职责，不属于 adapter 的编排逻辑。
-
-#### 契约二：`SutObservation`（观测面声明）
-
-不同 SUT 能提供的观测能力不同，必须**显式声明**，否则 oracle 会在「读不到」时静默放过（这是本仓反复强调要防的假绿）。
-
-```typescript
-/**
- * 观测能力声明：SUT 能提供什么，不能提供什么。
- * 未声明的能力，oracle 必须按 HARNESS 拒绝，不得静默跳过。
- */
-export interface SutObservation {
-  /** 事件流可用性。 */
-  events: 'available' | 'partial' | 'unavailable';
-  /** 工作区变更可观测性。 */
-  workspace_changes: 'available' | 'partial' | 'unavailable';
-  /** 工具调用可观测性。 */
-  tool_calls: 'available' | 'partial' | 'unavailable';
-  /** 模型用量可观测性。 */
-  model_usage: 'available' | 'partial' | 'unavailable';
-  /** 子代理/委派结构可观测性。 */
-  delegation: 'available' | 'partial' | 'unavailable';
-  /** 每项的来源说明（写进产物，便于人工核对）。 */
-  notes: Record<string, string>;
-}
-```
-
-**为什么需要**：Herdchestra 的观测面是 Datalevin + AG-UI，与插件版的 git ref 完全不同。若不声明，`no_event` 类 oracle 在 Herdchestra 上会因「读不到事件」而误判为「没有禁止事件发生」——**这是最危险的假绿**。
-
-### 3.3 与现有 `ExecutionAdapter` 的关系
-
-**不改 07 的 8 阶段签名**。adapter 在内部持有 `SutTransport`：
-
-```typescript
-export class HerdchestraAdapter implements ExecutionAdapter {
-  readonly adapterId = 'b-hosted-herdchestra';
-
-  async prepare(ctx: AdapterContext, discovered: DiscoveredInput): Promise<PreparedState> {
-    const transport = new LoopbackTransport();          // 本 adapter 专属
-    const handle = await transport.open({ /* ... */ });
-    return { transport, handle };                        // 塞进 PreparedState
-  }
-
-  async submit(ctx: AdapterContext, prepared: PreparedState): Promise<SubmittedHandle> {
-    const { transport, handle } = prepared as HerdchestraPrepared;
-    const submission = await transport.submit(handle, { prompt: /* ... */ });
-    return { transport, handle, submission };
-  }
-
-  // collect / evaluate / cleanup 同理
-}
-```
-
-**这验证了 07 契约的健壮性**：8 阶段足以容纳服务型 SUT，不需要改契约。
+**观测能力的实际表达方式**：不设 `SutObservation` 字段，而是由各 adapter 在 `evaluate` 里**如实拒绝**它无法支持的 oracle 类型（`HARNESS`），详见第 7 步的「不为配错的题造假绿」。这与「声明一张能力表」达到同样的防假绿效果，但把判断放在真正读数据的地方，不会出现「声明了 available、实际读不到」的账实不符。
 
 ---
 
@@ -209,7 +147,7 @@ export class HerdchestraAdapter implements ExecutionAdapter {
 
 ### 4.3 模型类（已有，验证抽象）
 
-`BDirectAdapter` 已实现模型类。**用它验证 `SutTransport` 抽象是否合理**：若模型类无法用 `SutTransport` 表达（因为无状态、无事件流），说明抽象过度，应退回「每种形态一个 adapter，不强行统一」。
+`BDirectAdapter` 已实现模型类。**第 8 步用它做自我证伪，结论：抽象过度**——模型类一次调用即终态，没有 `poll`、没有 `events`，`open`/`close` 都是空操作，硬塞进统一通道接口只会得到三个永远 `return []` 的假实现。详见 §3.2。
 
 ---
 
@@ -235,9 +173,9 @@ export class HerdchestraAdapter implements ExecutionAdapter {
 
 ### 5.3 文档口径修正（优先做）
 
-`docs/02-总体架构与领域设计.md` §1 原则 1 提到「万象术专属开关、状态和证据由 `VibeFsAdapter` 解释」，但**该类在代码中不存在**。实际是 6 个按执行层级划分的 adapter，万象术语义沉在 `HostedAdapter` 内。
+**已闭环**：`docs/02` §1 原则 1 已改为指向 `HostedAdapter` 并按本文口径补上「各形态通道差异封装在各自 adapter 内」。历史事实：该类在代码中不存在；实际是 6 个按执行层级划分的 adapter，万象术语义沉在 `HostedAdapter` 内。
 
-按文档找代码会找不到，比没有文档更糟。**建议改为**：「万象术专属开关、状态和证据由 `HostedAdapter` 内部解释；跨形态的通道差异由 `SutTransport` 隔离（见 12）。」
+按文档找代码会找不到，比没有文档更糟。**已改为**：「万象术专属开关、状态和证据由 `HostedAdapter` 内部解释；不同形态的通道差异各自封装在对应 adapter 内（见 12），不引入跨形态的统一通道接口。」（2026-11-21 已同步 docs/02 §1 原则 1）
 
 ---
 
@@ -246,7 +184,7 @@ export class HerdchestraAdapter implements ExecutionAdapter {
 ### D1：Herdchestra 与插件版的关系
 
 - **替换**：插件版归档（`lifecycle: deprecated`），`HostedAdapter` 保留但不再用于新实验
-- **并存**：两套长期共存，`SutTransport` 抽象必须同时容纳
+- **并存**：两套长期共存，各自 adapter 独立演进（不共享统一通道抽象，见 §3.2）
 - **过渡**：先并存，验证 Herdchestra 跑通后再归档
 
 **影响**：决定 §4.1 的「抽取 `PluginHostTransport`」是否值得做。
@@ -416,19 +354,18 @@ export class HerdchestraAdapter implements ExecutionAdapter {
 
 ## 7. 实施顺序建议
 
-| 序  | 步骤                                                  | 验收                                                                                      |
-| :-- | :---------------------------------------------------- | :---------------------------------------------------------------------------------------- |
-| 1   | 修 `docs/02` 的 `VibeFsAdapter` 口径                  | 文档与代码一致                                                                            |
-| 2   | 定 D1（替换/并存/过渡）                               | 有明确答案                                                                                |
-| 3   | ~~实测「起一个 Herdchestra 实例耗时」~~               | ✅ 已测：20–24 秒，定为「每 case 一实例」                                                 |
-| 3b  | ~~实测控制通道可否驱动~~                              | ✅ 已测：`:ping` 通，四 op 够用，无需扩展协议                                             |
-| 4   | ~~实现 `LoopbackTransport`~~                          | ✅ `src/run/loopback-transport.ts` + 57 测试                                              |
-| 5   | ~~实现 `HerdchestraAdapter` 的 `prepare` + `submit`~~ | ✅ `src/run/herdchestra-adapter.ts` + `herdchestra-instance.ts`；真实实例复验 `{ok:true}` |
-| 6   | ~~实现黑盒采集：读工作区文件 + 控制通道终态~~         | ✅ 已实现：`collect` 等助手回复 + 工作区文件 diff（见下）                                 |
-| 7   | ~~实现 `evaluate` + `cleanup` 的真实判定~~            | ✅ `evaluate` 已按 `workspace_assert` 判定并区分归因（见下）                              |
-| 8   | 用 `BDirectAdapter` 验证 `SutTransport` 抽象是否过度  | 若过度，退回「每形态一 adapter」                                                          |
-
-**第 5 步已完成的状态（2026-11-18）**：
+| 序                                      | 步骤                                                  | 验收                                                                                      |
+| :-------------------------------------- | :---------------------------------------------------- | :---------------------------------------------------------------------------------------- |
+| 1                                       | 修 `docs/02` 的 `VibeFsAdapter` 口径                  | 文档与代码一致                                                                            |
+| 2                                       | 定 D1（替换/并存/过渡）                               | 有明确答案                                                                                |
+| 3                                       | ~~实测「起一个 Herdchestra 实例耗时」~~               | ✅ 已测：20–24 秒，定为「每 case 一实例」                                                 |
+| 3b                                      | ~~实测控制通道可否驱动~~                              | ✅ 已测：`:ping` 通，四 op 够用，无需扩展协议                                             |
+| 4                                       | ~~实现 `LoopbackTransport`~~                          | ✅ `src/run/loopback-transport.ts` + 57 测试                                              |
+| 5                                       | ~~实现 `HerdchestraAdapter` 的 `prepare` + `submit`~~ | ✅ `src/run/herdchestra-adapter.ts` + `herdchestra-instance.ts`；真实实例复验 `{ok:true}` |
+| 6                                       | ~~实现黑盒采集：读工作区文件 + 控制通道终态~~         | ✅ 已实现：`collect` 等助手回复 + 工作区文件 diff（见下）                                 |
+| 7                                       | ~~实现 `evaluate` + `cleanup` 的真实判定~~            | ✅ `evaluate` 已按 `workspace_assert` 判定并区分归因（见下）                              |
+| 8                                       | ~~用 `BDirectAdapter` 验证抽象是否过度~~              | ✅ 已证伪：模型类无法表达 → 不引入统一通道接口，退回「每形态一 adapter」（§3.2）          |
+| **第 5 步已完成的状态（2026-11-18）**： |
 
 | 项                                 | 结果                                                                                                |
 | :--------------------------------- | :-------------------------------------------------------------------------------------------------- |
@@ -438,7 +375,7 @@ export class HerdchestraAdapter implements ExecutionAdapter {
 | `evaluate`                         | 见下文「第 7 步」——已实现真实判定，不再是占位                                                       |
 | 已锁死的关键约束                   | endpoint 的 pid 必须等于本次 spawn 的子进程 pid，否则判超时——防止认错实例导致两个 case 结果混在一起 |
 
-**第 8 步是自我证伪**：如果模型类无法用 `SutTransport` 表达，说明这个抽象只适用于「有状态的 SUT」，应明确写进文档而不是强行统一。
+**第 8 步是自我证伪**：结论为「抽象过度」——模型类一次调用即终态，没有轮询与事件流，统一通道接口只能靠空实现凑齐。已退回「每形态一 adapter」，并把结论写进 §3.2。
 
 **第 6 步已完成的状态（2026-11-20）**：
 
@@ -515,7 +452,7 @@ export class HerdchestraAdapter implements ExecutionAdapter {
 | :------------------------- | :--------------------------------------------------------------------------------- | :----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 黑盒覆盖不足               | 编排铁律（委派层级/看板/令牌）无法断言，这是黑盒的固有局限                         | **已知并接受**（§6 D2）。若将来必须断言，属评测目标变更，需重新决策                                                                                                                                                                                                                                                                                                            |
 | 状态无法重置               | 若实例启动过慢，逐 case 起实例不现实                                               | ✅ 已实测 20–24 秒（§6 D4）。已定为「每 case 一实例」——复用实例因 workspace 是进程级而无法隔离                                                                                                                                                                                                                                                                                 |
-| 抽象过度                   | `SutTransport` 可能只适用于有状态 SUT                                              | 用 `BDirectAdapter` 做证伪（§7 第 8 步）                                                                                                                                                                                                                                                                                                                                       |
+| 抽象过度                   | 跨形态统一通道接口可能只适用于有状态 SUT                                           | ✅ 已证伪（§3.2）：模型类无法表达 → 不引入统一通道接口，退回「每形态一 adapter」                                                                                                                                                                                                                                                                                               |
 | 插件版退化                 | 抽取 `PluginHostTransport` 时改坏 `HostedAdapter`                                  | 现有 1014 个测试是回归网；每步改动后全量跑                                                                                                                                                                                                                                                                                                                                     |
 | 单例冲突                   | Herdchestra 是「每台机器单一常驻进程」，并发跑 case 会撞锁                         | ✅ 已实测锁机制（§6 D4）。`prepare` 先 `:ping` 探测，已存在则复用不重启                                                                                                                                                                                                                                                                                                        |
 | 孤儿自杀                   | 父进程退出会触发看门狗，实例自行终止                                               | ✅ 已实测（§6 D4）。`open()` 须同进程持有子进程句柄，不依赖 shell 后台                                                                                                                                                                                                                                                                                                         |
@@ -547,5 +484,5 @@ export class HerdchestraAdapter implements ExecutionAdapter {
 | :-------------- | :------------------------------------------------------------------ |
 | 02 §1 原则 1    | 本文是其落地设计；同时修正其中 `VibeFsAdapter` 的失实描述           |
 | 07 §3.1         | 本文验证 8 阶段契约足以容纳服务型 SUT，不改契约                     |
-| 05 领域对象映射 | 新增 `SutTransport` / `SutObservation` 需登记到 05                  |
+| 05 领域对象映射 | 无新增领域对象（统一通道与观测声明已证伪，见 §3.2）                 |
 | 04 实验方案     | 服务类 SUT 的 ON/OFF 对照语义待定（Herdchestra 无「插件开关」概念） |

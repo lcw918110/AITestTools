@@ -2807,3 +2807,23 @@ return REQUIRED_ISOLATION_PROOFS.filter((proof) => {
 - 新增/扩充测试：`tests/cli/run-exit-code.test.ts`、`tests/report/not-implemented-compare.test.ts`、`tests/report/not-implemented-parse.test.ts`、`tests/run/write-artifacts-not-implemented.test.ts`、`tests/run/run-orchestrator.test.ts`、`tests/console/run-summary.test.ts`。
 - 可证伪验证（变异后精确变红，恢复后全绿）：把题级判定改回只看首行 → 1 条红；删「未评测题目」清单 → 1 条红；删 `HARNESS` 归因分支 → 1 条红；删解析保护的 `continue` → 1 条红。
 - 门禁：`format:check` / `lint` / `typecheck` 全过；`vitest` 126 文件 / **1192** 用例；`validate:examples` 321/321；`smoke:offline` 六组全 PASS。
+
+---
+
+## 62. SUT 形态抽象的自我证伪：不引入统一通道接口（2026-11-21）
+
+**做什么**：`docs/12` 第 8 步——用已落地的 `BDirectAdapter` 反向检验「跨形态统一通道接口」（原设计的 `SutTransport` + `SutObservation`）是否合理。
+
+**结论：抽象过度，不落地为代码。**
+
+| 形态                           | 结论                                                                                                                       |
+| :----------------------------- | :------------------------------------------------------------------------------------------------------------------------- |
+| 模型类（`BDirectAdapter`）     | **无法表达**：一次调用即终态，没有 `poll`、没有 `events`，`open`/`close` 都是空操作。硬塞只会得到永远 `return []` 的假实现 |
+| 服务类（`HerdchestraAdapter`） | 可表达但拆坏语义：`poll`/`events` 本是它内部连续等待的碎片，抽出后变成三个必须按序调用的方法与重复 I/O                     |
+| 插件类（`HostedAdapter`）      | 勉强可表达：`events` 跨 stdout / git ref / `.Herdchestra` 三处读取，与判活重叠                                             |
+
+形态差异不是「同一通道的不同实现」，而是**通道本身是否存在**。保留 07 的 8 阶段 `ExecutionAdapter` 契约作为共性边界，各形态差异封装在各自 adapter 内。
+
+**顺带修正的文档失实**：`docs/02` §1 原则 1 原写「万象术专属开关由 `VibeFsAdapter` 解释」，该类在代码中不存在，已改为 `HostedAdapter` 并指向 `docs/12`。
+
+**产出**：`docs/12` §3.2（证伪结论与对照表）、§3.3（实际隔离方式）、§7 第 8 步状态、§8 风险表同步；`docs/02` §1 原则 1 口径修正；`docs/process/06` §5 backlog 增补「能力缺失被记成被测失败 → 已闭环」。
