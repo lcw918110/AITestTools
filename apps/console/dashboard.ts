@@ -5,6 +5,7 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { parseJsonObject } from './parse.ts';
 import type { CompareReport } from '../../src/report/compare.ts';
+import { passRateOf } from '../../src/report/artifacts.ts';
 import { inferPairFromItemId, parseResultsNdjson, type ResultRow } from './run-summary.ts';
 
 export interface HostedSnap {
@@ -54,7 +55,13 @@ export interface RunDashboard {
   headline: {
     pass_total: number;
     item_total: number;
-    pass_rate: number;
+    /**
+     * 通过率（被评测样本命中数 / 样本数）。
+     *
+     * 缺省表示「没有可评测样本」，即不可定义——不要补 0，前端须按「无数据」渲染，
+     * 否则会把未评测的 run 显示成 0% 通过。
+     */
+    pass_rate?: number;
     baseline_pass_rate?: number;
     candidate_pass_rate?: number;
     delta?: number;
@@ -137,6 +144,8 @@ export function contextTimeoutUnusable(row: ResultRow | undefined): string | und
 function sideFromRows(rows: ResultRow[], which: 'off' | 'on'): Map<string, ResultRow> {
   const map = new Map<string, ResultRow>();
   for (const r of rows) {
+    // 未评测的一侧没有观测，放进来会让矩阵把「没测」画成「挂」
+    if (r.not_implemented === true) continue;
     const pair = r.effect_pair ?? inferPairFromItemId(r.item_id);
     if (!pair) continue;
     const isOff = /-OFF(?:$|::)/.test(r.item_id) || r.item_id.endsWith('-OFF');
@@ -181,9 +190,13 @@ export function buildRunDashboard(opts: {
   if (es?.event_store_present !== undefined) config.event_store_present = es.event_store_present;
   if (es?.event_store_source) config.event_store_source = es.event_store_source;
 
-  const pass_total = rows.filter((r) => r.pass).length;
-  const item_total = rows.length;
-  let pass_rate = item_total === 0 ? 0 : pass_total / item_total;
+  // 未评测结果不是「没通过」，不能进分母：否则能力缺失会被显示成 0% 通过
+  const evaluatedRows = rows.filter((r) => r.not_implemented !== true);
+  const pass_total = evaluatedRows.filter((r) => r.pass).length;
+  const item_total = evaluatedRows.length;
+  // 与对照报告共用同一算法：无样本时返回 undefined（不可定义），
+  // 写 0 会被前端着色成「0% 通过」，把「没测过」显示成「全挂」。
+  let pass_rate: number | undefined = passRateOf(rows);
   if (opts.metricsText) {
     try {
       const m = JSON.parse(opts.metricsText) as { aggregates?: { a_case_pass_rate?: number } };
@@ -262,7 +275,8 @@ export function buildRunDashboard(opts: {
   } else if (opts.effect === undefined || opts.effect === null) {
     usable_note = '单侧 run：矩阵只显示本侧。完整 Δ 请钉无插件 baseline 后「一键对照」。';
   } else if (excluded > 0 && usable.length === 0) {
-    usable_note = `原始 Δpass=${opts.effect.pass_rate_delta.toFixed(3)}，但 ${excluded} 对因超时且文件没动须剔除，效果 Δ 暂不可用。`;
+    const raw = opts.effect.pass_rate_delta;
+    usable_note = `原始 Δpass=${raw !== undefined ? raw.toFixed(3) : '未评测'}，但 ${excluded} 对因超时且文件没动须剔除，效果 Δ 暂不可用。`;
   } else if (excluded > 0) {
     usable_note = `已剔除 ${excluded} 对 CONTEXT 超时（文件没动）。效果 Δ 按剩余 ${usable.length} 对计算。`;
   } else {
@@ -272,14 +286,21 @@ export function buildRunDashboard(opts: {
   const headline: RunDashboard['headline'] = {
     pass_total,
     item_total,
-    pass_rate,
+    ...(pass_rate !== undefined ? { pass_rate } : {}),
     usable_item_pairs: usable.length,
     usable_note,
   };
   if (opts.effect) {
-    headline.baseline_pass_rate = opts.effect.baseline_pass_rate;
-    headline.candidate_pass_rate = opts.effect.candidate_pass_rate;
-    headline.delta = opts.effect.pass_rate_delta;
+    // 可选字段只能整体省略，不能赋 undefined（exactOptionalPropertyTypes）
+    if (opts.effect.baseline_pass_rate !== undefined) {
+      headline.baseline_pass_rate = opts.effect.baseline_pass_rate;
+    }
+    if (opts.effect.candidate_pass_rate !== undefined) {
+      headline.candidate_pass_rate = opts.effect.candidate_pass_rate;
+    }
+    if (opts.effect.pass_rate_delta !== undefined) {
+      headline.delta = opts.effect.pass_rate_delta;
+    }
   }
   if (usable_delta !== null) headline.usable_delta = usable_delta;
 

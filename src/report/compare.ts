@@ -1,7 +1,13 @@
 import { writeFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { formatPassTokenCell } from './cells.ts';
-import { loadRunArtifacts, type LoadedRun, type ResultLine } from './artifacts.ts';
+import {
+  isEvaluated,
+  loadRunArtifacts,
+  passRateOf,
+  type LoadedRun,
+  type ResultLine,
+} from './artifacts.ts';
 
 export type DriftKind = 'new_failure' | 'fixed' | 'asset_rev_drift' | 'unchanged';
 
@@ -46,10 +52,15 @@ export interface PairedEffect {
 
 /** 效果分列：通过率差、指标差、可选参考分差（不进硬门禁）。 */
 export interface EffectSummary {
-  baseline_pass_rate: number;
-  candidate_pass_rate: number;
-  /** candidate − baseline；正值表示 candidate 通过率更高 */
-  pass_rate_delta: number;
+  /**
+   * 通过率；某一侧没有任何可评测观测时缺省（不可定义）。
+   *
+   * 不能用 0 代替：0 表示「测过且全挂」，与「没测过」是两个完全不同的结论。
+   */
+  baseline_pass_rate?: number;
+  candidate_pass_rate?: number;
+  /** candidate − baseline；任一侧不可定义时缺省。 */
+  pass_rate_delta?: number;
   metric_deltas: MetricDelta[];
   reference_scores?: {
     baseline_avg?: number;
@@ -70,10 +81,9 @@ export interface CompareReport {
   effect: EffectSummary;
 }
 
-function passRate(rows: Iterable<ResultLine>): number {
-  const list = [...rows];
-  if (list.length === 0) return 0;
-  return list.filter((r) => r.pass).length / list.length;
+/** 通过率展示：不可定义时写「未评测」，绝不写 0.0000。 */
+function fmtRate(rate: number | undefined): string {
+  return rate === undefined ? '未评测（无可评测样本）' : rate.toFixed(4);
 }
 
 function avg(nums: number[]): number | undefined {
@@ -108,6 +118,8 @@ function buildPairedEffects(
   const pairs = new Map<string, { baseline?: Side; candidate?: Side }>();
 
   const put = (side: 'baseline' | 'candidate', row: ResultLine, scores: Map<string, number>) => {
+    // 未评测的一侧没有 pass 可言：放进去会造出虚假的「效果差」
+    if (!isEvaluated(row)) return;
     const key = inferEffectPair(row.item_id, row.effect_pair);
     const cur = pairs.get(key) ?? {};
     const entry: Side = { item_id: row.item_id, pass: row.pass };
@@ -157,13 +169,15 @@ function buildPairedEffects(
 }
 
 function buildEffect(baseRun: LoadedRun, candRun: LoadedRun): EffectSummary {
-  const baseline_pass_rate = passRate(baseRun.results.values());
-  const candidate_pass_rate = passRate(candRun.results.values());
+  const baseline_pass_rate = passRateOf([...baseRun.results.values()]);
+  const candidate_pass_rate = passRateOf([...candRun.results.values()]);
   const baseAgg = baseRun.aggregates;
   const candAgg = candRun.aggregates;
   const names = new Set([...Object.keys(baseAgg), ...Object.keys(candAgg)]);
   const metric_deltas: MetricDelta[] = [];
   for (const name of [...names].sort()) {
+    // 事实计数（没测过/漏跑多少题）不是效果分，放进「指标差」会被读成质量变化
+    if (name === 'a_not_evaluated_items' || name === 'a_missing_result_items') continue;
     const b = baseAgg[name];
     const c = candAgg[name];
     const row: MetricDelta = { name };
@@ -173,12 +187,13 @@ function buildEffect(baseRun: LoadedRun, candRun: LoadedRun): EffectSummary {
     metric_deltas.push(row);
   }
 
-  const effect: EffectSummary = {
-    baseline_pass_rate,
-    candidate_pass_rate,
-    pass_rate_delta: candidate_pass_rate - baseline_pass_rate,
-    metric_deltas,
-  };
+  const effect: EffectSummary = { metric_deltas };
+  // 只有两侧都真有观测时才能谈通过率与 Δ；否则缺省，交由展示层写「未评测」
+  if (baseline_pass_rate !== undefined) effect.baseline_pass_rate = baseline_pass_rate;
+  if (candidate_pass_rate !== undefined) effect.candidate_pass_rate = candidate_pass_rate;
+  if (baseline_pass_rate !== undefined && candidate_pass_rate !== undefined) {
+    effect.pass_rate_delta = candidate_pass_rate - baseline_pass_rate;
+  }
 
   const bScores = [...baseRun.scores.values()];
   const cScores = [...candRun.scores.values()];
@@ -224,8 +239,11 @@ export function compareRuns(baselineDir: string, candidateDir: string): CompareR
   const rows: CompareRow[] = [];
 
   for (const id of [...ids].sort()) {
-    const b = baseResults.get(id);
-    const c = candResults.get(id);
+    // 未评测的一侧按「没有观测」处理：它既不算失败，也不该被判成 new_failure/fixed
+    const bRaw = baseResults.get(id);
+    const cRaw = candResults.get(id);
+    const b = bRaw !== undefined && isEvaluated(bRaw) ? bRaw : undefined;
+    const c = cRaw !== undefined && isEvaluated(cRaw) ? cRaw : undefined;
     const bs = scoreBase.get(id);
     const cs = scoreCand.get(id);
 
@@ -327,9 +345,10 @@ export function writeEffectCompareMarkdown(report: CompareReport, outPath: strin
     '',
     `| 侧 | pass_rate |`,
     `| --- | --- |`,
-    `| baseline | ${e.baseline_pass_rate.toFixed(4)} |`,
-    `| candidate | ${e.candidate_pass_rate.toFixed(4)} |`,
-    `| **delta (cand−base)** | **${e.pass_rate_delta.toFixed(4)}** |`,
+    // 不可定义时写「未评测」而不是 0.0000——后者会被读成「全挂」
+    `| baseline | ${fmtRate(e.baseline_pass_rate)} |`,
+    `| candidate | ${fmtRate(e.candidate_pass_rate)} |`,
+    `| **delta (cand−base)** | **${e.pass_rate_delta !== undefined ? e.pass_rate_delta.toFixed(4) : '未评测（不可定义）'}** |`,
     '',
     '## 聚合指标差',
     '',

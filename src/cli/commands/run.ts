@@ -246,39 +246,49 @@ export async function runCommand(options: RunOptions): Promise<number> {
 
   const results = batchResults.flat();
 
-  const { dir, gate_evaluations, gates_pass } = writeRunArtifacts({
-    runsRoot,
-    meta: {
-      run_id: rid,
-      ...(process.env.PROCTOR_RUN_PURPOSE?.trim()
-        ? { purpose: process.env.PROCTOR_RUN_PURPOSE.trim() }
-        : {}),
-      dataset: datasetName,
-      environment: environmentName,
-      started_at: new Date().toISOString(),
-      project_root: project.root,
-      items: filtered.map((i) => ({
-        id: i.revision.case_revision_id,
-        rev: i.revision.revision_number,
-        // 记账用实际执行的环境：配对题按侧解析后可能与顶层 environment 不同，
-        // 只写基准值会让报告与执行账实不符。
-        environment: (i.environment ?? environment).environment_profile_id,
-      })),
-    },
-    results,
-    gates: undefined,
-  });
+  const { dir, gate_evaluations, gates_pass, not_evaluated_items, missing_result_items } =
+    writeRunArtifacts({
+      runsRoot,
+      meta: {
+        run_id: rid,
+        ...(process.env.PROCTOR_RUN_PURPOSE?.trim()
+          ? { purpose: process.env.PROCTOR_RUN_PURPOSE.trim() }
+          : {}),
+        dataset: datasetName,
+        environment: environmentName,
+        started_at: new Date().toISOString(),
+        project_root: project.root,
+        items: filtered.map((i) => ({
+          id: i.revision.case_revision_id,
+          rev: i.revision.revision_number,
+          // 记账用实际执行的环境：配对题按侧解析后可能与顶层 environment 不同，
+          // 只写基准值会让报告与执行账实不符。
+          environment: (i.environment ?? environment).environment_profile_id,
+        })),
+      },
+      results,
+      gates: undefined,
+    });
 
-  const itemsPass = results.every((r) => r.pass);
+  // 未评测既不是通过也不是失败：不能混入通过率分母，也不能打印成 FAIL
+  const evaluatedResults = results.filter((r) => r.not_implemented !== true);
+  const notEvaluatedCount = results.length - evaluatedResults.length;
+  const itemsPass = evaluatedResults.every((r) => r.pass);
 
   if (options.json) {
     console.log(JSON.stringify({ run_dir: dir, results, gate_evaluations, gates_pass }, null, 2));
   } else {
-    const passed = results.filter((r) => r.pass).length;
+    const passed = evaluatedResults.filter((r) => r.pass).length;
     console.log(`run 完成：${dir}`);
-    console.log(`${passed}/${results.length} 试题通过`);
+    if (evaluatedResults.length === 0) {
+      console.log(`0/${results.length} 试题通过（${notEvaluatedCount} 条未评测，不计入通过率）`);
+    } else {
+      console.log(
+        `${passed}/${evaluatedResults.length} 试题通过${notEvaluatedCount > 0 ? `（另有 ${notEvaluatedCount} 条未评测，不计入）` : ''}`,
+      );
+    }
     for (const r of results) {
-      const mark = r.pass ? 'PASS' : 'FAIL';
+      const mark = r.not_implemented === true ? 'SKIP' : r.pass ? 'PASS' : 'FAIL';
       console.log(
         `  ${mark}  ${r.item_id}@rev${r.item_rev}${r.attribution ? ` [${r.attribution}]` : ''}`,
       );
@@ -286,5 +296,30 @@ export async function runCommand(options: RunOptions): Promise<number> {
     }
   }
 
-  return itemsPass && gates_pass ? 0 : 1;
+  // 退出码优先级，核心原则是「真实失败绝不能被别的状态掩盖」：
+  // 1 被测系统失败 > 4 有题漏跑 > 3 有题未评测 > 0 全部评测且通过。
+  // 否则「9 过 1 挂 + 1 条未评测」会被报成中性的 3，失败告警链路就断了。
+  return resolveRunExitCode({
+    passed: itemsPass && gates_pass,
+    missing_result_items,
+    not_evaluated_items,
+  });
+}
+
+/**
+ * run 命令退出码的纯函数判定，便于单独测优先级。
+ *
+ * 顺序即语义：真实失败最优先，其次漏跑（异常信号），再次未评测（预期内）。
+ */
+export function resolveRunExitCode(input: {
+  passed: boolean;
+  missing_result_items: number;
+  not_evaluated_items: number;
+}): 0 | 1 | 3 | 4 {
+  // 真实失败优先：不能被「没测过」掩盖，否则告警链路会断
+  if (!input.passed) return 1;
+  // 漏跑是异常（计划里有却没出结果），比「形态未实现」更该被关注
+  if (input.missing_result_items > 0) return 4;
+  if (input.not_evaluated_items > 0) return 3;
+  return 0;
 }

@@ -134,8 +134,10 @@ describe('isGateable', () => {
 // ============================================================
 
 describe('METRIC_CATALOG', () => {
-  it('恰好 18 个指标（A 轴 5 + B 轴 8 + C 轴 5）', () => {
-    expect(METRIC_CATALOG).toHaveLength(18);
+  it('恰好 20 个指标（A 轴 7 + B 轴 8 + C 轴 5）', () => {
+    // A 轴新增 a_not_evaluated_items / a_missing_result_items：它们是「没测过」的
+    // 事实计数，不是质量分，故 gateable=false。混进通过率或门禁会把能力缺失当失败。
+    expect(METRIC_CATALOG).toHaveLength(20);
   });
 
   it('指标名无重复', () => {
@@ -184,11 +186,13 @@ describe('METRIC_CATALOG', () => {
     }
   });
 
-  it('gateable=false 的指标恰好是预期的 4 项（精确枚举）', () => {
+  it('gateable=false 的指标恰好是预期的 6 项（精确枚举）', () => {
     const nonGateable = METRIC_CATALOG.filter((m) => !m.gateable)
       .map((m) => m.name)
       .sort();
     expect(nonGateable).toEqual([
+      'a_missing_result_items',
+      'a_not_evaluated_items',
       'b_avg_steps_to_success',
       'b_cost_tokens_per_pass',
       'b_hosted_attribution_share',

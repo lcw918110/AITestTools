@@ -30,6 +30,29 @@ function genId(prefix: string): string {
     .slice(2, 8)}`;
 }
 
+/**
+ * cleanup 失败但没有可承载的结果行时用的占位行。
+ *
+ * 只为「把泄漏记下来」而存在：标 `not_implemented` 以免被当成一条被测系统失败，
+ * `pass` 与判据保持不通过，`oracle_failures` 里只有编排侧的泄漏证据。
+ */
+function placeholderCleanupResult(
+  caseRevisionId: string,
+  revisionNumber: number,
+  message: string,
+): AxisItemResult {
+  return {
+    item_id: caseRevisionId,
+    item_rev: revisionNumber,
+    pass: false,
+    not_implemented: true,
+    attribution: 'HARNESS',
+    oracle_failures: [{ oracle_id: 'harness:cleanup', message }],
+    // 占位行不进任何通过率统计（已标 not_implemented），指标值只为满足类型必填
+    metrics: { a_case_pass_rate: 0, a_invariant_violations: 0 },
+  };
+}
+
 /** 内存三值事实记录器实现。 */
 class InMemoryFactsRecorder implements ObservedFactsRecorder {
   private resolved: Array<{ kind: string; key: string; value: unknown }> = [];
@@ -247,6 +270,8 @@ export class RunOrchestrator {
 
     // 8 阶段执行，捕获 AdapterError 映射终态，并确保 prepare 后的资源一定走 cleanup。
     let prepared: PreparedState | undefined = undefined;
+    let outcome: { caseExecution: CaseExecution; results: AxisItemResult[] } | undefined =
+      undefined;
     try {
       attempt.attempt_status = 'running';
 
@@ -269,21 +294,27 @@ export class RunOrchestrator {
       attempt.attempt_status = 'completed';
       attempt.ended_at = new Date().toISOString();
       caseExecution.execution_outcome = 'completed';
-      const first = results[0];
-      // 适配器显式声明「该阶段尚未实现」时不能算被测系统失败——否则能力缺失
-      // 会污染通过率与被测系统缺陷数。用 not_evaluated 表达「没评测」。
-      if (first !== undefined && first.not_implemented === true) {
+      // 题级判定只看**真正被评测过**的行。适配器显式声明「该阶段尚未实现」的行
+      // 不能算被测系统失败——否则能力缺失会污染通过率与被测系统缺陷数。
+      // 必须按「任一行已评测」判定，不能只看 results[0]：B-direct 单题多模型一次产出
+      // 多行，首行未必代表整题；首行已评测而后续行未评测时若只看首行，会把
+      // not_implemented 与真实观测一起计入通过率分母（账实不符）。
+      const evaluatedRows = results.filter((r) => r.not_implemented !== true);
+      if (results.length > 0 && evaluatedRows.length === 0) {
         caseExecution.evaluation_outcome = 'not_evaluated';
-        if (first.attribution !== undefined) {
-          caseExecution.attribution = first.attribution;
+        const head = results[0];
+        if (head !== undefined && head.attribution !== undefined) {
+          caseExecution.attribution = head.attribution;
         }
-        return { caseExecution, results };
+      } else {
+        // 多行时与 write-artifacts 的题级口径一致：全部已评测行通过才算通过。
+        caseExecution.evaluation_outcome = evaluatedRows.every((r) => r.pass) ? 'pass' : 'fail';
+        const failed = evaluatedRows.find((r) => !r.pass);
+        if (failed !== undefined && failed.attribution !== undefined) {
+          caseExecution.attribution = failed.attribution;
+        }
       }
-      caseExecution.evaluation_outcome = first !== undefined && first.pass ? 'pass' : 'fail';
-      if (first !== undefined && !first.pass && first.attribution !== undefined) {
-        caseExecution.attribution = first.attribution;
-      }
-      return { caseExecution, results };
+      outcome = { caseExecution, results };
     } catch (e) {
       attempt.attempt_status = 'failed';
       attempt.ended_at = new Date().toISOString();
@@ -293,35 +324,82 @@ export class RunOrchestrator {
       caseExecution.attribution = attribution;
       // 失败路径：若 AdapterError 携带完整结果（runner 的 fail() 产物），透传之。
       if (e instanceof AdapterError && e.result !== undefined) {
-        return { caseExecution, results: e.result };
-      }
-      // 兜底：无完整结果时，构造最小失败结果。
-      return {
-        caseExecution,
-        results: [
-          {
-            item_id: caseRevisionId,
-            item_rev: revision.revision_number,
-            pass: false,
-            attribution,
-            oracle_failures: [{ oracle_id: 'harness', message: (e as Error).message }],
-            metrics: {
-              a_case_pass_rate: 0,
-              a_invariant_violations:
-                attribution === 'PROTOCOL' || attribution === 'CONTEXT' ? 1 : 0,
+        outcome = { caseExecution, results: e.result };
+      } else {
+        // 兜底：无完整结果时，构造最小失败结果。
+        outcome = {
+          caseExecution,
+          results: [
+            {
+              item_id: caseRevisionId,
+              item_rev: revision.revision_number,
+              pass: false,
+              attribution,
+              oracle_failures: [{ oracle_id: 'harness', message: (e as Error).message }],
+              metrics: {
+                a_case_pass_rate: 0,
+                a_invariant_violations:
+                  attribution === 'PROTOCOL' || attribution === 'CONTEXT' ? 1 : 0,
+              },
             },
-          },
-        ],
-      };
+          ],
+        };
+      }
     } finally {
       if (prepared !== undefined && adapter.cleanup !== undefined) {
+        // cleanup 有两种失败形态，都必须留证据：
+        // 1) 直接抛异常；2) 正常返回 `{ ok: false, reason }`（Herdchestra 停实例失败就走这条，
+        //    不会抛）。只看异常会漏掉第二种——实例没停、锁没释放却被静默放过。
+        let cleanupFailure: string | undefined;
         try {
-          await adapter.cleanup(ctx, prepared);
-        } catch {
-          /* cleanup 异常不掩盖主流程结果 */
+          const cleaned = await adapter.cleanup(ctx, prepared);
+          // 旧适配器可能没按契约返回对象：直接读 ok 会抛 TypeError，
+          // 让防御本身变成一条假泄漏记录。
+          if (cleaned === undefined || cleaned === null) {
+            cleanupFailure = 'cleanup 未返回结果（契约要求返回 CleanupResult）';
+          } else if (cleaned.ok !== true) {
+            cleanupFailure = cleaned.reason ?? 'cleanup 返回 ok=false';
+          }
+        } catch (cleanupError) {
+          cleanupFailure =
+            cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+        }
+        if (cleanupFailure !== undefined) {
+          // 不改变本题判定（清理故障不能掩盖真实结果），但必须随结果落盘：
+          // 泄漏会在后续 case 撞残留状态，静默吞掉等于把隐患藏起来。
+          if (outcome !== undefined) {
+            if (outcome.results.length === 0) {
+              // 无任何结果行时不能静默丢弃泄漏记录：用最小占位行承载，
+              // 标 `not_implemented` 以免被算成一条被测系统失败。
+              outcome.results.push(
+                placeholderCleanupResult(caseRevisionId, revision.revision_number, cleanupFailure),
+              );
+            } else {
+              // 优先挂到「已评测」行上：`not_implemented` 行不进任何统计，
+              // 挂上去会让题级 `cleanup_failed` 静默消失。找不到评测行才退回首行。
+              const evaluatedIndex = outcome.results.findIndex((r) => r.not_implemented !== true);
+              const targetIndex = evaluatedIndex >= 0 ? evaluatedIndex : 0;
+              const target = outcome.results[targetIndex];
+              if (target !== undefined) {
+                outcome.results[targetIndex] = {
+                  ...target,
+                  oracle_failures: [
+                    ...target.oracle_failures,
+                    { oracle_id: 'harness:cleanup', message: cleanupFailure },
+                  ],
+                };
+              }
+            }
+          }
+          try {
+            ctx.facts.observe('adapter', 'cleanup_failed', { message: cleanupFailure });
+          } catch {
+            /* 事实记录本身失败时不能反过来打断结果返回 */
+          }
         }
       }
     }
+    return outcome;
   }
 
   /** 封存 Run 终态，写 RunFinalManifest。 */

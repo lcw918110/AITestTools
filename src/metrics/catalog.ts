@@ -15,7 +15,7 @@ export const METRIC_CATALOG: readonly MetricSpec[] = [
   {
     name: 'a_case_pass_rate',
     axis: 'A',
-    meaning: 'active case 通过率',
+    meaning: 'active case 通过率（分母只含已判定项；无已判定项时无值，不得记 0）',
     aggregation: 'mean',
     higher_is_better: true,
     gateable: true,
@@ -155,6 +155,25 @@ export const METRIC_CATALOG: readonly MetricSpec[] = [
     aggregation: 'mean',
     higher_is_better: true,
     gateable: true,
+  },
+  {
+    // 不是质量指标，而是「有多少题根本没测过」的事实计数。登记进目录是为了让
+    // 趋势/报表认得它；不可作门禁——没测过既不是好也不是坏，判不了通过与否。
+    name: 'a_not_evaluated_items',
+    axis: 'A',
+    meaning: '没有任何可评测观测的题数（没跑或该形态尚未实现）',
+    aggregation: 'sum',
+    higher_is_better: false,
+    gateable: false,
+  },
+  {
+    // 漏跑单列：题在计划里却一条结果都没有，属异常，不是「能力缺失」。
+    name: 'a_missing_result_items',
+    axis: 'A',
+    meaning: '计划里有但完全没有结果行的题数（漏跑，需查部署/配置）',
+    aggregation: 'sum',
+    higher_is_better: false,
+    gateable: false,
   },
 ];
 

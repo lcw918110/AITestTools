@@ -5,6 +5,7 @@ import {
   parseBaselinePathFromEffectMd,
   summarizeAttribution,
   summarizeEffectPairs,
+  summarizeFailures,
   summarizeStability,
 } from '../../apps/console/run-summary.ts';
 
@@ -122,5 +123,31 @@ describe('console run-summary', () => {
     expect(
       parseBaselinePathFromEffectMd('# x\n\n- baseline: `/tmp/base`\n- candidate: `/tmp/cand`\n'),
     ).toBe('/tmp/base');
+  });
+
+  it('只有编排侧 cleanup 失败时，缺陷草稿归 HARNESS 而不是照抄被测归因', () => {
+    const hints = summarizeFailures([
+      {
+        item_id: 'ok-case.r1::r0',
+        pass: true,
+        // 行级归因存在也可能来自 oracle 侧统计，但本题通过——泄漏与它无关
+        attribution: 'MODEL_TASK',
+        oracle_failures: [{ oracle_id: 'harness:cleanup', message: '实例未退出' }],
+      },
+      {
+        item_id: 'broken.r1::r0',
+        pass: false,
+        attribution: 'MODEL_TASK',
+        oracle_failures: [
+          { oracle_id: 'workspace_assert', message: '未含 Math.round' },
+          { oracle_id: 'harness:cleanup', message: '实例未退出' },
+        ],
+      },
+    ]);
+
+    // 泄漏发生在 finally，与被测系统表现无关：不能把它算成被测缺陷
+    expect(hints[0]?.attribution).toBe('HARNESS');
+    // 但同题确有真实判定失败时，仍如实保留被测侧归因
+    expect(hints[1]?.attribution).toBe('MODEL_TASK');
   });
 });

@@ -2775,3 +2775,35 @@ return REQUIRED_ISOLATION_PROOFS.filter((proof) => {
 仍缺类型断言（已补，变异验证有效）。
 
 `npm run verify` 全绿：117 文件 / 1014 用例 / format / lint / typecheck / validate:examples。
+
+---
+
+## 61. 能力缺失与漏跑不再被记成被测失败或假绿（2026-11-21）
+
+**背景**：`docs/12` §8 记着两条遗留——①`not_implemented` 在编排层记 `not_evaluated`，落盘却仍按 `pass=false` 计入通过率分母；②`adapter.cleanup` 异常被空 `catch` 吞掉。前者会把「该形态还没实现评测」写成「被测系统 0% 通过」，后者会让实例、临时目录与单例锁泄漏无人知晓。本次把两条一并收口，并顺带堵住同类假绿路径。
+
+**落盘口径（当前态，已同步 docs/02 §5.2）**
+
+| 情形             | `run.json`                                                                   | `results.ndjson`                                | 报告 / 对照                                                      | CLI 退出码        |
+| :--------------- | :--------------------------------------------------------------------------- | :---------------------------------------------- | :--------------------------------------------------------------- | :---------------- |
+| 真实失败         | `pass: false`                                                                | `pass: false`                                   | 进分母不进分子                                                   | `1`（优先于 3/4） |
+| 能力未实现       | 省略 `pass`、`not_evaluated: true` + `not_evaluated_reason: not_implemented` | 保留 `pass` 布尔 + `not_implemented: true` 自证 | 不进分子分母；无已判定样本时 `a_case_pass_rate` 无值、门禁不宣判 | `3`               |
+| 漏跑（无结果行） | 同上，`reason: missing_result`                                               | —                                               | 同上，并计入 `a_missing_result_items`                            | `4`               |
+| cleanup 失败     | 题级 `cleanup_failed: true`                                                  | 行级追加 `harness:cleanup`                      | `report.md` 单列「资源泄漏（编排侧）」                           | 不单独改          |
+
+统一入口是 `src/report/artifacts.ts` 的 `isEvaluated` / `evaluatedOnly` / `passRateOf`；对照、看板、归因、配对键一律走它。
+
+**本轮独立审查（Local Bugbot）修掉的 4 项**
+
+1. **题级判定只看首行（High）**：`executeCase` 原以 `results[0]` 决定整题结论。B-direct 单题多模型一次产出多行时，首行能力缺失会把整题记成未评测（真实观测被吞）；首行已评测而后续行未评测时，未评测行又被算进通过率分母。改为「按全部已评测行判定」：无已评测行才记 `not_evaluated`，否则全部已评测行通过才算通过。
+2. **漏跑题只给计数不给题号（Medium）**：`report.md` 新增「未评测题目」清单，逐题写明「无结果行（漏跑）」或「未实现」；逐行表格的 pass 列同步细分为「未评测（漏跑）」与「未评测（未实现）」。
+3. **解析层同 id 覆盖（Low）**：`results.ndjson` 若同一 `item_id` 既有已评测行又有未评测行，`loadRunArtifacts` 原按后写覆盖，已评测观测会被凭空抹掉。改为「已评测行不被未评测行覆盖」。
+4. **泄漏草稿照抄被测归因（Low）**：`summarizeFailures` 在「本题通过、只有 cleanup 失败」时仍带出 `attribution`，等于把编排侧泄漏报成被测缺陷。改为该情形归 `HARNESS`；同题确有真实判定失败时保留原归因。
+
+**顺带修掉的静默丢失**：cleanup 失败原先只追加到 `results[0]`，若该行恰好是 `not_implemented` 行或 `results` 为空，泄漏记录直接消失。改为优先挂到已评测行；无任何结果行时生成一条 `not_implemented` 占位行承载证据（不进任何统计）。
+
+**验证**
+
+- 新增/扩充测试：`tests/cli/run-exit-code.test.ts`、`tests/report/not-implemented-compare.test.ts`、`tests/report/not-implemented-parse.test.ts`、`tests/run/write-artifacts-not-implemented.test.ts`、`tests/run/run-orchestrator.test.ts`、`tests/console/run-summary.test.ts`。
+- 可证伪验证（变异后精确变红，恢复后全绿）：把题级判定改回只看首行 → 1 条红；删「未评测题目」清单 → 1 条红；删 `HARNESS` 归因分支 → 1 条红；删解析保护的 `continue` → 1 条红。
+- 门禁：`format:check` / `lint` / `typecheck` 全过；`vitest` 126 文件 / **1192** 用例；`validate:examples` 321/321；`smoke:offline` 六组全 PASS。

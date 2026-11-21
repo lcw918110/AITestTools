@@ -38,6 +38,27 @@ export interface RunMeta {
     trials?: number;
     /** 题级通过率 = 通过观测数 / 观测总数（>1 时写入，口径同 `trials`）。 */
     pass_rate?: number;
+    /**
+     * 该题只产出了「尚未实现评测」的结果，因此没有评测结论。
+     *
+     * 此时 `pass` 整体省略：写 `true` 是假绿，写 `false` 是把能力缺失当成被测系统
+     * 缺陷。下游统计必须把它同时排除在分子与分母之外，与编排层记录的
+     * `evaluation_outcome = 'not_evaluated'` 保持一致。
+     */
+    not_evaluated?: true;
+    /**
+     * 未评测的成因，决定处置方式（`not_evaluated` 为真时必填）：
+     * - `not_implemented`：该形态的评测能力尚未实现，属预期内；
+     * - `missing_result`：这一题根本没跑出结果，属异常，必须查部署/配置。
+     */
+    not_evaluated_reason?: 'not_implemented' | 'missing_result';
+    /**
+     * 该题至少有一次 trial 的 `cleanup` 抛错：资源可能没释放。
+     *
+     * 单列而非塞进 `pass`：这是编排侧的泄漏事实，不改变被测系统判定，
+     * 但必须能跨 trial 汇总后被看见（否则 repeats>1 时证据会被聚合抹掉）。
+     */
+    cleanup_failed?: true;
   }>;
 }
 
@@ -45,6 +66,15 @@ export interface WriteArtifactsResult {
   dir: string;
   gate_evaluations: GateEvaluation[];
   gates_pass: boolean;
+  /**
+   * 本次 run 里没有任何可评测观测的题数（没跑 + 只产出 not_implemented）。
+   *
+   * 与 `pass_rate` 的 `n/a` 配套：调用方必须把它当成「没测过」而不是「失败」，
+   * 用来决定退出码与作业终态。
+   */
+  not_evaluated_items: number;
+  /** 其中「完全没跑出结果」的题数：属异常，CLI 用它给出更明确的退出码。 */
+  missing_result_items: number;
 }
 
 /**
@@ -90,15 +120,27 @@ export function writeRunArtifacts(opts: {
   // - B-direct（model-core + model-direct-v1）：`<case>::<模型名>::r<N>`（题号与 trial 之间夹模型名）。
   // 只剥最后一层 `::rN` 对第二种会得到 `<case>::<模型名>`，与题号不等，`items[].pass` 整段缺失。
   const byCaseId = new Map<string, AxisItemResult[]>();
+  // `not_implemented` 是「该形态的评测能力尚未实现」，不是被测系统失败。这类结果
+  // 必须从通过率分母里剔出去，否则能力缺失会污染缺陷数。
   for (const r of opts.results) {
     const caseId = resolveCaseId(r.item_id, opts.meta.items);
+    if (r.not_implemented === true) continue;
     const arr = byCaseId.get(caseId) ?? [];
     arr.push(r);
     byCaseId.set(caseId, arr);
   }
   const items = opts.meta.items.map((it) => {
     const trials = byCaseId.get(it.id);
-    if (trials === undefined || trials.length === 0) return it;
+    if (trials === undefined || trials.length === 0) {
+      // 该题没有任何可评测观测，两种成因要分开记——处置方式完全不同：
+      // - 有结果行但全被 not_implemented 剔掉：该形态能力尚未实现（预期内）；
+      // - 完全没有结果行：漏跑了（部署/配置出问题，必须查）。
+      // 两种都不能记通过或失败：写 true 是假绿，写 false 是把能力缺失当缺陷。
+      const hasRows = opts.results.some((r) => resolveCaseId(r.item_id, opts.meta.items) === it.id);
+      return hasRows
+        ? { ...it, not_evaluated: true as const, not_evaluated_reason: 'not_implemented' as const }
+        : { ...it, not_evaluated: true as const, not_evaluated_reason: 'missing_result' as const };
+    }
     const passCount = trials.filter((r) => r.pass).length;
     const passRate = passCount / trials.length;
     // 题级 pass：全部观测通过才算通过（等价于该题 `a_case_pass_rate === 1`）。
@@ -111,6 +153,11 @@ export function writeRunArtifacts(opts: {
     // - pass_token 系列是单次鉴权观测，取首个有观测的 trial。
     const anyTimedOut = trials.some((r) => r.timed_out === true);
     const anyMutated = trials.some((r) => r.materials_mutated === true);
+    // cleanup 失败不随 trial 消失：泄漏会在后续 case 撞残留状态。题级必须留痕，
+    // 否则 repeats>1 时只有首个 trial 带证据，聚合后泄漏被彻底抹掉。
+    const anyCleanupFailed = trials.some((r) =>
+      r.oracle_failures.some((f) => f.oracle_id === 'harness:cleanup'),
+    );
     // 只把「明确为假」当失败：`runner-types` 约定「无此类 oracle 则为 true」，
     // 故 `undefined`（未观测）不构成失败证据。若全部 trial 都未观测，
     // 整体也不写该字段（下方按 some(defined) 判断），避免把「没测」写成「全过」。
@@ -131,6 +178,7 @@ export function writeRunArtifacts(opts: {
       ...it,
       pass,
       ...(trials.length > 1 ? { trials: trials.length, pass_rate: passRate } : {}),
+      ...(anyCleanupFailed ? { cleanup_failed: true } : {}),
       ...(tokenTrial?.pass_token !== undefined ? { pass_token: tokenTrial.pass_token } : {}),
       ...(tokenTrial?.pass_token_present !== undefined
         ? { pass_token_present: tokenTrial.pass_token_present }
@@ -153,12 +201,24 @@ export function writeRunArtifacts(opts: {
     };
   });
   writeFileSync(join(dir, 'run.json'), `${JSON.stringify({ ...opts.meta, items }, null, 2)}\n`);
+  // 题级未评测计数：按成因分开。`missing_result` 是异常（题没跑），
+  // `not_implemented` 是形态能力缺失（预期内）——混成一个数会让真故障被当成正常。
+  const notImplementedItems = items.filter(
+    (it) => it.not_evaluated_reason === 'not_implemented',
+  ).length;
+  const missingResultItems = items.filter(
+    (it) => it.not_evaluated_reason === 'missing_result',
+  ).length;
+  const notEvaluatedItems = notImplementedItems + missingResultItems;
 
   const ndjson = opts.results
     .map((r) =>
       JSON.stringify({
         item_id: r.item_id,
         item_rev: r.item_rev,
+        // `pass` 保持必写：`src/report/artifacts.ts` 等读取方按「必须是布尔」解析，
+        // 省略字段会让含未评测结果的 run 直接抛错。用 `not_implemented: true`
+        // 让未评测自证身份，各读取方据此把它排除在分子分母之外。
         pass: r.pass,
         attribution: r.attribution,
         oracle_failures: r.oracle_failures,
@@ -175,28 +235,45 @@ export function writeRunArtifacts(opts: {
         ...(r.host_spawn_error !== undefined ? { host_spawn_error: r.host_spawn_error } : {}),
         ...(r.host_exit_role !== undefined ? { host_exit_role: r.host_exit_role } : {}),
         ...(r.materials_mutated !== undefined ? { materials_mutated: r.materials_mutated } : {}),
+        // 原始观测要自证「这不是评测结论」：只保留记录会让人误读成失败
+        ...(r.not_implemented === true ? { not_implemented: true } : {}),
       }),
     )
     .join('\n');
   writeFileSync(join(dir, 'results.ndjson'), `${ndjson}\n`);
 
+  // 总通过率只按真实评测过的那部分算：`not_implemented` 没有被评测，
+  // 计入分母会把「能力缺失」写成「被测系统失败」。
+  const evaluated = opts.results.filter((r) => r.not_implemented !== true);
+  // 全部结果都未评测时，通过率**没有定义**，不能写成 0。写 0 会被读成
+  // 「0% 通过」——那是把一个不存在的观测当成全部失败，属于假结论。
   const passRate =
-    opts.results.length === 0 ? 0 : opts.results.filter((r) => r.pass).length / opts.results.length;
-  const aggregates = aggregateItemMetrics(opts.results);
+    evaluated.length === 0 ? undefined : evaluated.filter((r) => r.pass).length / evaluated.length;
+  const aggregates = aggregateItemMetrics(evaluated);
   // 总通过率以本 run 的题级 pass 为准（覆盖逐题 a_case_pass_rate 均值）
-  aggregates.a_case_pass_rate = passRate;
+  if (passRate !== undefined) {
+    aggregates.a_case_pass_rate = passRate;
+  } else {
+    // 显式抹掉「没有观测」却被算成 0 的指标，让 metrics.json 自己说清没测过
+    delete aggregates.a_case_pass_rate;
+  }
   if (aggregates.a_invariant_violations === undefined) {
-    aggregates.a_invariant_violations = opts.results.reduce(
+    aggregates.a_invariant_violations = evaluated.reduce(
       (s, r) => s + (r.metrics.a_invariant_violations ?? 0),
       0,
     );
   }
+  // 「没测过」本身就是必须被看见的统计事实：做成指标而不是只写在报告正文里，
+  // 这样门禁、趋势、看板、外部脚本都能读到，不会把漏跑/能力缺失算进分母。
+  aggregates.a_not_evaluated_items = notEvaluatedItems;
+  // 漏跑单列：这是异常信号，趋势与门禁之外的巡检要能单独盯住
+  aggregates.a_missing_result_items = missingResultItems;
   // 单次 run 未做重跑对拍时，flaky delta 记 0（门禁 max:0 可通过）
   if (aggregates.a_flaky_rerun_delta === undefined) {
     aggregates.a_flaky_rerun_delta = 0;
   }
 
-  const gate_evaluations = evaluateGates(aggregates, opts.gates);
+  const gate_evaluations = evaluated.length === 0 ? [] : evaluateGates(aggregates, opts.gates);
   const gatesObj: Record<
     string,
     { pass: boolean; actual?: number; bound: GateBound; message: string }
@@ -209,24 +286,58 @@ export function writeRunArtifacts(opts: {
       ...(g.actual !== undefined ? { actual: g.actual } : {}),
     };
   }
-  const gates_pass = gate_evaluations.every((g) => g.pass);
+  // 无可评测样本时门禁「不适用」：判 PASS 是假绿，判 FAIL 是把没测读成没通过。
+  // 两者都会误导，故不产出任何门禁结论，由报告文件头的 `not_evaluated` 计数说明原因。
+  const gates_pass = evaluated.length === 0 ? false : gate_evaluations.every((g) => g.pass);
   const metrics = {
     aggregates,
     gates: gatesObj,
   };
   writeFileSync(join(dir, 'metrics.json'), `${JSON.stringify(metrics, null, 2)}\n`);
 
+  // 完全没有任何结果行的题：报告必须点出来，否则「有题根本没跑」会被静默漏掉。
+  // 注意不能用 `it.not_evaluated` 当判据——那个标记对所有无观测的题都会打上，
+  // 包括「只产出 not_implemented 结果」的题（它们有结果行，已在上面的计数里）。
+  const itemsWithoutResult = opts.meta.items.filter(
+    (it) => !opts.results.some((r) => resolveCaseId(r.item_id, opts.meta.items) === it.id),
+  ).length;
+
   const lines = [
     `# Run ${opts.meta.run_id}`,
     '',
     `- dataset: ${opts.meta.dataset}`,
     `- environment: ${opts.meta.environment}`,
-    `- pass_rate: ${passRate}`,
-    `- gates: ${gates_pass ? 'PASS' : 'FAIL'}`,
+    // 没有可评测样本时通过率不可定义：写 `n/a` 而不是 `0`
+    `- pass_rate: ${passRate === undefined ? 'n/a（无可评测样本）' : passRate}`,
+    `- gates: ${evaluated.length === 0 ? '未评测（不适用）' : gates_pass ? 'PASS' : 'FAIL'}`,
+    ...(evaluated.length === opts.results.length
+      ? []
+      : [`- not_evaluated: ${opts.results.length - evaluated.length} 条（未计入通过率）`]),
+    ...(itemsWithoutResult === 0 ? [] : [`- not_evaluated（无结果行）: ${itemsWithoutResult} 题`]),
     '',
   ];
+  // 未评测逐题明细：只给计数不够——漏跑属异常（要查部署/配置），未实现属能力缺失
+  // （预期内），处置完全不同；不落具体题号，排障时无从定位。
+  const notEvalRows = items.filter((it) => it.not_evaluated === true);
+  if (notEvalRows.length > 0) {
+    lines.push('## 未评测题目', '');
+    for (const it of notEvalRows) {
+      const why =
+        it.not_evaluated_reason === 'missing_result'
+          ? '无结果行（漏跑，需查配置）'
+          : '未实现（该形态暂无此能力）';
+      lines.push(`- ${it.id}: ${why}`);
+    }
+    lines.push('');
+  }
   // 配对题按侧解析环境后，逐题实际环境可能与顶层不同；此时补一列，避免报告账实不符。
   const envById = new Map(opts.meta.items.map((it) => [it.id, it.environment]));
+  // 题级未评测成因：让逐行表格能区分「漏跑」与「未实现」。
+  const reasonById = new Map(
+    items.flatMap((it) =>
+      it.not_evaluated_reason === undefined ? [] : [[it.id, it.not_evaluated_reason] as const],
+    ),
+  );
   const hasPerItemEnv = opts.meta.items.some(
     (it) => it.environment !== undefined && it.environment !== opts.meta.environment,
   );
@@ -254,7 +365,17 @@ export function writeRunArtifacts(opts: {
       const head = hasPerItemEnv
         ? `| ${r.item_id} | ${r.item_rev} | ${envCell} |`
         : `| ${r.item_id} | ${r.item_rev} |`;
-      return `${head} ${r.pass ? 'yes' : 'no'} | ${ws} | ${token} | ${to} | ${hx} | ${r.attribution ?? ''} |`;
+      // 未评测的题不能写成 `no`：那是把能力缺失当被测系统失败。
+      // 能对上题级成因的，顺带写明是「漏跑」还是「未实现」——两者处置完全不同。
+      let passCell = '未评测';
+      if (r.not_implemented !== true) {
+        passCell = r.pass ? 'yes' : 'no';
+      } else {
+        const reason = reasonById.get(resolveCaseId(r.item_id, opts.meta.items));
+        if (reason === 'missing_result') passCell = '未评测（漏跑）';
+        else if (reason === 'not_implemented') passCell = '未评测（未实现）';
+      }
+      return `${head} ${passCell} | ${ws} | ${token} | ${to} | ${hx} | ${r.attribution ?? ''} |`;
     }),
     '',
     '- 暗号为辅助信号（有/无）；缺席不单独否决整题。',
@@ -266,7 +387,7 @@ export function writeRunArtifacts(opts: {
   const flaky = aggregates.a_flaky_rerun_delta ?? 0;
   const repeatTagged = opts.results.filter((r) => /::r\d+$/.test(r.item_id)).length;
   // 一致性量化（ADR-0010）：pass^k + 成功率范围，纯报告、不进硬门禁。
-  const consistency = aggregateConsistency(opts.results);
+  const consistency = aggregateConsistency(evaluated);
   lines.push(
     '## 稳定性（repeats / flaky）',
     '',
@@ -309,7 +430,8 @@ export function writeRunArtifacts(opts: {
   }
   // 失败归因汇总
   const failAttr: Record<string, number> = {};
-  for (const r of opts.results) {
+  for (const r of evaluated) {
+    // 只统计真实评测过的失败：未评测结果没有归因可言，算进来就是污染缺陷数
     if (r.pass) continue;
     const k = r.attribution ?? 'UNKNOWN';
     failAttr[k] = (failAttr[k] ?? 0) + 1;
@@ -323,6 +445,13 @@ export function writeRunArtifacts(opts: {
     }
     lines.push('');
   }
+  // 资源泄漏单列：不改变被测系统判定，但必须让人看见「这次跑可能有残留」
+  const leaked = items.filter((it) => it.cleanup_failed === true).map((it) => it.id);
+  if (leaked.length > 0) {
+    lines.push('## 资源泄漏（编排侧）', '');
+    lines.push(`- 以下题目的 cleanup 失败，实例/临时目录/锁可能未释放：${leaked.join('、')}`);
+    lines.push('');
+  }
   if (gate_evaluations.length > 0) {
     lines.push('## Gates', '');
     for (const g of gate_evaluations) {
@@ -331,5 +460,11 @@ export function writeRunArtifacts(opts: {
     lines.push('');
   }
   writeFileSync(join(dir, 'report.md'), lines.join('\n'));
-  return { dir, gate_evaluations, gates_pass };
+  return {
+    dir,
+    gate_evaluations,
+    gates_pass,
+    not_evaluated_items: notEvaluatedItems,
+    missing_result_items: missingResultItems,
+  };
 }

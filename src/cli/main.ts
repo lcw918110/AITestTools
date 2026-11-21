@@ -54,7 +54,7 @@ const HELP = `agent-proctor — 第三方独立 Agent 监考/评测引擎
 
 别名：case → item
 
-退出码：0 通过；1 失败；2 用法错误。`;
+退出码：0 通过；1 失败（优先于 3/4，真实失败不被掩盖）；2 用法错误；3 有题未评测；4 有题漏跑。`;
 
 function readVersion(): string {
   const url = new URL('../../package.json', import.meta.url);

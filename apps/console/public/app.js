@@ -452,8 +452,9 @@ function renderDashboard(d) {
       : `${h.usable_delta >= 0 ? '+' : ''}${h.usable_delta.toFixed(3)}`;
   const stats = [
     [
-      '本侧通过',
-      `${h.pass_total ?? 0}/${h.item_total ?? 0}`,
+      // 没有可评测样本时不能显示「0/0」，否则会被读成「一个都没过」
+      h.item_total ? '本侧通过' : '本侧通过（无评测样本）',
+      h.item_total ? `${h.pass_total ?? 0}/${h.item_total}` : '未评测',
       h.pass_rate === 1 ? 'ok' : h.pass_rate === 0 && h.item_total ? 'err' : '',
     ],
     ['无插件', pct(h.baseline_pass_rate), ''],
@@ -570,8 +571,9 @@ function renderEffect(data) {
     lines.push(
       `用途：${data.effect_structured.purpose ?? data.effect_structured.purposeNotice ?? '未标注；仅供诊断，不构成有效效果结论'}`,
     );
+    const fmtRate = (v) => (typeof v === 'number' && !Number.isNaN(v) ? v.toFixed(4) : '未评测');
     lines.push(
-      `对照 Δpass=${Number(es.pass_rate_delta).toFixed(4)}（base ${Number(es.baseline_pass_rate).toFixed(4)} → cand ${Number(es.candidate_pass_rate).toFixed(4)}）`,
+      `对照 Δpass=${fmtRate(es.pass_rate_delta)}（base ${fmtRate(es.baseline_pass_rate)} → cand ${fmtRate(es.candidate_pass_rate)}）`,
     );
     if (es.reference_scores) {
       const r = es.reference_scores;
@@ -751,7 +753,7 @@ function renderPassTokens(summary) {
     '暗号为辅助；工作区是效果题主判定。可区分「超时但文件对了」与「超时且文件没动」。',
   ];
   for (const r of rows) {
-    const pass = r.pass ? '过' : '挂';
+    const pass = r.not_implemented ? '未评测' : r.pass ? '过' : '挂';
     const ws = r.workspace_label || '—';
     const to = r.timed_out_label || '—';
     lines.push(
@@ -921,10 +923,13 @@ async function pollTick() {
       return;
     }
 
-    // 终态：done / cancelled / error / interrupted
+    // 终态：done / cancelled / not_evaluated / error / interrupted
     stopPolling();
     if (res.status === 'done') {
       setStatus(`完成 ${targetId}`, 'ok');
+    } else if (res.status === 'not_evaluated') {
+      // 能力缺失不等于失败：用中性提示，别标红
+      setStatus(`未评测：${targetId}（该形态尚未实现）`, '');
     } else if (res.status === 'cancelled') {
       setStatus(`已取消 ${targetId}`, 'err');
     } else {

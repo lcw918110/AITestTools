@@ -31,8 +31,9 @@ export function runCompare(options: CompareOptions): number {
         `漂移：新失败 ${report.counts.new_failure} / 修复 ${report.counts.fixed} / 升版 ${report.counts.asset_rev_drift} / 不变 ${report.counts.unchanged}`,
       );
       const e = report.effect;
+      const fmt = (v: number | undefined) => (v === undefined ? '未评测' : v.toFixed(3));
       console.log(
-        `效果：pass_rate base=${e.baseline_pass_rate.toFixed(3)} cand=${e.candidate_pass_rate.toFixed(3)} Δ=${e.pass_rate_delta.toFixed(3)}`,
+        `效果：pass_rate base=${fmt(e.baseline_pass_rate)} cand=${fmt(e.candidate_pass_rate)} Δ=${fmt(e.pass_rate_delta)}`,
       );
       if (e.reference_scores?.delta !== undefined) {
         console.log(

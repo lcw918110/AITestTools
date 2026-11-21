@@ -13,7 +13,15 @@ import { type ExperimentId, type RunPlan } from './run-plan.ts';
 import { listRuns } from './project-reader.ts';
 import { DEFAULT_JOBS_DIR, JOBS_DIR, PROJECT, REPO_ROOT } from './config.ts';
 
-export type JobStatus = 'queued' | 'running' | 'done' | 'error' | 'interrupted' | 'cancelled';
+export type JobStatus =
+  | 'queued'
+  | 'running'
+  | 'done'
+  | 'error'
+  /** 整批未评测：能力缺失，没真正测过。既不是成功也不是失败，单独成一态。 */
+  | 'not_evaluated'
+  | 'interrupted'
+  | 'cancelled';
 
 export interface Job {
   id: string;
@@ -27,6 +35,13 @@ export interface Job {
   exitCode?: number;
   resultHint?: string;
   error?: string;
+  /**
+   * 非失败的终态说明（如「有题未评测」「有题漏跑」）。
+   *
+   * 与 `error` 分开是必须的：下游按 `error` 是否存在判「作业失败」，
+   * 把未评测写进 `error` 会让它在任何消费方眼里都变成失败。
+   */
+  notice?: string;
   evalTaskId?: string;
   purpose?: TaskPurpose;
   /** 实例归属标识：进程启动生成并落盘，用于区分本实例遗留与他实例/无标识作业 */
@@ -220,6 +235,7 @@ export function reconcileJobs(): void {
         st !== 'running' &&
         st !== 'done' &&
         st !== 'error' &&
+        st !== 'not_evaluated' &&
         st !== 'interrupted' &&
         st !== 'cancelled'
       ) {
@@ -253,6 +269,8 @@ export function reconcileJobs(): void {
       if (resultHint !== undefined) job.resultHint = resultHint;
       const error = optStr(d, 'error');
       if (error !== undefined) job.error = error;
+      const notice = optStr(d, 'notice');
+      if (notice !== undefined) job.notice = notice;
       const token = optStr(d, 'managedByInstanceToken');
       if (token !== undefined) job.managedByInstanceToken = token;
     } catch {
@@ -337,6 +355,7 @@ export function getJobLogs(job: Job, rawOffset: number): JobLogsResult {
       reset: true,
       totalLines,
       ...(job.error !== undefined ? { error: job.error } : {}),
+      ...(job.notice !== undefined ? { notice: job.notice } : {}),
       ...(job.exitCode !== undefined ? { exitCode: job.exitCode } : {}),
       ...(job.resultHint !== undefined ? { resultHint: job.resultHint } : {}),
     };
@@ -351,6 +370,7 @@ export function getJobLogs(job: Job, rawOffset: number): JobLogsResult {
     reset: false,
     totalLines,
     ...(job.error !== undefined ? { error: job.error } : {}),
+    ...(job.notice !== undefined ? { notice: job.notice } : {}),
     ...(job.exitCode !== undefined ? { exitCode: job.exitCode } : {}),
     ...(job.resultHint !== undefined ? { resultHint: job.resultHint } : {}),
   };
@@ -715,11 +735,24 @@ export async function executeJob(
       job.status = 'cancelled';
       if (!job.error) job.error = '用户取消作业';
     } else {
-      job.status = code === 0 ? 'done' : 'error';
+      // 退出码 3/4 = 没测过（能力缺失 / 漏跑），不是被测系统失败：
+      // 单独成态，避免看板把它显示成红色「作业失败」。
+      job.status = code === 0 ? 'done' : code === 3 || code === 4 ? 'not_evaluated' : 'error';
       const producedRun =
         lastRunDirFromLog(job) ?? listRuns(10).find((run) => !previousRunPaths.has(run.path))?.path;
       if (producedRun) job.resultHint = producedRun;
-      if (code !== 0 && !job.error) job.error = `退出码 ${code}`;
+      if (code !== 0 && !job.error) {
+        // 没测过不等于失败：进 `notice` 而不是 `error`，否则任何按 error 判失败的
+        // 下游（持久化、列表筛选、告警）都会把它当失败。
+        const notice =
+          code === 4
+            ? '退出码 4：有题漏跑（计划里有但没出结果，需查部署/配置）'
+            : code === 3
+              ? '退出码 3：有题未评测（该形态尚未实现），不计入失败'
+              : undefined;
+        if (notice !== undefined) job.notice = notice;
+        else job.error = `退出码 ${code}`;
+      }
       if (opts.evalTaskId && opts.live && job.resultHint) {
         appendEvalTaskRun(PROJECT, opts.evalTaskId, {
           path: job.resultHint,

@@ -15,6 +15,8 @@ export interface ResultRow {
   item_id: string;
   item_rev?: number;
   pass: boolean;
+  /** 未真正评测（形态能力缺失）：`pass` 无意义，统计须排除在分子分母之外。 */
+  not_implemented?: true;
   attribution?: string;
   effect_pair?: string;
   oracle_failures?: Array<{ oracle_id?: string; message?: string }>;
@@ -79,6 +81,8 @@ export interface FailureDraftHint {
 export interface PassTokenSummaryRow {
   item_id: string;
   pass: boolean;
+  /** 未真正评测：`pass` 无意义，展示须显示「未评测」而非「挂」。 */
+  not_implemented?: true;
   pass_token?: string;
   pass_token_present?: boolean;
   /** 有 DUAL_FIX / 无 DUAL_FIX */
@@ -125,6 +129,7 @@ function decodeResultRow(line: string, index: number): ResultRow | undefined {
   if (pass === undefined) return undefined;
 
   const row: ResultRow = { item_id, pass };
+  if (d.not_implemented === true) row.not_implemented = true;
 
   const item_rev = num(d.item_rev);
   if (item_rev !== undefined) row.item_rev = item_rev;
@@ -194,6 +199,8 @@ export function summarizeAttribution(rows: ResultRow[]): AttributionSummary {
   let fail_total = 0;
   let pass_total = 0;
   for (const r of rows) {
+    // 未评测没有归因可言：算进失败数会污染缺陷统计
+    if (r.not_implemented === true) continue;
     if (r.pass) {
       pass_total += 1;
       continue;
@@ -215,7 +222,7 @@ export function summarizeAttribution(rows: ResultRow[]): AttributionSummary {
     fail_counts,
     fail_total,
     pass_total,
-    item_total: rows.length,
+    item_total: rows.filter((r) => r.not_implemented !== true).length,
   };
   if (primary_fail !== undefined) out.primary_fail = primary_fail;
   return out;
@@ -225,6 +232,8 @@ export function summarizeAttribution(rows: ResultRow[]): AttributionSummary {
 export function summarizeEffectPairs(rows: ResultRow[]): EffectPairRow[] {
   const map = new Map<string, EffectPairRow>();
   for (const r of rows) {
+    // 未评测的一侧没有观测：写进 off_pass/on_pass 会把它画成「败」
+    if (r.not_implemented === true) continue;
     const pair = r.effect_pair ?? inferPairFromItemId(r.item_id) ?? undefined;
     if (!pair) continue;
     const row = map.get(pair) ?? { pair };
@@ -335,6 +344,7 @@ export function summarizePassTokens(rows: ResultRow[]): PassTokenSummaryRow[] {
       const out: PassTokenSummaryRow = {
         item_id: r.item_id,
         pass: r.pass,
+        ...(r.not_implemented === true ? { not_implemented: true as const } : {}),
         label: formatPassTokenCell(r),
         workspace_label: formatWorkspaceCell(r.workspace_ok),
         timed_out_label: formatTimedOutCell(r.timed_out),
@@ -357,10 +367,25 @@ export function summarizePassTokens(rows: ResultRow[]): PassTokenSummaryRow[] {
 export function summarizeFailures(rows: ResultRow[], runDir?: string): FailureDraftHint[] {
   const out: FailureDraftHint[] = [];
   for (const r of rows) {
-    if (r.pass) continue;
-    const message = r.oracle_failures?.[0]?.message;
+    // 未评测结果没有归因可言，进失败草稿就是污染缺陷数
+    if (r.not_implemented === true) continue;
+    // cleanup 失败是编排侧泄漏，不影响被测判定；即使该行 pass 也要进草稿，
+    // 否则「实例没停、临时目录没删」会被通过的结果掩盖。
+    const cleanupFailure = r.oracle_failures?.find((f) => f.oracle_id === 'harness:cleanup');
+    // 该行除 cleanup 外是否还有真实判定失败：没有时这张草稿只讲泄漏。
+    const judgedFailures = r.pass
+      ? []
+      : (r.oracle_failures ?? []).filter((f) => f.oracle_id !== 'harness:cleanup');
+    if (r.pass && cleanupFailure === undefined) continue;
+    const message = (cleanupFailure ?? r.oracle_failures?.[0])?.message;
     const hint: FailureDraftHint = { item_id: r.item_id };
-    if (r.attribution !== undefined) hint.attribution = r.attribution;
+    // cleanup 发生在 finally，与评测归因无关：只有泄漏、没有真实判定失败时
+    // 若照抄行级 attribution，会把「编排侧没释放资源」当成被测系统缺陷上报。
+    if (cleanupFailure !== undefined && judgedFailures.length === 0) {
+      hint.attribution = 'HARNESS';
+    } else if (r.attribution !== undefined) {
+      hint.attribution = r.attribution;
+    }
     if (message !== undefined) hint.message = message.slice(0, 400);
     const token = message ? extractTokenFromMessage(message) : undefined;
     const suggested = token ?? r.pass_token;

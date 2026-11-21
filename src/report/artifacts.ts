@@ -10,6 +10,12 @@ export interface ResultLine {
   effect_pair?: string;
   pass_token?: string;
   pass_token_present?: boolean;
+  /**
+   * 该观测未真正评测（形态能力缺失），`pass` 无意义。
+   *
+   * 统计方必须同时把它排除在分子与分母之外，否则能力缺失会被算成被测系统失败。
+   */
+  not_implemented?: true;
 }
 
 /** scores.json 中单条参考分（与 score-write.ts 一致）。 */
@@ -54,7 +60,40 @@ function parseResultLine(raw: unknown): ResultLine {
   if (typeof raw.effect_pair === 'string') out.effect_pair = raw.effect_pair;
   if (typeof raw.pass_token === 'string') out.pass_token = raw.pass_token;
   if (typeof raw.pass_token_present === 'boolean') out.pass_token_present = raw.pass_token_present;
+  if (raw.not_implemented === true) out.not_implemented = true;
   return out;
+}
+
+/**
+ * 该观测是否真正被评测过。
+ *
+ * `not_implemented` 表示形态能力缺失、根本没测——它的 `pass` 无意义。
+ * 通过率/失败数/归因统计都必须先过这道闸（`isEvaluated` / `evaluatedOnly` /
+ * `passRateOf`），否则能力缺失会被算成被测系统失败，得出「0% 通过」这类假结论。
+ * 各模块在紧凑类型（`{ not_implemented?: true }`）上就地判 `!== true` 也等价，
+ * 但口径不得偏离本函数的定义。
+ */
+export function isEvaluated(line: ResultLine): boolean {
+  return line.not_implemented !== true;
+}
+
+/** 只保留真正评测过的观测；统计一律走这里，避免各处自己写过滤条件。 */
+export function evaluatedOnly<T extends { not_implemented?: true }>(lines: T[]): T[] {
+  return lines.filter((l) => l.not_implemented !== true);
+}
+
+/**
+ * 通过率；没有任何被评测的观测时返回 `undefined`（不可定义）。
+ *
+ * 不要用 0 代替：0 是「测过且全挂」，与「没测过」是两个结论。
+ * 入参只要求最小结构，便于各个调用方（ResultLine / ResultRow）直接复用。
+ */
+export function passRateOf(
+  lines: Array<{ pass: boolean; not_implemented?: true }>,
+): number | undefined {
+  const evaluated = evaluatedOnly(lines);
+  if (evaluated.length === 0) return undefined;
+  return evaluated.filter((r) => r.pass).length / evaluated.length;
 }
 
 function parseScoresFile(raw: unknown): ScoresFile {
@@ -102,6 +141,11 @@ export function loadRunArtifacts(runDir: string): LoadedRun {
   for (const line of readFileSync(resultsFile, 'utf8').split(/\r?\n/)) {
     if (line.trim() === '') continue;
     const row = parseResultLine(JSON.parse(line) as unknown);
+    const prev = results.get(row.item_id);
+    // 同一 item_id 多行时以「已评测」行为准：`not_implemented` 行只是能力缺失的占位，
+    // 若后写覆盖前写，真实观测会被凭空抹掉（对照/漂移统计少一条）。
+    if (prev !== undefined && prev.not_implemented !== true && row.not_implemented === true)
+      continue;
     results.set(row.item_id, row);
   }
 

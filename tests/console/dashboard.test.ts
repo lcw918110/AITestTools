@@ -142,4 +142,23 @@ describe('测试看板 dashboard', () => {
     expect(dash.headline.usable_delta).toBe(0);
     expect(dash.headline.usable_note).toMatch(/剔除/);
   });
+
+  it('整批未评测时通过率不可定义，不得回落成 0%', () => {
+    // 未评测结果带 not_implemented 标记：解析得到行，但统计必须排除，
+    // 分母为 0 → 通过率不可定义。补 0 会让前端着色成「0% 通过」。
+    const dash = buildRunDashboard({
+      runJsonText: JSON.stringify({ dataset: 'model-core', environment: 'svc-v1' }),
+      resultsText: JSON.stringify({
+        item_id: 'x::r0',
+        item_rev: 1,
+        pass: false,
+        not_implemented: true,
+      }),
+      metricsText: JSON.stringify({ aggregates: {} }),
+      hostedSnaps: [],
+    });
+    expect(dash.headline.pass_rate).toBeUndefined();
+    expect(dash.headline.item_total).toBe(0);
+    expect(dash.headline.pass_total).toBe(0);
+  });
 });

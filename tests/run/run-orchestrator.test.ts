@@ -248,4 +248,350 @@ describe('RunOrchestrator 状态机（阶段 4b）', () => {
     expect(caseExecutions[0]?.execution_outcome).toBe('execution_failed');
     expect(results[0]?.pass).toBe(false);
   });
+
+  it('adapter.cleanup 抛错时不能静默吞掉：必须留下失败证据', async () => {
+    const orch = new RunOrchestrator();
+    orch.beginRun({});
+    orch.transitionRun('preflight');
+    orch.transitionRun('running');
+
+    const leakyAdapter = {
+      adapterId: 'leaky-cleanup',
+      discover: async () => ({ resolved: {} }),
+      prepare: async () => ({ workspace: '/tmp/fake-ws' }),
+      submit: async () => ({ handle: 'h' }),
+      collect: async () => ({ output: {} }),
+      evaluate: async () => [
+        {
+          item_id: 'leaky.r1',
+          item_rev: 1,
+          pass: true,
+          oracle_failures: [],
+          metrics: { a_case_pass_rate: 1, a_invariant_violations: 0 },
+        },
+      ],
+      // 资源没释放：实例没停、临时目录没删
+      cleanup: async () => {
+        throw new Error('临时目录删除失败：EBUSY');
+      },
+    };
+
+    const { results } = await orch.executeCase(
+      {
+        case_id: 'leaky-case',
+        case_revision_id: 'leaky-case.r1',
+        revision_number: 1,
+        execution_profile: { mode: 'hosted' },
+        attribution_focus: 'TOOL',
+        stimulus: { ref: 'x' },
+        execution: { deadline_ms: 1000, requires_network: false, repeats: 1 },
+        expect: { oracles: [] },
+      } as never,
+      {} as never,
+      leakyAdapter as never,
+      { projectRoot: '/tmp', models: [] },
+    );
+
+    // 结果本身通过，但 cleanup 失败必须作为 HARNESS 侧事实被记录，
+    // 否则资源泄漏会被静默掩盖，下一次 run 可能撞上残留状态。
+    const failures = results[0]?.oracle_failures ?? [];
+    const cleanupFailure = failures.find((f) => f.oracle_id === 'harness:cleanup');
+    expect(cleanupFailure).toBeDefined();
+    expect(cleanupFailure?.message).toContain('EBUSY');
+  });
+
+  it('cleanup 返回 ok=false（不抛错）时同样必须留下失败证据', async () => {
+    const orch = new RunOrchestrator();
+    orch.beginRun({});
+    orch.transitionRun('preflight');
+    orch.transitionRun('running');
+
+    const adapter = {
+      adapterId: 'quiet-leak',
+      discover: async () => ({ resolved: {} }),
+      prepare: async () => ({ workspace: '/tmp/fake-ws' }),
+      submit: async () => ({ handle: 'h' }),
+      collect: async () => ({ output: {} }),
+      evaluate: async () => [
+        {
+          item_id: 'quiet.r1',
+          item_rev: 1,
+          pass: true,
+          oracle_failures: [],
+          metrics: { a_case_pass_rate: 1, a_invariant_violations: 0 },
+        },
+      ],
+      // 停实例失败但没抛错——这是最容易漏掉的一类泄漏
+      cleanup: async () => ({ ok: false, reason: '实例未在超时内退出' }),
+    };
+
+    const { results } = await orch.executeCase(
+      {
+        case_id: 'quiet-case',
+        case_revision_id: 'quiet-case.r1',
+        revision_number: 1,
+        execution_profile: { mode: 'hosted' },
+        attribution_focus: 'TOOL',
+        stimulus: { ref: 'x' },
+        execution: { deadline_ms: 1000, requires_network: false, repeats: 1 },
+        expect: { oracles: [] },
+      } as never,
+      {} as never,
+      adapter as never,
+      { projectRoot: '/tmp', models: [] },
+    );
+
+    const cleanupFailure = (results[0]?.oracle_failures ?? []).find(
+      (f) => f.oracle_id === 'harness:cleanup',
+    );
+    expect(cleanupFailure).toBeDefined();
+    expect(cleanupFailure?.message).toContain('实例未在超时内退出');
+    // 仍不能翻转被测系统的判定
+    expect(results[0]?.pass).toBe(true);
+  });
+
+  it('cleanup 失败不改写被测系统的评测结论', async () => {
+    const orch = new RunOrchestrator();
+    orch.beginRun({});
+    orch.transitionRun('preflight');
+    orch.transitionRun('running');
+
+    const adapter = {
+      adapterId: 'leaky-but-passed',
+      discover: async () => ({ resolved: {} }),
+      prepare: async () => ({ workspace: '/tmp/fake-ws' }),
+      submit: async () => ({ handle: 'h' }),
+      collect: async () => ({ output: {} }),
+      evaluate: async () => [
+        {
+          item_id: 'ok.r1',
+          item_rev: 1,
+          pass: true,
+          oracle_failures: [],
+          metrics: { a_case_pass_rate: 1, a_invariant_violations: 0 },
+        },
+      ],
+      cleanup: async () => {
+        throw new Error('子进程未能退出');
+      },
+    };
+
+    const { caseExecutions, results } = await orch.executeCase(
+      {
+        case_id: 'ok-case',
+        case_revision_id: 'ok-case.r1',
+        revision_number: 1,
+        execution_profile: { mode: 'hosted' },
+        attribution_focus: 'TOOL',
+        stimulus: { ref: 'x' },
+        execution: { deadline_ms: 1000, requires_network: false, repeats: 1 },
+        expect: { oracles: [] },
+      } as never,
+      {} as never,
+      adapter as never,
+      { projectRoot: '/tmp', models: [] },
+    );
+
+    // 被测系统确实通过了；cleanup 是编排侧问题，不能把它翻成 fail 或改归因
+    expect(results[0]?.pass).toBe(true);
+    expect(caseExecutions[0]?.evaluation_outcome).toBe('pass');
+    expect(caseExecutions[0]?.attribution).toBeUndefined();
+  });
+
+  it('题级判定不只看首行：首行为未实现、后续有真实观测时仍按真实观测判', async () => {
+    const orch = new RunOrchestrator();
+    orch.beginRun({});
+    orch.transitionRun('preflight');
+    orch.transitionRun('running');
+
+    // B-direct 单题多模型：一次产出多行，首行能力缺失不代表整题没测
+    const mixedAdapter = {
+      adapterId: 'mixed-rows',
+      discover: async () => ({ resolved: {} }),
+      prepare: async () => ({ prepared: true }),
+      submit: async () => ({ handle: 'h' }),
+      collect: async () => ({ output: {} }),
+      evaluate: async () => [
+        {
+          item_id: 'mixed.r1::weak::r0',
+          item_rev: 1,
+          pass: false,
+          not_implemented: true,
+          attribution: 'HARNESS',
+          oracle_failures: [],
+          metrics: { a_case_pass_rate: 0, a_invariant_violations: 0 },
+        },
+        {
+          item_id: 'mixed.r1::strong::r0',
+          item_rev: 1,
+          pass: true,
+          oracle_failures: [],
+          metrics: { a_case_pass_rate: 1, a_invariant_violations: 0 },
+        },
+      ],
+    };
+
+    const { caseExecutions } = await orch.executeCase(
+      {
+        case_id: 'mixed',
+        case_revision_id: 'mixed.r1',
+        revision_number: 1,
+        execution_profile: { mode: 'direct' },
+        attribution_focus: 'TOOL',
+        stimulus: { ref: 'x' },
+        execution: { deadline_ms: 1000, requires_network: false },
+        expect: { oracles: [] },
+      } as never,
+      {} as never,
+      mixedAdapter as never,
+      { projectRoot: '/tmp', models: [] },
+    );
+
+    // 有一条真实观测且通过 → 整题通过；若只看首行会错记 not_evaluated
+    expect(caseExecutions[0]?.evaluation_outcome).toBe('pass');
+  });
+
+  it('题级判定：首行已评测但后续行未评测时，未评测行不能进通过率', async () => {
+    const orch = new RunOrchestrator();
+    orch.beginRun({});
+    orch.transitionRun('preflight');
+    orch.transitionRun('running');
+
+    const mixedAdapter = {
+      adapterId: 'mixed-rows-2',
+      discover: async () => ({ resolved: {} }),
+      prepare: async () => ({ prepared: true }),
+      submit: async () => ({ handle: 'h' }),
+      collect: async () => ({ output: {} }),
+      evaluate: async () => [
+        {
+          item_id: 'm2.r1::a::r0',
+          item_rev: 1,
+          pass: true,
+          oracle_failures: [],
+          metrics: { a_case_pass_rate: 1, a_invariant_violations: 0 },
+        },
+        {
+          item_id: 'm2.r1::b::r0',
+          item_rev: 1,
+          pass: false,
+          not_implemented: true,
+          attribution: 'HARNESS',
+          oracle_failures: [],
+          metrics: { a_case_pass_rate: 0, a_invariant_violations: 0 },
+        },
+      ],
+    };
+
+    const { caseExecutions } = await orch.executeCase(
+      {
+        case_id: 'm2',
+        case_revision_id: 'm2.r1',
+        revision_number: 1,
+        execution_profile: { mode: 'direct' },
+        attribution_focus: 'TOOL',
+        stimulus: { ref: 'x' },
+        execution: { deadline_ms: 1000, requires_network: false },
+        expect: { oracles: [] },
+      } as never,
+      {} as never,
+      mixedAdapter as never,
+      { projectRoot: '/tmp', models: [] },
+    );
+
+    // 唯一一条真实观测通过 → 通过；未评测行的 pass=false 不得把整题拉成失败
+    expect(caseExecutions[0]?.evaluation_outcome).toBe('pass');
+  });
+
+  it('只有未评测行且 cleanup 失败时，泄漏证据不能消失', async () => {
+    const orch = new RunOrchestrator();
+    orch.beginRun({});
+    orch.transitionRun('preflight');
+    orch.transitionRun('running');
+
+    const adapter = {
+      adapterId: 'notimpl-leaky',
+      discover: async () => ({ resolved: {} }),
+      prepare: async () => ({ prepared: true }),
+      submit: async () => ({ handle: 'h' }),
+      collect: async () => ({ output: {} }),
+      evaluate: async () => [
+        {
+          item_id: 'ni.r1',
+          item_rev: 1,
+          pass: false,
+          not_implemented: true,
+          oracle_failures: [],
+          metrics: { a_case_pass_rate: 0, a_invariant_violations: 0 },
+        },
+      ],
+      cleanup: async () => ({ ok: false, reason: '实例未退出' }),
+    };
+
+    const { results } = await orch.executeCase(
+      {
+        case_id: 'ni',
+        case_revision_id: 'ni.r1',
+        revision_number: 1,
+        execution_profile: { mode: 'hosted' },
+        attribution_focus: 'TOOL',
+        stimulus: { ref: 'x' },
+        execution: { deadline_ms: 1000, requires_network: false, repeats: 1 },
+        expect: { oracles: [] },
+      } as never,
+      {} as never,
+      adapter as never,
+      { projectRoot: '/tmp', models: [] },
+    );
+
+    // 该题唯一的行也是未评测行：泄漏若挂不上就等于彻底丢失
+    const cleanupFailure = (results[0]?.oracle_failures ?? []).find(
+      (f) => f.oracle_id === 'harness:cleanup',
+    );
+    expect(cleanupFailure?.message).toContain('实例未退出');
+    // 仍未评测，不能因泄漏变成被测失败
+    expect(results[0]?.not_implemented).toBe(true);
+  });
+
+  it('evaluate 返回空结果且 cleanup 失败时，泄漏仍要落成一条可追溯记录', async () => {
+    const orch = new RunOrchestrator();
+    orch.beginRun({});
+    orch.transitionRun('preflight');
+    orch.transitionRun('running');
+
+    const adapter = {
+      adapterId: 'empty-leaky',
+      discover: async () => ({ resolved: {} }),
+      prepare: async () => ({ prepared: true }),
+      submit: async () => ({ handle: 'h' }),
+      collect: async () => ({ output: {} }),
+      evaluate: async () => [],
+      cleanup: async () => {
+        throw new Error('rm -rf 失败');
+      },
+    };
+
+    const { results } = await orch.executeCase(
+      {
+        case_id: 'empty',
+        case_revision_id: 'empty.r1',
+        revision_number: 1,
+        execution_profile: { mode: 'hosted' },
+        attribution_focus: 'TOOL',
+        stimulus: { ref: 'x' },
+        execution: { deadline_ms: 1000, requires_network: false, repeats: 1 },
+        expect: { oracles: [] },
+      } as never,
+      {} as never,
+      adapter as never,
+      { projectRoot: '/tmp', models: [] },
+    );
+
+    const created = results.find((r) =>
+      r.oracle_failures.some((f) => f.oracle_id === 'harness:cleanup'),
+    );
+    expect(created).toBeDefined();
+    // 占位行自证「不是被测系统失败」
+    expect(created?.not_implemented).toBe(true);
+  });
 });
