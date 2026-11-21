@@ -58,19 +58,20 @@ describe('真实宿主沙箱包装', () => {
     );
   });
 
-  it('每次包裹前先 reset 且被串行锁包住，避免并发 case 互相破坏代理', () => {
+  it('包裹前先 reset 再 initialize，且不再引入进程内串行锁与兜底超时', () => {
+    // ADR-0014：包裹与执行整体放进短命子进程，全局状态随进程消亡。
+    // 进程内串行锁与 60s 兜底超时的前提（同进程复用 SandboxManager）已不存在，
+    // 留着只会掩盖问题：锁会把批量跑串成严格串行，超时会把正常慢题判成 HARNESS。
     const source = readFileSync(
       new URL('../../src/security/sandbox-runtime.ts', import.meta.url),
       'utf8',
     );
-    const lockIdx = source.indexOf('const release = await acquireWrapLock()');
     const resetIdx = source.indexOf('await SandboxManager.reset()');
     const initIdx = source.indexOf('await SandboxManager.initialize(config)');
-    expect(lockIdx).toBeGreaterThan(-1);
-    expect(resetIdx).toBeGreaterThan(lockIdx);
+    expect(resetIdx).toBeGreaterThan(-1);
     expect(initIdx).toBeGreaterThan(resetIdx);
-    // 锁必须在 finally 里释放，否则一次异常会永久堵住后续所有 case。
-    expect(source).toContain('} finally {\n    release();');
+    expect(source).not.toContain('acquireWrapLock');
+    expect(source).not.toContain('SANDBOX_WRAP_TIMEOUT_MS');
   });
 
   it('只放开本机绑定，不放开全部 Unix socket（避免连宿主任意 socket）', () => {
@@ -82,8 +83,30 @@ describe('真实宿主沙箱包装', () => {
     expect(source).not.toContain('allowAllUnixSockets: true');
   });
 
-  it('子进程 stdin 必须是 ignore，否则 opencode 等输入直到 deadline', () => {
-    const source = readFileSync(new URL('../../src/run/hosted-runner.ts', import.meta.url), 'utf8');
+  it('执行子进程的 stdin 必须是 ignore，否则 opencode 等输入直到 deadline', () => {
+    const source = readFileSync(
+      new URL('../../src/security/sandbox-exec-child.ts', import.meta.url),
+      'utf8',
+    );
     expect(source).toContain("stdio: ['ignore', 'pipe', 'pipe']");
+  });
+
+  it('主进程不再自己初始化沙箱，也不再自己启动宿主（避免拿到已关闭代理端口）', () => {
+    const source = readFileSync(new URL('../../src/run/hosted-runner.ts', import.meta.url), 'utf8');
+    expect(source).not.toContain('SandboxManager.wrapWithSandboxArgv');
+    expect(source).toContain('runSandboxedHostInChild');
+    // 进程树回收只保留一份实现：主进程里不得再有 reapTree / pgrep 兜底。
+    expect(source).not.toContain('function reapTree(');
+    expect(source).not.toContain('runHostedWithReap');
+  });
+
+  it('旁路诊断同样在子进程内执行，不退回主进程起宿主', () => {
+    const source = readFileSync(new URL('../../src/run/hosted-runner.ts', import.meta.url), 'utf8');
+    const bypassBlock = source.slice(
+      source.indexOf('if (sandboxBypass)'),
+      source.indexOf('} else {'),
+    );
+    expect(bypassBlock).toContain('runSandboxedHostInChild');
+    expect(bypassBlock).toContain('sandboxBypass: true');
   });
 });

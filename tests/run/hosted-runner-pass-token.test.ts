@@ -4,45 +4,83 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CaseRevision, EnvironmentProfile } from '../../src/exam-engine/types.ts';
 import { buildRunSummary } from '../../apps/console/run-summary.ts';
+import type { runSandboxedHostInChild } from '../../src/security/sandbox-exec.ts';
 import { writeRunArtifacts } from '../../src/run/write-artifacts.ts';
 
 const hostedIO = vi.hoisted(() => ({ stdout: '', status: 0 as number | null }));
 
+type StubHostIO = {
+  stdout: string;
+  stderr?: string;
+  status: number | null;
+  signal?: NodeJS.Signals | string | null;
+  error?: (Error & { code?: string }) | null;
+  mutate?: ((cwd: string) => void) | undefined;
+  hang?: boolean;
+  timeoutMs?: number;
+};
+
+/**
+ * 宿主执行替身（ADR-0014）。
+ *
+ * 真实实现里「沙箱包裹 + 宿主执行」在独立子进程内完成，进程内的
+ * `node:child_process` 桩跨不过这条边界。这里直接替换**主进程侧**的执行入口，
+ * 语义与真实回传一致：非 0 退出只是观测结果，包裹/协议故障才抛工装错误。
+ */
+function sandboxExecStub(hostedIO: StubHostIO) {
+  return {
+    runSandboxedHostInChild: async (input: { bin: string; cwd: string; timeoutMs: number }) => {
+      wrappedHosts.calls.push(input.bin);
+      sandboxCalls.bins.push(input.bin);
+      if (hostedIO.hang === true) {
+        await sleep(hostedIO.timeoutMs ?? input.timeoutMs);
+        return {
+          status: null,
+          signal: 'SIGTERM' as NodeJS.Signals,
+          error: Object.assign(new Error('ETIMEDOUT'), { code: 'ETIMEDOUT' }),
+          stdout: '',
+          stderr: '',
+          timedOut: true,
+          stdioDestroyed: false,
+        };
+      }
+      if (hostedIO.mutate !== undefined && input.cwd.length > 0) hostedIO.mutate(input.cwd);
+      const signal =
+        typeof hostedIO.signal === 'string'
+          ? (hostedIO.signal as NodeJS.Signals)
+          : (hostedIO.signal ?? null);
+      return {
+        status: hostedIO.status,
+        signal,
+        error: hostedIO.error ?? null,
+        stdout: hostedIO.stdout,
+        stderr: hostedIO.stderr ?? '',
+        timedOut: false,
+        stdioDestroyed: false,
+      };
+    },
+  };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+vi.mock('../../src/security/sandbox-exec.ts', async (importOriginal) => {
+  // 只桩「宿主执行」这一跳：`SandboxExecHarnessError` 等错误类型必须保留真实类，
+  // 否则适配器里的 `instanceof` 判定会失效（归因会从 HARNESS 漂走）。
+  const actual = await importOriginal<{
+    runSandboxedHostInChild: typeof runSandboxedHostInChild;
+  }>();
+  return { ...actual, ...sandboxExecStub(hostedIO) };
+});
+
 vi.mock('node:child_process', async (importOriginal) => {
+  // 只桩 `spawnSync`：隔离门禁与适配器仍用它探测 `opencode --version` / 运行宿主。
+  // 「是否真的执行了 opencode run」的判据是 `spawnSync` 的调用记录：
+  // 宿主进程已在短命子进程内启动（ADR-0014），主进程侧的 `spawn` 不参与判定。
   const actual = (await importOriginal()) as {
     spawnSync: (...args: readonly unknown[]) => unknown;
-    spawn: (...args: readonly unknown[]) => unknown;
-  };
-  const fakeSpawn = (command: string, args?: readonly string[], _options?: object) => {
-    const bin = String(command);
-    const head = args?.[0];
-    const isHost = bin === 'opencode' || bin.endsWith('/opencode') || args?.includes('opencode');
-    const isRun = head === 'run' || args?.includes('run');
-    const stdout = isHost && isRun ? hostedIO.stdout : '';
-    const status = isHost && isRun ? hostedIO.status : 0;
-    const listeners: Record<string, Array<(...args: unknown[]) => void>> = {};
-    const child = {
-      pid: 1,
-      stdout: {
-        on: (ev: string, cb: (...args: unknown[]) => void) => {
-          (listeners[`stdout:${ev}`] ??= []).push(cb);
-        },
-      },
-      stderr: {
-        on: (ev: string, cb: (...args: unknown[]) => void) => {
-          (listeners[`stderr:${ev}`] ??= []).push(cb);
-        },
-      },
-      on: (ev: string, cb: (...args: unknown[]) => void) => {
-        (listeners[ev] ??= []).push(cb);
-      },
-      kill: () => true,
-    };
-    queueMicrotask(() => {
-      if (stdout) for (const cb of listeners['stdout:data'] ?? []) cb(Buffer.from(stdout));
-      for (const cb of listeners['close'] ?? []) cb(status, null);
-    });
-    return child;
   };
   return {
     ...actual,
@@ -73,7 +111,6 @@ vi.mock('node:child_process', async (importOriginal) => {
       }
       return actual.spawnSync(command, args as string[], options);
     }),
-    spawn: vi.fn(fakeSpawn),
   };
 });
 
@@ -82,16 +119,10 @@ vi.mock('../../src/security/isolation-backend.ts', () => ({
   evaluateIsolationGate: vi.fn(async () => isolationGate),
 }));
 const wrappedHosts = vi.hoisted(() => ({ calls: [] as string[] }));
-vi.mock('../../src/security/sandbox-runtime.ts', async () => {
-  const actual = await vi.importActual('../../src/security/sandbox-runtime.ts');
-  return {
-    ...actual,
-    wrapHostCommand: async (input: { bin: string; args: string[] }) => {
-      wrappedHosts.calls.push(input.bin);
-      return { argv: [input.bin, ...input.args], env: {} };
-    },
-  };
-});
+// 主进程侧执行入口的调用记录：断言「宿主执行发生在子进程边界之后」。
+const sandboxCalls = vi.hoisted(() => ({ bins: [] as string[] }));
+// 断言「宿主被包裹后执行」：真实实现里包裹发生在执行子进程内（ADR-0014），
+// 主进程只能通过执行入口的入参看到宿主命令，故在此记录。
 
 const { HostedAdapter } = await import('../../src/run/hosted-runner.ts');
 const { RunOrchestrator } = await import('../../src/run/run-orchestrator.ts');
@@ -158,6 +189,7 @@ describe('hosted_pass_token 降为辅助', () => {
 
   beforeEach(() => {
     wrappedHosts.calls = [];
+    sandboxCalls.bins = [];
     isolationGate.allowed = false;
     hostedIO.stdout = '';
     hostedIO.status = 0;
@@ -189,6 +221,7 @@ describe('hosted_pass_token 降为辅助', () => {
       };
       const spawn = vi.mocked((await import('node:child_process')).spawnSync);
       spawn.mockClear();
+      sandboxCalls.bins = [];
       const result = await runHosted(
         makeRevision([]),
         candidate,
@@ -200,6 +233,8 @@ describe('hosted_pass_token 降为辅助', () => {
       expect(result.attribution).toBe('HARNESS');
       expect(result.oracle_failures[0]?.message).toContain('操作系统级隔离');
       expect(spawn.mock.calls.some((call) => call[1]?.[0] === 'run')).toBe(false);
+      // 阻断必须发生在子进程执行之前：执行入口一次都不该被调用。
+      expect(sandboxCalls.bins).toEqual([]);
     },
   );
 

@@ -11,7 +11,7 @@ import {
 import { homedir, tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawn, spawnSync } from 'node:child_process';
+import { spawnSync } from 'node:child_process';
 import {
   diagnoseHostedFailure,
   resolveHostedAttribution,
@@ -52,7 +52,6 @@ import { observeHostedPassToken, type HostedPassTokenObservation } from './hoste
 import { resolveHostedPrompt } from './hosted-prompt.ts';
 import { resolvePluginPath } from './plugin-path.ts';
 import { seedStimulusMaterials } from './seed-stimulus-materials.ts';
-import { createStreamDecoder } from './stream-decode.ts';
 import {
   materialsMutated,
   mutatedSeededFiles,
@@ -64,10 +63,11 @@ import { captureEventPayloads } from './event-payload-capture.ts';
 import { buildCanaryInjection, detectCanaryLeak } from '../security/canary.ts';
 import { evaluateIsolationGate, type IsolationGateResult } from '../security/isolation-backend.ts';
 import {
-  allowedDomainsFromEnv,
-  modelEndpointHost,
-  wrapHostCommand,
-} from '../security/sandbox-runtime.ts';
+  runSandboxedHostInChild,
+  SandboxExecHarnessError,
+  type SandboxExecOutcome,
+} from '../security/sandbox-exec.ts';
+import { allowedDomainsFromEnv, modelEndpointHost } from '../security/sandbox-runtime.ts';
 
 /**
  * B-hosted adapter：真拉起本机 opencode。
@@ -418,10 +418,20 @@ export class HostedAdapter implements ExecutionAdapter {
     // 产物里如实标注 sandbox_bypassed，报告读取方据此区分证据等级。
     const sandboxBypass = process.env.PROCTOR_SANDBOX_BYPASS === '1';
     this.sandboxBypassed = sandboxBypass;
-    let execArgv: string[];
-    let sandboxEnv: NodeJS.ProcessEnv = {};
+    let run: SandboxExecOutcome;
     if (sandboxBypass) {
-      execArgv = [this.hostBin, ...p.runArgs];
+      // 旁路只是「不套 Seatbelt」，进程边界不变：仍在短命子进程里起宿主。
+      // 若退回主进程内执行，进程树回收的误杀面会回到引擎进程本身（ADR-0014）。
+      run = await runSandboxedHostInChild({
+        bin: this.hostBin,
+        args: p.runArgs,
+        cwd: this.workDir,
+        env: p.runEnv,
+        allowedWrite: [],
+        allowedDomains: [],
+        timeoutMs: p.deadline,
+        sandboxBypass: true,
+      });
     } else {
       // 模型端点域名来自本机受控 provider 配置（不是被测对象输入），必须一并放行，
       // 否则沙箱代理会以 403 拒绝 opencode 的模型请求。
@@ -431,32 +441,29 @@ export class HostedAdapter implements ExecutionAdapter {
         allowedDomains.push(endpointHost);
       }
       this.allowedDomains = allowedDomains;
-      const wrapped = await wrapHostCommand({
-        bin: this.hostBin,
-        args: p.runArgs,
-        cwd: this.workDir,
-        allowedWrite: [
-          this.workDir,
-          ...(this.isolatedHome !== undefined ? [this.isolatedHome] : []),
-        ],
-        allowedDomains,
-      });
-      const command = wrapped.argv[0];
-      if (command === undefined) {
-        throw new AdapterError('submit_failed', 'HARNESS', '隔离后端没有返回可执行命令', false);
+      // 包裹与执行整体放进短命子进程（ADR-0014）：沙箱代理在配置它的进程内起停，
+      // 主进程若只代算 argv 再自己 spawn，宿主的出站会全部指向已关闭的端口。
+      try {
+        run = await runSandboxedHostInChild({
+          bin: this.hostBin,
+          args: p.runArgs,
+          cwd: this.workDir,
+          env: p.runEnv,
+          allowedWrite: [
+            this.workDir,
+            ...(this.isolatedHome !== undefined ? [this.isolatedHome] : []),
+          ],
+          allowedDomains,
+          timeoutMs: p.deadline,
+        });
+      } catch (err) {
+        const message =
+          err instanceof SandboxExecHarnessError
+            ? `沙箱包裹执行失败（${err.stage}）：${err.message}`
+            : `沙箱包裹执行失败：${err instanceof Error ? err.message : String(err)}`;
+        throw new AdapterError('submit_failed', 'HARNESS', message, false);
       }
-      execArgv = wrapped.argv;
-      sandboxEnv = wrapped.env;
     }
-    const execBin = execArgv[0];
-    if (execBin === undefined) {
-      throw new AdapterError('submit_failed', 'HARNESS', '宿主命令缺少可执行文件', false);
-    }
-    const run = await runHostedWithReap(execBin, execArgv.slice(1), {
-      env: { ...p.runEnv, ...sandboxEnv },
-      cwd: this.workDir,
-      timeoutMs: p.deadline,
-    });
     const durationMs = Date.now() - startedAt;
     this.hostObs = observeHostExit({
       ...run,
@@ -1200,49 +1207,12 @@ function installPluginRuntimeDeps(
  *
  * 只对「存在 manager 角色」的环境做加码：没有 manager 就没有委派，按基线走。
  */
-export function resolveHostedDeadline(
-  revision: CaseRevision,
-  managedAgents: readonly string[],
-): number {
-  const explicit = revision.execution.deadline_ms;
-  if (typeof explicit === 'number' && explicit > 0) return explicit;
-  const hasManager = managedAgents.some((a) => a === 'manager');
-  if (!hasManager) return 180_000;
-  // 含 manager 的题统一给 300s（180s 基础 + 1 个 manager 会话的 120s）。
-  // 注：当前不按题面委派规模推导——`managerSessions` 恒为 1，实际结果固定 300_000。
-  // 若将来要按规模放宽，需先让题面声明可读的委派规模，再替换此常量。
-  const managerSessions = 1;
-  const extra = Math.max(0, managerSessions) * 120_000;
-  return Math.min(900_000, 180_000 + extra);
-}
-
-/**
- * 仅供测试：暴露双阶段结算的内部实现。
- *
- * 加 `NODE_ENV` 断言而非只靠注释约束——该模块内任何 `src/**` 文件都能 import，
- * 若被生产代码当作「带 reap 的通用 spawn」误用，会绕过 Adapter 的归因与产物落盘。
- */
-export function runHostedWithReapForTest(
-  ...args: Parameters<typeof runHostedWithReap>
-): ReturnType<typeof runHostedWithReap> {
-  if (process.env.NODE_ENV !== 'test' && process.env.VITEST === undefined) {
-    throw new Error('runHostedWithReapForTest 仅供测试使用');
-  }
-  return runHostedWithReap(...args);
-}
-
 function mergeHostedKinds(ndjsonText: string, storeKinds: string[]): Set<string> {
   const kinds = collectNdjsonKinds(ndjsonText);
   for (const k of storeKinds) kinds.add(k);
   return kinds;
 }
 
-/** 进程内短睡：替代原先为等 EventStore 而 spawn 子进程跑 Atomics.wait。 */
-function sleep(ms: number): Promise<void> {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-/** 短等 EventStore tip（及偶然残留的 ndjson）；失效探针已在上层跳过。 */
 async function awaitWaitForHostedProbes(
   workTree: string,
   ndjsonPath: string,
@@ -1266,6 +1236,11 @@ async function awaitWaitForHostedProbes(
   return { ndjsonText, store, kinds };
 }
 
+/** 进程内短睡：替代原先为等 EventStore 而 spawn 子进程跑 Atomics.wait。 */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
 function attachHostedObs(
   result: AxisItemResult,
   tokenObs: HostedPassTokenObservation,
@@ -1286,244 +1261,18 @@ function attachHostedObs(
   };
 }
 
-/**
- * `exit` 已触发后的 stdio 宽限期。
- *
- * 宿主退出后若孙进程仍占着 stdout/stderr 的 pipe 写端，Node 的 `close` 永不触发。
- * 500ms 足够读完管道残留缓冲（默认 64KB，正常输出远小于此），
- * 又远小于 deadline，避免把工装问题拖成 180s 超时。
- */
-const STDIO_GRACE_MS = 500;
-
-/**
- * 运行真实宿主命令，超时或异常时递归清理整棵进程树。
- *
- * 与探测阶段的 process_tree_reaped 保持一致：detached 起独立进程组，
- * 超时先 SIGTERM 再 SIGKILL，并逐层 pgrep 收集后代（含自行换组的孙进程）
- * 兜底清理，避免 opencode 内部 spawn 的孙进程在超时后残留。
- * 返回形状兼容 spawnSync（status / signal / error / stdout / stderr），
- * 供 observeHostExit 与 collect 阶段沿用。
- */
-async function runHostedWithReap(
-  command: string,
-  args: string[],
-  opts: { env: NodeJS.ProcessEnv; cwd: string; timeoutMs: number },
-): Promise<{
-  status: number | null;
-  signal: NodeJS.Signals | null;
-  error: NodeJS.ErrnoException | null;
-  stdout: string;
-  stderr: string;
-  /** 本平台 deadline 是否真的触发过（区别于外部 OOM killer / 用户 kill）。 */
-  timedOut: boolean;
-  /** 宿主已退出但 stdio 被孙进程占住，平台在宽限期后强制 destroy 了读端。 */
-  stdioDestroyed: boolean;
-}> {
-  const isPosix = process.platform !== 'win32';
-  return new Promise((resolve) => {
-    const child = spawn(command, args, {
-      cwd: opts.cwd,
-      env: opts.env,
-      shell: false,
-      detached: isPosix,
-      // stdin 必须是 ignore：opencode 检测到 stdin 是常开管道时会一直等输入，
-      // 表现为停在日志 init 之后、stdout 为空、永不退出，只能等 deadline 杀进程。
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-
-    let stdout = '';
-    let stderr = '';
-    // 解码必须有状态：`buf.toString('utf8')` 逐 chunk 解码会在多字节字符被切开时
-    // 产出替换字符（U+FFFD）。`stdout_assert` 与暗号类 oracle 直接比对文本，
-    // 字被截坏会把「确实输出了暗号」判成没输出（假红），也可能让错误文本意外命中（假绿）。
-    // 流结束时必须 `end()`，否则尾部不足一个字符的残留字节会被静默丢弃。
-    const stdoutDecoder = createStreamDecoder();
-    const stderrDecoder = createStreamDecoder();
-    let settled = false;
-    let timedOut = false;
-    let stdioDestroyed = false;
-    let graceTimer: ReturnType<typeof setTimeout> | undefined;
-    const knownPids = new Set<number>();
-
-    const finish = (
-      status: number | null,
-      signal: NodeJS.Signals | null,
-      error: NodeJS.ErrnoException | null,
-    ) => {
-      if (settled) return;
-      settled = true;
-      clearTimeout(timer);
-      if (graceTimer !== undefined) clearTimeout(graceTimer);
-      // 结算只用一次：把解码器里残留的尾部字节冲出来。
-      // 宿主若以半个字符结尾，残片会留在 decoder 内部，不冲出来 stdout 末尾就
-      // 凭空少一截。这一情形在正常 close 路径同样存在（不只是宽限期），
-      // 故 end() 对三条结算路径都必要。
-      stdout += stdoutDecoder.end();
-      stderr += stderrDecoder.end();
-      resolve({ status, signal, error, stdout, stderr, timedOut, stdioDestroyed });
-    };
-
-    const timer = setTimeout(() => {
-      timedOut = true;
-      reapTree(child, 'SIGTERM', knownPids);
-      setTimeout(() => {
-        reapTree(child, 'SIGKILL', knownPids);
-        killConfirmedProcessGroup(child.pid);
-      }, 500);
-      // deadline 兜底必须 ref 持有：unref 的事件循环里若其余句柄（如挂起的
-      // mux 排水）恰好都不再驱动循环，定时器可能永远不触发，deadline 失守。
-    }, opts.timeoutMs);
-    timer.ref();
-
-    child.stdout?.on('data', (buf: Buffer) => {
-      stdout += stdoutDecoder.write(buf);
-    });
-    child.stderr?.on('data', (buf: Buffer) => {
-      stderr += stderrDecoder.write(buf);
-    });
-    child.on('error', (err) => {
-      finish(null, null, err as NodeJS.ErrnoException);
-    });
-
-    /**
-     * 双阶段结算：`exit` 先到就开宽限期，`close` 正常则用 `close` 结算。
-     *
-     * 为什么不能只用 `close`：opencode 是 client-server 架构，退出时留下的
-     * server 子进程会继承 stdout/stderr 的 pipe 写端；只要有一个孙进程还活着，
-     * pipe 就不关，`close` 永不触发，该题会挂到 deadline（180s）并被误判成超时。
-     *
-     * 为什么不能只用 `exit`：`exit` 触发时管道里可能还有未读完的数据，
-     * 立即结算会丢尾部输出，影响 `stdout_assert` / 暗号类 oracle 的判定。
-     */
-    child.on('exit', (code, signal) => {
-      if (settled) return;
-      // 宿主已退出，deadline 不再适用：必须立刻清掉，否则若 deadline 恰好落在
-      // 500ms 宽限期内（剩余预算不足的题、或 deadline_ms 配得很小的题），
-      // timer 回调会把 timedOut 置真并 reapTree(SIGTERM)，随后宽限期用
-      // 已经正常退出的退出码结算，产出 status=0 + timedOut=true + ETIMEDOUT
-      // 的自相矛盾结果，正常完成的题被记成超时并归因 CONTEXT。
-      clearTimeout(timer);
-      graceTimer = setTimeout(() => {
-        if (settled) return;
-        // 宽限期到：孙进程仍占着 pipe，主动 destroy 读端让 close 得以触发；
-        // 若 close 仍不来，直接用 exit 的结果结算，绝不等到 deadline。
-        // 标记必须在 destroy 之前赋值：真实 Node 中 destroy 可能同步触发 close，
-        // 而 close 处理器会立刻 finish 并读走该标记。
-        stdioDestroyed = true;
-        child.stdout?.destroy();
-        child.stderr?.destroy();
-        // 只 destroy 读端不会让占住 pipe 的孙进程退出；不回收会留下常驻进程，
-        // 批量跑卷时累积并破坏下一题的隔离假设（独占 HOME / workspace）。
-        reapTree(child, 'SIGTERM', knownPids);
-        finish(code, signal ?? null, null);
-      }, STDIO_GRACE_MS);
-      // 用 ref 而非 unref：实测在「pipe 被孙进程占住」场景下 unref 定时器仍会触发
-      // （pipe 读端句柄保活事件循环，510ms 准时触发），但那是隐式前提——
-      // 一旦将来有人在 exit 后 unref 管道或改 stdio 配置，宽限期就会静默失效、
-      // 退回挂到 deadline 的老问题。ref 的 500ms 代价可忽略，且不依赖任何前提。
-      graceTimer.ref();
-    });
-
-    child.on('close', (code, signal) => {
-      const timedOutErr: NodeJS.ErrnoException | null = timedOut
-        ? Object.assign(new Error('ETIMEDOUT'), { code: 'ETIMEDOUT' })
-        : null;
-      finish(code, signal ?? null, timedOutErr);
-    });
-  });
-}
-
-/**
- * 对 detached 子进程的进程组发 SIGKILL。
- * 不能先用信号 0 探测：组长已退出时探测会报 ESRCH，但组里忽略 SIGTERM 的孙进程还在。
- * 此时直接发 SIGKILL 仍能打到整组；组已空则忽略错误。
- */
-function killConfirmedProcessGroup(pid: number | undefined): void {
-  if (pid === undefined || !Number.isInteger(pid) || pid <= 1 || pid === process.pid) return;
-  if (process.platform === 'win32') return;
-  try {
-    process.kill(-pid, 'SIGKILL');
-  } catch {
-    /* 组长消失后，macOS 对进程组发信号会报 ESRCH，即使组员还在。 */
-  }
-}
-
-/** 终止子进程及其进程树（POSIX 负 PID 杀进程组 + pgrep 后代遍历兜底；Windows taskkill /T /F）。 */
-function reapTree(
-  child: ReturnType<typeof spawn>,
-  signal: NodeJS.Signals,
-  knownPids?: Set<number>,
-): void {
-  const pid = child.pid;
-  if (pid === undefined) return;
-  // 负 PID 的语义是「把信号发给该 pgid 的整个进程组」。pid=1 时 -pid 即 -1，
-  // 等于向当前用户的**全部进程**广播 SIGTERM/SIGKILL（编辑器、终端、其它 App 一起死）。
-  // 只对真实子进程（pid>1 且不等于自身）发组信号，否则退化为单进程 kill。
-  if (!Number.isInteger(pid) || pid <= 1 || pid === process.pid) {
-    try {
-      child.kill(signal);
-    } catch {
-      /* ignore */
-    }
-    return;
-  }
-  if (process.platform === 'win32') {
-    try {
-      spawn('taskkill', ['/pid', String(pid), '/T', '/F'], { stdio: 'ignore' });
-    } catch {
-      try {
-        child.kill(signal);
-      } catch {
-        /* ignore */
-      }
-    }
-    return;
-  }
-  try {
-    process.kill(-pid, signal);
-  } catch {
-    try {
-      child.kill(signal);
-    } catch {
-      /* ignore */
-    }
-  }
-  // 兜底：逐层收集自行换组的后代并单独终止。
-  // 记下本次扫到的 PID：父进程退出后，第二次扫描已经看不到被过继的孙进程。
-  const descendants = collectDescendantPids(pid);
-  for (const descendant of descendants) knownPids?.add(descendant);
-  for (const descendant of new Set([...(knownPids ?? []), ...descendants])) {
-    try {
-      process.kill(descendant, signal);
-    } catch {
-      /* 已退出，忽略 */
-    }
-  }
-}
-
-/** 通过 pgrep -P 逐层收集后代 PID（含自行 detach 换组的后代），限制深度防环。 */
-function collectDescendantPids(rootPid: number): number[] {
-  if (process.platform === 'win32') return [];
-  const result: number[] = [];
-  const visited = new Set<number>([rootPid]);
-  let frontier = [rootPid];
-  for (let depth = 0; depth < 8 && frontier.length > 0; depth++) {
-    const next: number[] = [];
-    for (const pid of frontier) {
-      const probe = spawnSync('pgrep', ['-P', String(pid)], {
-        encoding: 'utf8',
-        timeout: 1000,
-      });
-      if (probe.error || probe.status !== 0) continue;
-      for (const line of probe.stdout.split(/\r?\n/)) {
-        const childPid = Number.parseInt(line, 10);
-        if (!Number.isInteger(childPid) || childPid <= 1 || visited.has(childPid)) continue;
-        visited.add(childPid);
-        result.push(childPid);
-        next.push(childPid);
-      }
-    }
-    frontier = next;
-  }
-  return result;
+export function resolveHostedDeadline(
+  revision: CaseRevision,
+  managedAgents: readonly string[],
+): number {
+  const explicit = revision.execution.deadline_ms;
+  if (typeof explicit === 'number' && explicit > 0) return explicit;
+  const hasManager = managedAgents.some((a) => a === 'manager');
+  if (!hasManager) return 180_000;
+  // 含 manager 的题统一给 300s（180s 基础 + 1 个 manager 会话的 120s）。
+  // 注：当前不按题面委派规模推导——`managerSessions` 恒为 1，实际结果固定 300_000。
+  // 若将来要按规模放宽，需先让题面声明可读的委派规模，再替换此常量。
+  const managerSessions = 1;
+  const extra = Math.max(0, managerSessions) * 120_000;
+  return Math.min(900_000, 180_000 + extra);
 }

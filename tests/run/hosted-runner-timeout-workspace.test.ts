@@ -5,6 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CaseRevision, EnvironmentProfile } from '../../src/exam-engine/types.ts';
 import { writeRunArtifacts } from '../../src/run/write-artifacts.ts';
 import { buildRunSummary } from '../../apps/console/run-summary.ts';
+import type { runSandboxedHostInChild } from '../../src/security/sandbox-exec.ts';
 
 const hostedIO = vi.hoisted(() => ({
   stdout: '',
@@ -17,68 +18,78 @@ const hostedIO = vi.hoisted(() => ({
   hang: false,
 }));
 
+type StubHostIO = {
+  stdout: string;
+  stderr?: string;
+  status: number | null;
+  signal?: NodeJS.Signals | string | null;
+  error?: (Error & { code?: string }) | null;
+  mutate?: ((cwd: string) => void) | undefined;
+  hang?: boolean;
+  timeoutMs?: number;
+};
+
+/**
+ * 宿主执行替身（ADR-0014）。
+ *
+ * 真实实现里「沙箱包裹 + 宿主执行」在独立子进程内完成，进程内的
+ * `node:child_process` 桩跨不过这条边界。这里直接替换**主进程侧**的执行入口，
+ * 语义与真实回传一致：非 0 退出只是观测结果，包裹/协议故障才抛工装错误。
+ */
+function sandboxExecStub(hostedIO: StubHostIO) {
+  return {
+    runSandboxedHostInChild: async (input: { bin: string; cwd: string; timeoutMs: number }) => {
+      // 宿主在超时前已经改动过工作区：真实实现里这些改动发生在 deadline 之前，
+      // 必须在「卡到超时」之前落地，否则工作区断言看到的是空工作区。
+      if (hostedIO.mutate !== undefined && input.cwd.length > 0) hostedIO.mutate(input.cwd);
+      if (hostedIO.hang === true) {
+        await sleep(hostedIO.timeoutMs ?? input.timeoutMs);
+        return {
+          status: null,
+          signal: 'SIGTERM' as NodeJS.Signals,
+          error: Object.assign(new Error('ETIMEDOUT'), { code: 'ETIMEDOUT' }),
+          stdout: '',
+          stderr: '',
+          timedOut: true,
+          stdioDestroyed: false,
+        };
+      }
+      const signal =
+        typeof hostedIO.signal === 'string'
+          ? (hostedIO.signal as NodeJS.Signals)
+          : (hostedIO.signal ?? null);
+      return {
+        status: hostedIO.status,
+        signal,
+        error: hostedIO.error ?? null,
+        stdout: hostedIO.stdout,
+        stderr: hostedIO.stderr ?? '',
+        timedOut: false,
+        stdioDestroyed: false,
+      };
+    },
+  };
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+vi.mock('../../src/security/sandbox-exec.ts', async (importOriginal) => {
+  // 只桩「宿主执行」这一跳：`SandboxExecHarnessError` 等错误类型必须保留真实类，
+  // 否则适配器里的 `instanceof` 判定会失效（归因会从 HARNESS 漂走）。
+  const actual = await importOriginal<{
+    runSandboxedHostInChild: typeof runSandboxedHostInChild;
+  }>();
+  return { ...actual, ...sandboxExecStub(hostedIO) };
+});
+
 vi.mock('node:child_process', async (importOriginal) => {
+  // 只桩 `spawnSync`：适配器仍用它探测 `opencode --version`。
+  // 宿主进程本身已住短命子进程（ADR-0014），主进程侧的 `spawn` 不再参与宿主执行，
+  // 因此这里不再伪造宿主子进程——伪造只会得到「恒真」的空转断言。
   const actual = (await importOriginal()) as {
     spawnSync: (...args: readonly unknown[]) => unknown;
-    spawn: (...args: readonly unknown[]) => unknown;
-  };
-  const fakeSpawn = (command: string, args?: readonly string[], options?: object) => {
-    const bin = String(command);
-    const head = args?.[0];
-    const cwd =
-      options !== undefined &&
-      typeof options === 'object' &&
-      'cwd' in options &&
-      typeof (options as { cwd?: string }).cwd === 'string'
-        ? (options as { cwd: string }).cwd
-        : '';
-    const isHost = bin === 'opencode' || bin.endsWith('/opencode') || args?.includes('opencode');
-    const isRun = head === 'run' || args?.includes('run');
-    const stdout = isHost && isRun ? hostedIO.stdout : '';
-    const stderr = isHost && isRun ? hostedIO.stderr : '';
-    const status = isHost && isRun ? hostedIO.status : 0;
-    const signal = isHost && isRun ? hostedIO.signal : null;
-    const listeners: Record<string, Array<(...args: unknown[]) => void>> = {};
-    const emitClose = (code: number | null, sig: NodeJS.Signals | string | null) => {
-      for (const cb of listeners['close'] ?? []) cb(code, sig);
-    };
-    const child = {
-      // 必须是 >1 的假 PID：reapTree 会用 process.kill(-pid) 杀进程组，
-      // 若这里给 1，负号后就是 kill(-1) —— 向当前用户所有进程广播，会杀掉跑测试的编辑器本身。
-      pid: 987_654,
-      stdout: {
-        on: (ev: string, cb: (...args: unknown[]) => void) => {
-          (listeners[`stdout:${ev}`] ??= []).push(cb);
-        },
-      },
-      stderr: {
-        on: (ev: string, cb: (...args: unknown[]) => void) => {
-          (listeners[`stderr:${ev}`] ??= []).push(cb);
-        },
-      },
-      on: (ev: string, cb: (...args: unknown[]) => void) => {
-        (listeners[ev] ??= []).push(cb);
-      },
-      // 真实语义：kill 后进程以该信号退出，close 携带 (null, signal)。
-      // 平台 deadline 路径正是靠这里驱动，不能用「立即 close」绕过。
-      kill: (sig?: NodeJS.Signals) => {
-        if (isHost && isRun && hostedIO.hang) {
-          queueMicrotask(() => emitClose(null, sig ?? 'SIGTERM'));
-        }
-        return true;
-      },
-    };
-    queueMicrotask(() => {
-      if (isHost && isRun && hostedIO.mutate !== undefined && cwd.length > 0) hostedIO.mutate(cwd);
-      if (stdout) for (const cb of listeners['stdout:data'] ?? []) cb(Buffer.from(stdout));
-      if (stderr) for (const cb of listeners['stderr:data'] ?? []) cb(Buffer.from(stderr));
-      // hang=true 时故意不 close：模拟宿主卡死，等平台 deadline 触发 kill。
-      // 这样 `runHostedWithReap` 的 `timedOut` 标志由真实定时器置位，
-      // 覆盖 `deadlineFired` 主路径，而不是只测 ETIMEDOUT 兜底。
-      if (isHost && isRun && hostedIO.hang) return;
-      emitClose(status, signal);
-    });
-    return child;
   };
   return {
     ...actual,
@@ -96,45 +107,15 @@ vi.mock('node:child_process', async (importOriginal) => {
             signal: null,
           };
         }
-        if (head === 'run' || args?.includes('run')) {
-          const cwd =
-            options !== undefined &&
-            typeof options === 'object' &&
-            'cwd' in options &&
-            typeof (options as { cwd?: string }).cwd === 'string'
-              ? (options as { cwd: string }).cwd
-              : '';
-          if (hostedIO.mutate !== undefined && cwd.length > 0) hostedIO.mutate(cwd);
-          return {
-            status: hostedIO.status,
-            stdout: hostedIO.stdout,
-            stderr: hostedIO.stderr,
-            pid: 1,
-            output: [],
-            signal: hostedIO.signal,
-            error: hostedIO.error ?? undefined,
-          };
-        }
       }
       return actual.spawnSync(command, args as string[], options);
     }),
-    spawn: vi.fn(fakeSpawn),
   };
 });
 
 vi.mock('../../src/security/isolation-backend.ts', () => ({
   evaluateIsolationGate: vi.fn(async () => ({ allowed: true, reason: '测试桩：隔离探测通过' })),
 }));
-vi.mock('../../src/security/sandbox-runtime.ts', async () => {
-  const actual = await vi.importActual('../../src/security/sandbox-runtime.ts');
-  return {
-    ...actual,
-    wrapHostCommand: async (input: { bin: string; args: string[] }) => ({
-      argv: [input.bin, ...input.args],
-      env: {},
-    }),
-  };
-});
 
 const { HostedAdapter } = await import('../../src/run/hosted-runner.ts');
 const { RunOrchestrator } = await import('../../src/run/run-orchestrator.ts');

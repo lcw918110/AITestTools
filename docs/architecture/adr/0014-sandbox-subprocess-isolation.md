@@ -24,11 +24,13 @@
 **每道题起一个短命子进程，由它承担「包裹 + 执行」，结束后自行退出。**
 
 1. **子进程职责**：`SandboxManager.reset()`（防御性，通常已干净）→ `initialize(config)` → `wrapWithSandboxArgv` → `spawn` 宿主 → 收集观测 → 回传结果 → 退出。代理与 Seatbelt profile 都在同一进程内诞生和消亡，语义天然正确。
-2. **回传契约**：回传 `{ status, signal, error, stdout, stderr, timedOut, stdioDestroyed }`，与 `observeHostExit` 的入参一一对应。**不做实时流式转发**——现有 `runHostedWithReap` 边跑边收只用于拼接文本、计时超时与按字节解码，所有业务判断都发生在进程结束之后（`src/run/hosted-runner.ts:1307`），结束时整包回传不改变任何判定语义。
+2. **回传契约**：回传 `{ status, signal, error, stdout, stderr, timedOut, stdioDestroyed }`，与 `observeHostExit` 的入参一一对应。**不做实时流式转发**——子进程内的 `runAndReap` 边跑边收只用于拼接文本、计时超时与按字节解码，所有业务判断都发生在进程结束之后，结束时整包回传不改变任何判定语义。
 3. **主进程删除项**：`wrapLockTail` 串行锁、`SandboxManager.reset()` 调用、`SANDBOX_WRAP_TIMEOUT_MS` 兜底超时。这些机制存在的前提是「全局状态要在同进程内复用」，前提消失后应一并删除，不留兼容分支。
 4. **回传的 `sandboxEnv` 必须原样生效**：其中含沙箱必需的 `HTTP_PROXY` / `HTTPS_PROXY` / `ALL_PROXY` / `NO_PROXY` 与代理认证令牌。任何「剥离 http_proxy」的既有逻辑不得作用在子进程回传的这份 env 上；剥离只针对继承来的宿主环境，不针对包裹层产出的环境。
 5. **包裹层自身故障归 HARNESS**：子进程被 OOM / 信号杀死、握手协议损坏、回传缺字段，都属工装故障，判负归 `HARNESS`，不得计入被测系统缺陷。
-6. **不做长驻沙箱服务进程**：它能把代理跨题复用（省约 0.2s 冷启动），代价是把已经出过事故的「哪道题用哪份配置」协调逻辑从进程内搬到进程间——问题从「消灭」变成「重新实现」。批处理吞吐不构成足以承担该代价的收益。
+6. **旁路诊断同样走子进程**：`PROCTOR_SANDBOX_BYPASS=1` 只跳过包裹（请求里带 `sandboxBypass`），进程边界不变。若旁路退回主进程直接起宿主，进程树回收的误杀面就回到引擎进程本身，抵消本决策的主要收益。
+7. **主进程不再保留第二套执行/回收实现**：`runHostedWithReap` 及其进程树回收、双阶段结算代码已删除，只保留在子进程里这一份；stdio 结算与 UTF-8 接线的回归随之迁到 `tests/security/`。唯一允许保留主进程侧「启动宿主」代码的理由已随旁路收敛而消失。
+8. **不做长驻沙箱服务进程**：它能把代理跨题复用（省约 0.2s 冷启动），代价是把已经出过事故的「哪道题用哪份配置」协调逻辑从进程内搬到进程间——问题从「消灭」变成「重新实现」。批处理吞吐不构成足以承担该代价的收益。
 
 ## 后果
 

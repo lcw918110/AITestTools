@@ -4,62 +4,90 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { CaseRevision, EnvironmentProfile } from '../../src/exam-engine/types.ts';
+import type { runSandboxedHostInChild } from '../../src/security/sandbox-exec.ts';
 
 const hostedIO = vi.hoisted(() => ({
+  stdout: '',
+  stderr: '',
   status: 0 as number | null,
+  signal: null as NodeJS.Signals | string | null,
   mutate: undefined as ((cwd: string) => void) | undefined,
 }));
 
-vi.mock('node:child_process', async (importOriginal) => {
-  const actual = (await importOriginal()) as {
-    execFileSync: (...args: readonly unknown[]) => unknown;
-    spawnSync: (...args: readonly unknown[]) => unknown;
-    spawn: (...args: readonly unknown[]) => unknown;
+type StubHostIO = {
+  stdout: string;
+  stderr?: string;
+  status: number | null;
+  signal?: NodeJS.Signals | string | null;
+  error?: (Error & { code?: string }) | null;
+  mutate?: ((cwd: string) => void) | undefined;
+  hang?: boolean;
+  timeoutMs?: number;
+};
+
+/**
+ * 宿主执行替身（ADR-0014）。
+ *
+ * 真实实现里「沙箱包裹 + 宿主执行」在独立子进程内完成，进程内的
+ * `node:child_process` 桩跨不过这条边界。这里直接替换**主进程侧**的执行入口，
+ * 语义与真实回传一致：非 0 退出只是观测结果，包裹/协议故障才抛工装错误。
+ */
+function sandboxExecStub(hostedIO: StubHostIO) {
+  return {
+    runSandboxedHostInChild: async (input: { bin: string; cwd: string; timeoutMs: number }) => {
+      if (hostedIO.hang === true) {
+        await sleep(hostedIO.timeoutMs ?? input.timeoutMs);
+        return {
+          status: null,
+          signal: 'SIGTERM' as NodeJS.Signals,
+          error: Object.assign(new Error('ETIMEDOUT'), { code: 'ETIMEDOUT' }),
+          stdout: '',
+          stderr: '',
+          timedOut: true,
+          stdioDestroyed: false,
+        };
+      }
+      if (hostedIO.mutate !== undefined && input.cwd.length > 0) hostedIO.mutate(input.cwd);
+      const signal =
+        typeof hostedIO.signal === 'string'
+          ? (hostedIO.signal as NodeJS.Signals)
+          : (hostedIO.signal ?? null);
+      return {
+        status: hostedIO.status,
+        signal,
+        error: hostedIO.error ?? null,
+        stdout: hostedIO.stdout,
+        stderr: hostedIO.stderr ?? '',
+        timedOut: false,
+        stdioDestroyed: false,
+      };
+    },
   };
-  const fakeSpawn = (command: string, args?: readonly string[], options?: object) => {
-    const bin = String(command);
-    const head = args?.[0];
-    const cwd =
-      options !== undefined &&
-      typeof options === 'object' &&
-      'cwd' in options &&
-      typeof (options as { cwd?: string }).cwd === 'string'
-        ? (options as { cwd: string }).cwd
-        : '';
-    const isHost = bin === 'opencode' || bin.endsWith('/opencode') || args?.includes('opencode');
-    const isRun = head === 'run' || args?.includes('run');
-    const stdout = isHost && isRun ? 'OK\n' : '';
-    const status = isHost && isRun ? hostedIO.status : 0;
-    const listeners: Record<string, Array<(...args: unknown[]) => void>> = {};
-    const child = {
-      pid: 1,
-      stdout: {
-        on: (ev: string, cb: (...args: unknown[]) => void) => {
-          (listeners[`stdout:${ev}`] ??= []).push(cb);
-        },
-      },
-      stderr: {
-        on: (ev: string, cb: (...args: unknown[]) => void) => {
-          (listeners[`stderr:${ev}`] ??= []).push(cb);
-        },
-      },
-      on: (ev: string, cb: (...args: unknown[]) => void) => {
-        (listeners[ev] ??= []).push(cb);
-      },
-      kill: () => true,
-    };
-    queueMicrotask(() => {
-      if (isHost && isRun && hostedIO.mutate !== undefined && cwd.length > 0) hostedIO.mutate(cwd);
-      if (stdout) for (const cb of listeners['stdout:data'] ?? []) cb(Buffer.from(stdout));
-      for (const cb of listeners['close'] ?? []) cb(status, null);
-    });
-    return child;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+vi.mock('../../src/security/sandbox-exec.ts', async (importOriginal) => {
+  // 只桩「宿主执行」这一跳：`SandboxExecHarnessError` 等错误类型必须保留真实类，
+  // 否则适配器里的 `instanceof` 判定会失效（归因会从 HARNESS 漂走）。
+  const actual = await importOriginal<{
+    runSandboxedHostInChild: typeof runSandboxedHostInChild;
+  }>();
+  return { ...actual, ...sandboxExecStub(hostedIO) };
+});
+
+vi.mock('node:child_process', async (importOriginal) => {
+  // 只桩 `spawnSync`：适配器仍用它探测 `opencode --version`。
+  // 宿主进程本身已住短命子进程（ADR-0014），主进程侧的 `spawn` 不再参与宿主执行，
+  // 因此这里不再伪造宿主子进程——伪造只会得到「恒真」的空转断言。
+  const actual = (await importOriginal()) as {
+    spawnSync: (...args: readonly unknown[]) => unknown;
   };
   return {
     ...actual,
-    // 生产代码里用 execFileSync 跑 git；这里让它走真实实现，工作区才可验证。
-    execFileSync: actual.execFileSync,
-    spawnSync: vi.fn((command: string, args?: readonly string[], _options?: object) => {
+    spawnSync: vi.fn((command: string, args?: readonly string[], options?: object) => {
       const bin = String(command);
       const head = args?.[0];
       if (bin === 'opencode' || bin.endsWith('/opencode') || args?.includes('opencode')) {
@@ -74,26 +102,14 @@ vi.mock('node:child_process', async (importOriginal) => {
           };
         }
       }
-      return actual.spawnSync(command, args as string[], _options);
+      return actual.spawnSync(command, args as string[], options);
     }),
-    spawn: vi.fn(fakeSpawn),
   };
 });
 
 vi.mock('../../src/security/isolation-backend.ts', () => ({
   evaluateIsolationGate: vi.fn(async () => ({ allowed: true, reason: '测试桩：隔离探测通过' })),
 }));
-
-vi.mock('../../src/security/sandbox-runtime.ts', async () => {
-  const actual = await vi.importActual('../../src/security/sandbox-runtime.ts');
-  return {
-    ...actual,
-    wrapHostCommand: async (input: { bin: string; args: string[] }) => ({
-      argv: [input.bin, ...input.args],
-      env: {},
-    }),
-  };
-});
 
 const { HostedAdapter } = await import('../../src/run/hosted-runner.ts');
 const { RunOrchestrator } = await import('../../src/run/run-orchestrator.ts');
