@@ -90,6 +90,21 @@ describe('event_subsequence / no_event 名单静态门禁', () => {
     );
   });
 
+  it('只含制表/换行等不可见字符的名单同样算空白', () => {
+    expect(codes([{ type: 'no_event', id: 'n', names: ['\t'] }])).toContain(
+      'ORACLE_NO_EVENT_INVALID',
+    );
+    expect(codes([{ type: 'no_event', id: 'n', names: ['\u3000'] }])).toContain(
+      'ORACLE_NO_EVENT_INVALID',
+    );
+  });
+
+  it('空白内部夹着制表符的内容断言也被拦住（trim 认不出全角空格）', () => {
+    expect(
+      codes([{ type: 'workspace_assert', id: 'w', path: 'a.txt', contains: '\u3000\u200b' }]),
+    ).toContain('ORACLE_WORKSPACE_ASSERT_INVALID');
+  });
+
   it('有效名单不产生错误', () => {
     expect(codes([{ type: 'event_subsequence', id: 'e', names: ['A', 'B'] }])).toEqual([]);
     expect(codes([{ type: 'no_event', id: 'n', names: ['A'] }])).toEqual([]);

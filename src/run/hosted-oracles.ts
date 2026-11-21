@@ -7,6 +7,7 @@ import { runStdoutAssertOracle } from '../oracles/stdout-assert.ts';
 import { runToolSideEffectOracle } from '../oracles/tool-side-effect.ts';
 import { runWorkspaceAssertOracle } from '../oracles/workspace-assert.ts';
 import { resolveHostedAttribution } from '../attribution/hosted-tree.ts';
+import { isBlankText } from '../exam-engine/validate.ts';
 
 /**
  * 构造 oracle 否决项。
@@ -36,7 +37,7 @@ export interface HostedOracleEvaluation {
   workspace_ok: boolean;
   /** 是否实际执行过至少一条 workspace_assert */
   workspace_ran: boolean;
-  workspace_failures: Array<{ oracle_id: string; message: string }>;
+  workspace_failures: Array<{ oracle_id: string; message: string; attribution: Attribution }>;
   /** 超时/被杀，exit_code 未作硬否决 */
   exit_code_inconclusive: boolean;
   /** 进程确以非期望码结束（不是超时） */
@@ -137,7 +138,11 @@ export function evaluateHostedOracles(opts: {
    */
   const hostSpawnFailed = !timedOut && (opts.hostSpawnError ?? null) !== null;
 
-  const workspace_failures: Array<{ oracle_id: string; message: string }> = [];
+  const workspace_failures: Array<{
+    oracle_id: string;
+    message: string;
+    attribution: Attribution;
+  }> = [];
   let workspace_ran = false;
   let exit_code_inconclusive = false;
   let exit_code_nonzero = false;
@@ -224,6 +229,10 @@ export function evaluateHostedOracles(opts: {
         workspace_failures.push({
           oracle_id: outcome.oracle_id,
           message: `oracle ${outcome.oracle_id}：${outcome.message}`,
+          // 工作区断言也可能是试题配错（内容断言为空白、路径指向目录、权限不足）：
+          // 必须把 oracle 自己的 HARNESS 带上去，否则下面固定成 MODEL_TASK 会把
+          // 试题/环境问题记成模型缺陷。
+          attribution: outcome.attribution ?? 'MODEL_TASK',
         });
       }
     } else if (oracle.type === 'tool_side_effect') {
@@ -243,7 +252,7 @@ export function evaluateHostedOracles(opts: {
       const hasInvalidName = names.length !== rawNames.length;
       // 事件类断言依赖真实事件流：缺失、未读到、空 names 或含空串都属接线/试题配错，
       // 归因 HARNESS 并继续评估后续 oracle（早 return 会让 workspace_assert 被整段跳过）。
-      const hasBlankName = names.some((n) => n.trim() === '');
+      const hasBlankName = names.some((n) => isBlankText(n));
       // 必须显式证明事件流存在（`eventsPresent === true`）才继续：
       // 调用方若传了 `events: []` 却漏传 `eventsPresent`，旧写法会当成「流已读到」，
       // 于是 `no_event` 在空流上直接通过（假绿）、`event_subsequence` 记成 MODEL_TASK。
@@ -339,11 +348,13 @@ export function evaluateHostedOracles(opts: {
     // 超时导致的事实不可判定：高于模型归因，避免把「没跑完」记成「模型没做到」。
     veto = contextVeto;
   } else if (workspace_failures.length > 0) {
-    const first = workspace_failures[0]!;
+    // 只要有一条断言归 HARNESS（试题配错/环境读失败）就整组按 HARNESS 否决，
+    // 不依赖书写顺序——否则顺序一变，「断言配错」就被洗成「模型没做到」。
+    // 没有 HARNESS 时沿用原口径固定 MODEL_TASK，PROTOCOL focus 不得改写。
+    const primary = workspace_failures.find((f) => f.attribution === 'HARNESS');
     veto = {
-      message: first.message,
-      // 工作区失败固定 MODEL_TASK，PROTOCOL focus 不得改写
-      attribution: 'MODEL_TASK',
+      message: (primary ?? workspace_failures[0]!).message,
+      attribution: primary !== undefined ? 'HARNESS' : 'MODEL_TASK',
     };
   } else if (otherVeto !== undefined) {
     veto = otherVeto;

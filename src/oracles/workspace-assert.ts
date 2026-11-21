@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import type { Attribution, OracleWorkspaceAssert } from '../exam-engine/types.ts';
+import { isBlankText } from '../exam-engine/validate.ts';
 import type { OracleOutcome } from './types.ts';
 
 /**
@@ -63,7 +64,7 @@ export function runWorkspaceAssertOracle(opts: {
     ['contains', contains],
     ['not_contains', notContains],
   ] as const) {
-    if (value !== undefined && (typeof value !== 'string' || value.trim() === '')) {
+    if (value !== undefined && (typeof value !== 'string' || isBlankText(value))) {
       return {
         pass: false,
         oracle_id: opts.oracle_id,

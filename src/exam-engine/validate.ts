@@ -57,9 +57,22 @@ function err(code: string, message: string, file: string, instancePath?: string)
  * `tool_trace.must_call` / `schema_obedience.required_fields` / `schema_obedience.tool`
  * 同理：空名单在运行期恒真（假绿），空白名 / 空工具名在运行期恒判负并归 HARNESS。
  * 空数组与非字符串元素由 JSON Schema（`minItems` / `items`）拦截，
- * 本函数补拦 schema 表达不了的「纯空白」语义；只有 schema 已通过时才执行到，
- * 因此两道门禁是互补而非重复。
+ * 本函数补拦 schema 表达不了的「空白」语义：schema 全绿之后才执行到这里，
+ * 两道门禁互补——schema 管「有没有声明」，本函数管「声明了但是不是等于没声明」。
  */
+
+/**
+ * 「空白」的唯一定义：去掉空白后为空，即只由空格 / 制表 / 换行 / 全角空格 / 零宽字符组成。
+ *
+ * 不用 `String.prototype.trim()`：它不认全角空格 U+3000、零宽空格 U+200B 与
+ * 不换行空格 U+00A0，这些字符肉眼不可见却会让断言「看起来声明了、实际匹配不到」。
+ * 注意 `\t` / `\n` 是真实字符语义（如「必须用 tab 缩进」），但**单独**声明它们时
+ * 同样没有任何可判内容，故一并归入空白；和文字混排（`"a\tb"`）不受影响。
+ */
+export function isBlankText(value: string): boolean {
+  return value.replace(/[\s\u00a0\u200b-\u200d\u3000\ufeff]/g, '') === '';
+}
+
 function validateOracleRegexes(doc: CaseRevision, file: string): Issue[] {
   const issues: Issue[] = [];
   const expect = (doc as { expect?: unknown }).expect;
@@ -104,7 +117,7 @@ function validateOracleRegexes(doc: CaseRevision, file: string): Issue[] {
       const code =
         oracle['type'] === 'tool_trace' ? 'ORACLE_TOOL_TRACE' : 'ORACLE_SCHEMA_OBEDIENCE';
       const list = oracle[key];
-      if (Array.isArray(list) && list.some((x) => typeof x !== 'string' || x.trim().length === 0)) {
+      if (Array.isArray(list) && list.some((x) => typeof x !== 'string' || isBlankText(x))) {
         issues.push(
           err(
             `${code}_INVALID`,
@@ -118,7 +131,7 @@ function validateOracleRegexes(doc: CaseRevision, file: string): Issue[] {
       // 运行期按试题配错归 HARNESS，录题阶段就该拦。
       if (oracle['type'] === 'schema_obedience') {
         const tool = oracle['tool'];
-        if (typeof tool === 'string' && tool.trim() === '') {
+        if (typeof tool === 'string' && isBlankText(tool)) {
           issues.push(
             err(
               'ORACLE_SCHEMA_OBEDIENCE_INVALID',
@@ -133,42 +146,31 @@ function validateOracleRegexes(doc: CaseRevision, file: string): Issue[] {
     }
 
     if (oracle['type'] !== 'stdout_assert') {
-      // ── 其余声明式名单 / 内容断言：schema 拦不住的「纯空白」在这里补 ──
-      // `"   "` 的长度满足 minLength: 1，但语义上等于空：运行期会被过滤成空清单
-      // 并判负归 HARNESS，录题阶段就该报错，而不是等真跑才发现。
+      // ── 其余声明式名单 / 内容断言：schema 拦不住的「空白」在这里补 ──
+      // `"   "` 长度满足 minLength: 1，但语义上等于空（见 `isBlankText`）。运行期会
+      // 判负归 HARNESS，录题阶段就该报错，而不是等真跑才发现。
+      // `tool_side_effect.contains` 只有一个字段，合并进同一张表，避免两处各判一遍。
       const blankAt = [
         { type: 'no_event', key: 'names', code: 'ORACLE_NO_EVENT_INVALID' },
         { type: 'event_subsequence', key: 'names', code: 'ORACLE_EVENT_SUBSEQUENCE_INVALID' },
         { type: 'workspace_assert', key: 'contains', code: 'ORACLE_WORKSPACE_ASSERT_INVALID' },
         { type: 'workspace_assert', key: 'not_contains', code: 'ORACLE_WORKSPACE_ASSERT_INVALID' },
+        { type: 'tool_side_effect', key: 'contains', code: 'ORACLE_TOOL_SIDE_EFFECT_INVALID' },
       ] as const;
       for (const rule of blankAt) {
         if (oracle['type'] !== rule.type) continue;
         const value = oracle[rule.key];
         const isBlank =
           typeof value === 'string'
-            ? value.trim() === ''
-            : Array.isArray(value) && value.some((x) => typeof x !== 'string' || x.trim() === '');
+            ? isBlankText(value)
+            : Array.isArray(value) && value.some((x) => typeof x !== 'string' || isBlankText(x));
         if (isBlank) {
           issues.push(
             err(
               rule.code,
-              `${rule.key} 含非字符串或空白名（等价于空清单/空文本，等于无断言）`,
+              `${rule.key} 仅含空白或为空（等价于没声明这条断言，运行期会判负归 HARNESS）`,
               file,
               `${base}/${rule.key}`,
-            ),
-          );
-        }
-      }
-      if (oracle['type'] === 'tool_side_effect') {
-        const contains = oracle['contains'];
-        if (contains !== undefined && (typeof contains !== 'string' || contains.trim() === '')) {
-          issues.push(
-            err(
-              'ORACLE_TOOL_SIDE_EFFECT_INVALID',
-              'contains 为空白（等于没声明内容断言，运行期会判负）',
-              file,
-              `${base}/contains`,
             ),
           );
         }

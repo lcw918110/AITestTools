@@ -409,4 +409,41 @@ describe('evaluateHostedOracles', () => {
     expect(forward.veto?.attribution).toBe(reverse.veto?.attribution);
     expect(forward.veto?.attribution).toBe('CONTEXT');
   });
+
+  it('workspace_assert 读失败（路径指向目录）时 veto 归 HARNESS，不记成 MODEL_TASK', () => {
+    const ws = join(tmpdir(), `hosted-oracles-dir-${Date.now()}`);
+    mkdirSync(join(ws, 'subdir'), { recursive: true });
+    const r = evaluateHostedOracles({
+      revision: revisionWithOracles([
+        { id: 'ws', type: 'workspace_assert', path: 'subdir', contains: 'x' },
+      ]),
+      workspace: ws,
+      exitCode: 0,
+      stdout: '',
+      focus: 'MODEL_TASK',
+    });
+    expect(r.workspace_ok).toBe(false);
+    expect(r.veto?.attribution).toBe('HARNESS');
+    expect(r.workspace_failures[0]?.attribution).toBe('HARNESS');
+  });
+
+  it('内容断言为空白也归 HARNESS，且不因书写顺序被洗成 MODEL_TASK', () => {
+    const ws = join(tmpdir(), `hosted-oracles-blank-${Date.now()}`);
+    mkdirSync(ws, { recursive: true });
+    writeFileSync(join(ws, 'ok.txt'), 'hello\n');
+    const r = evaluateHostedOracles({
+      revision: revisionWithOracles([
+        // 第一条是正常的「没做到」失败，第二条才是试题配错：整组必须按 HARNESS 否决
+        { id: 'miss', type: 'workspace_assert', path: 'ok.txt', contains: 'NOPE' },
+        { id: 'blank', type: 'workspace_assert', path: 'ok.txt', contains: '   ' },
+      ]),
+      workspace: ws,
+      exitCode: 0,
+      stdout: '',
+      focus: 'MODEL_TASK',
+    });
+    expect(r.workspace_ok).toBe(false);
+    expect(r.veto?.attribution).toBe('HARNESS');
+    expect(r.veto?.message).toContain('blank');
+  });
 });

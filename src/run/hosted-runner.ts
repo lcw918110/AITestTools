@@ -728,6 +728,27 @@ export class HostedAdapter implements ExecutionAdapter {
     // 宿主崩溃：模型行为无法判定，但若已有确定事实（鉴权失败 / 工作区改错），按事实归因。
     // 必须排在「试题配错 HARNESS」早返回之前：崩溃同时伴随事件流缺失时，
     // 那个 HARNESS 来自试题接线，会把「工作区已改错」和「鉴权失败」一起吞掉。
+    // 但断言自身归 HARNESS（内容断言空白、路径指向目录等）时，它才是被掩盖的那一个：
+    // 这种失败与被测模型无关，任何崩溃/超时归因都不能把它改写掉，故最先判断。
+    const harnessWorkspaceFailure = this.oracleEval.workspace_failures.find(
+      (f) => f.attribution === 'HARNESS',
+    );
+    if (harnessWorkspaceFailure !== undefined) {
+      return [
+        finish(
+          fail(
+            ctx.revision,
+            'HARNESS',
+            `${harnessWorkspaceFailure.message}${this.hostNote}${this.sealNote}${this.storeNote}`,
+            {
+              artifactDir: ctx.artifactDir,
+              effectPair: this.pairKey,
+              extraFailures: this.oracleEval.workspace_failures,
+            },
+          ),
+        ),
+      ];
+    }
     if (isHostCrashed(this.hostObs)) {
       const attr: Attribution = this.oracleEval.workspace_ok
         ? this.envAuthFail
@@ -779,14 +800,22 @@ export class HostedAdapter implements ExecutionAdapter {
     }
 
     if (!this.oracleEval.workspace_ok) {
-      const attr = resolveWorkspaceFailAttribution({
-        timedOut: this.hostObs.timed_out,
-        materialsMutated: this.mutated,
-        authMiss: this.envAuthFail,
-        providerStreamBroken: this.providerStreamBroken,
-      });
+      // 断言自己的 HARNESS（内容断言空白、路径指向目录等）优先于超时/环境归因：
+      // 这类失败与被测模型无关，任何超时洗白都不应把它记成 CONTEXT 或 MODEL_TASK。
+      const harnessWorkspace = this.oracleEval.workspace_failures.find(
+        (f) => f.attribution === 'HARNESS',
+      );
+      const attr: Attribution =
+        harnessWorkspace !== undefined
+          ? 'HARNESS'
+          : resolveWorkspaceFailAttribution({
+              timedOut: this.hostObs.timed_out,
+              materialsMutated: this.mutated,
+              authMiss: this.envAuthFail,
+              providerStreamBroken: this.providerStreamBroken,
+            });
       const why =
-        this.oracleEval.workspace_failures[0]?.message ??
+        (harnessWorkspace ?? this.oracleEval.workspace_failures[0])?.message ??
         this.oracleEval.veto?.message ??
         '工作区断言失败';
       const untouched =

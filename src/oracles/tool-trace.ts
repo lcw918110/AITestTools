@@ -1,4 +1,5 @@
 import type { Attribution } from '../exam-engine/types.ts';
+import { isBlankText } from '../exam-engine/validate.ts';
 import type { OracleOutcome } from './types.ts';
 
 export interface ToolCallTrace {
@@ -20,7 +21,7 @@ export interface ToolCallTrace {
  */
 export function effectiveNames(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter((n): n is string => typeof n === 'string' && n.trim() !== '');
+  return raw.filter((n): n is string => typeof n === 'string' && !isBlankText(n));
 }
 
 /** 名单无效（空数组 / 全是空白名 / 非字符串）时：判负并归 HARNESS，绝不当被测失败。 */
@@ -78,7 +79,7 @@ export function runSchemaObedienceOracle(opts: {
     return emptyDeclaredOutcome(opts.oracle_id, 'required_fields', '字段名');
   }
   // 空工具名会与所有调用名失配 → 恒「未找到工具」，本质是试题配错，不能记成模型没调用。
-  if (typeof opts.tool !== 'string' || opts.tool.trim() === '') {
+  if (typeof opts.tool !== 'string' || isBlankText(opts.tool)) {
     return emptyToolOutcome(opts.oracle_id);
   }
   const tool = opts.tool.trim();

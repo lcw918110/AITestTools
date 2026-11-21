@@ -1,6 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import type { Attribution, OracleToolSideEffect } from '../exam-engine/types.ts';
+import { isBlankText } from '../exam-engine/validate.ts';
 import type { OracleOutcome } from './types.ts';
 
 /**
@@ -47,7 +48,7 @@ export function runToolSideEffectOracle(opts: {
   }
   const contains = opts.oracle.contains;
   // 空串 / 纯空白：声明了内容断言却没有有效内容，属试题配错，必须判负归 HARNESS。
-  if (contains !== undefined && (typeof contains !== 'string' || contains.trim() === '')) {
+  if (contains !== undefined && (typeof contains !== 'string' || isBlankText(contains))) {
     return {
       pass: false,
       oracle_id: opts.oracle_id,
