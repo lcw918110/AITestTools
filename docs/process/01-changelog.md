@@ -2827,3 +2827,24 @@ return REQUIRED_ISOLATION_PROOFS.filter((proof) => {
 **顺带修正的文档失实**：`docs/02` §1 原则 1 原写「万象术专属开关由 `VibeFsAdapter` 解释」，该类在代码中不存在，已改为 `HostedAdapter` 并指向 `docs/12`。
 
 **产出**：`docs/12` §3.2（证伪结论与对照表）、§3.3（实际隔离方式）、§7 第 8 步状态、§8 风险表同步；`docs/02` §1 原则 1 口径修正；`docs/process/06` §5 backlog 增补「能力缺失被记成被测失败 → 已闭环」。
+
+---
+
+## 63. 控制台录题 / 删题：dataset-release 闭包哈希与回滚精确性（2026-11-21）
+
+**发现**：`apps/console/bank.ts` 的 `createTask` / `deleteTask` 只改 dataset-release 的 `case_revisions` 数组，不重算 `closure_hash`。校验侧（`validateDatasetRelease`）会比对 `closureDigest(case_revisions)`，因此录题成功后整库校验必然报 `DATASET_CLOSURE_HASH_MISMATCH`，控制台「录题后校验」永远失败并触发回滚——**录题功能整体不可用**，且报错指向闭包哈希，与真实原因（追加时漏算）相距甚远。
+
+**修复**
+
+1. 追加 / 移除引用统一走 `writeDatasetReleaseWithClosure`，改数组与重算摘要在同一处完成，杜绝「改了引用忘了摘要」。
+2. `createTask` 在落盘前对 off/on 两个 dataset-release 取原文快照，任何一步失败整体写回原文（只删引用会留下重算过的哈希，与「未追加」并非同一状态）。
+3. 快照回滚原语改为区分**文件 / 目录 / 不存在**三种原状态：目录不再被写成空文本文件（数据破坏），不存在的路径回滚时删除。
+4. 回滚**失败不再静默**：`restoreFiles` 返回未恢复成功的路径清单，对外报「回滚未完成，需人工核对：<路径>」，禁止在磁盘仍是半截状态时声称「已回滚」。
+5. `updateTask`（改题）的快照补齐 dataset-release：改题先删旧引用再追加新引用，中途失败原先会留下「release 引用已漂移、case-revision 停在旧版本」的半截题。
+6. `deleteTask` 纳入同一套机制：先快照 case.json、全部 case-revision、相关 dataset-release 与 materials 目录，删除中途失败整体还原。
+
+**验证**
+
+- 新增 `tests/console/bank-dataset-closure.test.ts`（9 例）：录题/删题后闭包哈希一致、校验失败回滚逐字节还原、on 名单缺失（off 已追加）时两侧还原、回滚清理新建 case / case-revision / materials、目录占位不被写成空文件、畸形引用条目不参与匹配、端到端整库校验无 `DATASET_CLOSURE_HASH_MISMATCH`。
+- 可证伪验证：把追加/移除改回「只改数组」→ 2 条红；把目录原状态退回「当文件写空串」→ 1 条红；恢复后全绿。
+- 门禁：`format:check` / `lint` / `typecheck` 全过；`vitest` 127 文件 / **1201** 用例；`scripts/console-l0.sh` 全绿。

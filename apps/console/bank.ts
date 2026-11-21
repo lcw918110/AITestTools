@@ -22,7 +22,7 @@ import {
 } from './test-sets.ts';
 import { writeJsonAtomic, writeTextAtomic } from './json-io.ts';
 import { PROJECT } from './config.ts';
-import { revisionDigest } from '../../src/exam-engine/digest.ts';
+import { revisionDigest, closureDigest } from '../../src/exam-engine/digest.ts';
 import type { CaseRevision, RubricSpec, TaskStrata } from '../../src/exam-engine/types.ts';
 import { AUTOMATION_READINESS, CASE_LIFECYCLE } from '../../src/domain/types.ts';
 
@@ -146,7 +146,8 @@ type CreateSnapshot = {
   taskId: string;
   materialsDir: string;
   files: string[];
-  releaseAdds: Array<{ releaseFile: string; caseRevisionId: string }>;
+  /** dataset-release 原文快照：回滚时整体写回，不只删引用。 */
+  releases: FileSnapshot[];
 };
 
 export function safeUnder(root: string, target: string): string | undefined {
@@ -742,8 +743,22 @@ export async function updateTask(
   const offNextRevFile = join(caseRevisionsV1Dir(project), caseRevisionFileName(offNextRevisionId));
   const onNextRevFile = join(caseRevisionsV1Dir(project), caseRevisionFileName(onNextRevisionId));
 
-  // 快照所有可能被本次更新改写的文件，用于失败回滚。
-  const snap = snapshotFiles([promptFile, caseFile, offNextRevFile, onNextRevFile]);
+  // 快照所有可能被本次更新改写的文件与 dataset-release，用于失败回滚。
+  // dataset-release 必须纳入：改题会先删旧引用再追加新引用，中途失败若只恢复前四个文件，
+  // 会留下「release 引用已漂移、case-revision 还停在旧版本」的半截状态。
+  const releaseFiles = new Set<string>();
+  for (const testSetId of testSetIdsForTask(project, taskId)) {
+    const hang = releaseFilesForTestSet(testSetId);
+    releaseFiles.add(join(datasetReleasesDir(project), hang.offFile));
+    releaseFiles.add(join(datasetReleasesDir(project), hang.onFile));
+  }
+  const snap = snapshotFiles([
+    promptFile,
+    caseFile,
+    offNextRevFile,
+    onNextRevFile,
+    ...releaseFiles,
+  ]);
 
   try {
     if (body.prompt !== undefined) {
@@ -806,8 +821,12 @@ export async function updateTask(
       }
     }
   } catch (e) {
-    restoreFiles(snap);
-    return { error: (e as Error).message, code: 500 };
+    const notRestored = restoreFiles(snap);
+    const reason = (e as Error).message;
+    return {
+      error: notRestored.length > 0 ? rollbackNotCompletedError(reason, notRestored) : reason,
+      code: 500,
+    };
   }
 
   return getTask(project, taskId);
@@ -1064,7 +1083,25 @@ function readDatasetRelease(
   }
 }
 
-/** 往 dataset-release 追加 case_revision 引用（含 content_hash）。 */
+/**
+ * 重算并写入 `closure_hash`。
+ *
+ * 冻结闭包摘要的定义是「`case_revisions` 引用列表的规范哈希」（`closureDigest`）。
+ * 改动引用却不重算，会让声明值与实际闭包静默不一致，校验侧
+ * （`validateDatasetRelease`）随即报 `DATASET_CLOSURE_HASH_MISMATCH` 并拒绝整批校验。
+ */
+function writeDatasetReleaseWithClosure(
+  project: string,
+  releaseFile: string,
+  doc: Record<string, unknown>,
+): void {
+  const refs = Array.isArray(doc.case_revisions) ? doc.case_revisions : [];
+  doc.case_revisions = refs;
+  doc.closure_hash = closureDigest(refs);
+  writeJson(join(datasetReleasesDir(project), releaseFile), doc);
+}
+
+/** 往 dataset-release 追加 case_revision 引用（含 content_hash，并重算 closure_hash）。 */
 function appendDatasetReleaseItem(
   project: string,
   releaseFile: string,
@@ -1082,7 +1119,7 @@ function appendDatasetReleaseItem(
   if (!exists) {
     caseRevisions.push(ref);
     doc.case_revisions = caseRevisions;
-    writeJson(join(datasetReleasesDir(project), releaseFile), doc);
+    writeDatasetReleaseWithClosure(project, releaseFile, doc);
   }
   return true;
 }
@@ -1106,7 +1143,8 @@ function removeDatasetReleaseItem(
   );
   if (next.length === caseRevisions.length) return;
   doc.case_revisions = next;
-  writeJson(join(datasetReleasesDir(project), releaseFile), doc);
+  // 移除引用同样要重算闭包哈希：只删数组不更新摘要，校验侧会判整个 dataset-release 无效。
+  writeDatasetReleaseWithClosure(project, releaseFile, doc);
 }
 
 /** 从所有 dataset-release 移除某个 case_revision 引用。 */
@@ -1128,46 +1166,89 @@ function readCaseFile(file: string): Record<string, unknown> | undefined {
   }
 }
 
-/** 文件快照：记录是否存在与原文，用于多文件写入失败时回滚。 */
-type FileSnapshot = { file: string; existed: boolean; content?: string | undefined };
+/** 文件快照：记录路径原本是文件（带原文）、目录还是不存在，用于多文件写入失败时精确回滚。 */
+export type FileSnapshot = {
+  file: string;
+  /** 文件（重写原文）/ 目录（原位保留，不能写成空文件）/ 不存在（回滚时删除） */
+  kind: 'file' | 'dir' | 'missing';
+  content?: string | undefined;
+};
 
-function snapshotFiles(files: Array<string | undefined>): FileSnapshot[] {
+/** 快照一组路径（导出供测试直接验证回滚原语）。 */
+export function snapshotFiles(files: Array<string | undefined>): FileSnapshot[] {
   const out: FileSnapshot[] = [];
   for (const f of files) {
     if (!f) continue;
-    if (existsSync(f)) {
-      // 目录占位（非文件）跳过内容读取，回滚时按 existed 处理（restoreFiles 已容错）。
-      const isDir = statSync(f).isDirectory();
-      out.push({ file: f, existed: true, content: isDir ? undefined : readFileSync(f, 'utf8') });
-    } else {
-      out.push({ file: f, existed: false });
+    if (!existsSync(f)) {
+      out.push({ file: f, kind: 'missing' });
+      continue;
     }
+    // 目录不能当文件处理：把目录写成空文本文件属于数据破坏，回滚时原样保留即可。
+    if (statSync(f).isDirectory()) {
+      out.push({ file: f, kind: 'dir' });
+      continue;
+    }
+    out.push({ file: f, kind: 'file', content: readFileSync(f, 'utf8') });
   }
   return out;
 }
 
-/** 逆序恢复快照：原存在则写回原文（原子），原不存在则删除。 */
-function restoreFiles(snaps: FileSnapshot[]): void {
+/**
+ * 逆序恢复快照：文件写回原文（原子），目录原位保留，原不存在则删除。
+ *
+ * 单文件恢复失败不阻断其它文件，但**不静默吞掉**：返回失败清单，
+ * 由调用方如实上报「回滚不完整」，避免对外声称已回滚而磁盘仍是脏状态。
+ */
+function restoreFiles(snaps: FileSnapshot[]): string[] {
+  const failed: string[] = [];
   for (const s of [...snaps].reverse()) {
     try {
-      if (s.existed) writeTextAtomic(s.file, s.content ?? '');
-      else rmSync(s.file, { force: true });
+      if (s.kind === 'file') writeTextAtomic(s.file, s.content ?? '');
+      else if (s.kind === 'missing') rmSync(s.file, { force: true, recursive: true });
+      // kind === 'dir'：路径本来就该是目录，目录从未被本次写入替换，无需动作。
     } catch {
-      /* 回滚尽力而为：单文件恢复失败不阻断其它文件 */
+      failed.push(s.file);
     }
   }
+  return failed;
 }
 
-export function rollbackCreate(project: string, snap: CreateSnapshot): void {
-  for (const add of [...snap.releaseAdds].reverse()) {
-    removeDatasetReleaseItem(project, add.releaseFile, add.caseRevisionId);
+/** 删除本次新建的路径并返回删除失败的清单（同样不静默）。 */
+function removePaths(paths: string[]): string[] {
+  const failed: string[] = [];
+  for (const p of [...paths].reverse()) {
+    try {
+      if (existsSync(p)) rmSync(p, { recursive: true, force: true });
+    } catch {
+      failed.push(p);
+    }
   }
-  for (const file of [...snap.files].reverse()) {
-    if (existsSync(file)) rmSync(file, { force: true });
-  }
-  if (existsSync(snap.materialsDir)) {
-    rmSync(snap.materialsDir, { recursive: true, force: true });
-  }
+  return failed;
+}
+
+/**
+ * 执行回滚并返回**未恢复成功**的路径清单（空数组表示回滚彻底）。
+ * 只在控制台内部使用；对外通过 `rollbackNotCompletedError` 显式暴露不完整回滚。
+ */
+export function rollbackCreate(_project: string, snap: CreateSnapshot): string[] {
+  // dataset-release 按原文整体恢复：只删新增引用会留下重算过的 closure_hash，
+  // 与「未追加」的原状态并不等价，且一旦追加与删除两侧口径不一致就会残留脏哈希。
+  // materials 目录录题前校验过必须不存在，因此整体删除是精确还原。
+  return [
+    ...restoreFiles(snap.releases),
+    ...removePaths(snap.files),
+    ...removePaths([snap.materialsDir]),
+  ];
+}
+
+/**
+ * 构造「回滚不完整」的错误文案：把失败路径如实写给调用方，
+ * 禁止在磁盘仍是半截状态时对外说「已回滚」。
+ */
+function rollbackNotCompletedError(reason: string, failedPaths: string[]): string {
+  const shown = failedPaths.slice(0, 5).join('、');
+  const more = failedPaths.length > 5 ? ` 等 ${failedPaths.length} 处` : '';
+  return `${reason}；但回滚未完成，需人工核对：${shown}${more}`;
 }
 
 export type ValidateFn = () => Promise<{ exitCode: number; ok: boolean; log: string }>;
@@ -1278,7 +1359,10 @@ export async function createTask(
     taskId,
     materialsDir: mat,
     files: [],
-    releaseAdds: [],
+    // 先取原文快照：后续任何一步失败都能把 dataset-release 精确还原
+    releases: snapshotFiles(
+      [hang.offFile, hang.onFile].map((f) => join(datasetReleasesDir(project), f)),
+    ),
   };
 
   try {
@@ -1308,26 +1392,32 @@ export async function createTask(
     if (!appendDatasetReleaseItem(project, hang.offFile, offRef)) {
       throw new Error('测试集无插件名单不存在');
     }
-    snap.releaseAdds.push({ releaseFile: hang.offFile, caseRevisionId: offRevisionId });
     if (!appendDatasetReleaseItem(project, hang.onFile, onRef)) {
       throw new Error('测试集有插件名单不存在');
     }
-    snap.releaseAdds.push({ releaseFile: hang.onFile, caseRevisionId: onRevisionId });
 
     if (options?.validate) {
       const v = await options.validate();
       if (!v.ok) {
-        rollbackCreate(project, snap);
+        const notRestored = rollbackCreate(project, snap);
+        const reason = '录题后校验失败';
         return {
-          error: '录题后校验失败，已回滚',
+          error:
+            notRestored.length > 0
+              ? rollbackNotCompletedError(reason, notRestored)
+              : `${reason}，已回滚`,
           code: 500,
           log: v.log,
         };
       }
     }
   } catch (e) {
-    rollbackCreate(project, snap);
-    return { error: (e as Error).message, code: 500 };
+    const notRestored = rollbackCreate(project, snap);
+    const reason = (e as Error).message;
+    return {
+      error: notRestored.length > 0 ? rollbackNotCompletedError(reason, notRestored) : reason,
+      code: 500,
+    };
   }
 
   const detail = getTask(project, taskId);
@@ -1356,26 +1446,54 @@ export function deleteTask(
   const caseFile = join(casesV1Dir(project), caseFileName(caseId));
   const revisionsDir = caseRevisionsV1Dir(project);
 
-  // 删除该 case 的所有 case-revision 文件（r1..rN × off/on）。
+  // 先快照所有可能被删除的内容：case.json、全部 case-revision、
+  // 相关 dataset-release 原文、materials 目录。
+  // 删题会先摘 release 引用再删文件，中途失败若不整体恢复，会留下
+  // 「release 已摘引用、case-revision 仍在」或闭包哈希与引用列表不一致的脏库。
+  const revFiles: string[] = [];
   if (existsSync(revisionsDir)) {
     const prefix = `${caseId}.r`;
     for (const f of readdirSync(revisionsDir)) {
       if (f.startsWith(prefix) && f.endsWith('.case-revision.json')) {
         const revFile = join(revisionsDir, f);
-        if (safeUnder(join(project, 'case-revisions'), revFile)) {
-          const caseRevisionId = f.slice(0, -'.case-revision.json'.length);
-          removeFromAllDatasetReleases(project, caseRevisionId);
-          rmSync(revFile, { force: true });
-        }
+        if (safeUnder(join(project, 'case-revisions'), revFile)) revFiles.push(revFile);
       }
     }
   }
-  // 删除 case.json。
-  if (existsSync(caseFile) && safeUnder(join(project, 'cases'), caseFile)) {
-    rmSync(caseFile, { force: true });
+  const releaseFiles = new Set<string>();
+  for (const testSetId of testSetIdsForTask(project, taskId)) {
+    const hang = releaseFilesForTestSet(testSetId);
+    releaseFiles.add(join(datasetReleasesDir(project), hang.offFile));
+    releaseFiles.add(join(datasetReleasesDir(project), hang.onFile));
   }
-  if (existsSync(mat)) {
-    rmSync(mat, { recursive: true, force: true });
+  const snap = snapshotFiles([
+    ...(existsSync(caseFile) && safeUnder(join(project, 'cases'), caseFile) ? [caseFile] : []),
+    ...revFiles,
+    ...releaseFiles,
+    ...(existsSync(mat) ? [mat] : []),
+  ]);
+
+  try {
+    for (const revFile of revFiles) {
+      const caseRevisionId = revFile
+        .slice(revFile.lastIndexOf(sep) + 1)
+        .slice(0, -'.case-revision.json'.length);
+      removeFromAllDatasetReleases(project, caseRevisionId);
+      rmSync(revFile, { force: true });
+    }
+    if (existsSync(caseFile) && safeUnder(join(project, 'cases'), caseFile)) {
+      rmSync(caseFile, { force: true });
+    }
+    if (existsSync(mat)) {
+      rmSync(mat, { recursive: true, force: true });
+    }
+  } catch (e) {
+    const notRestored = restoreFiles(snap);
+    const reason = (e as Error).message;
+    return {
+      error: notRestored.length > 0 ? rollbackNotCompletedError(reason, notRestored) : reason,
+      code: 500,
+    };
   }
   return { ok: true, taskId };
 }
