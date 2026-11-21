@@ -2867,3 +2867,17 @@ return REQUIRED_ISOLATION_PROOFS.filter((proof) => {
 - B-direct 用例按 `oracle_failures[].oracle_id` + 消息字段断言失败来源，而非只看 `attribution`——编排层对 adapter 异常/cleanup 失败同样兜底产出 `HARNESS` 行，只看归因会被兜底行天然满足（假绿）。
 - 可证伪验证：修复前空清单恒通过（Red：`expected true to be false`）且归 `MODEL_SCHEMA`；去掉静态语义检查 → 2 条红；让空工具名守卫短路 → B-direct 用例 1 条红；恢复后全绿。
 - 门禁：`npm run verify` 全过（130 文件 / **1225** 用例、examples 321/321）。
+
+---
+
+## 65. 禁止口径空列表与重复分支清理（2026-11-21）
+
+**发现**：`src/oracles/forbidden-variants.ts` 的否定语境判定被**原样复制了两遍**（同一注释、同一 `if` 连续出现），属实现残留；同时 `forbidden_variants: []` 在离线运行期恒判通过（没有规则 → 任何文本都「未命中」），只有 schema 拦一次。
+
+**修复**
+
+1. 删除重复的 `isNegatedAction` 判定分支（行为不变，测试全绿）。
+2. 补离线守卫：`forbidden_variants` 为空时判负归 `HARNESS` 并明示原因（schema 已拦一次，这里兜住历史资产与非 schema 载入路径）。
+3. 复核 `stdout_assert` 的 `contains: ""` / `contains: [""]` 等形态：`asStringList` 过滤后为空即报配错（`HARNESS`），**不产生假绿**，无需改动。
+
+**验证**：新增 `forbidden-variants.test.ts` 空列表用例；`tests/oracles` 307 例全绿；串行全量 `vitest run --no-file-parallelism` 130 文件 / **1226** 用例全绿。

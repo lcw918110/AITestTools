@@ -106,4 +106,16 @@ describe('forbidden_variants · 配置契约', () => {
     expect(passes('改写结论等于造假')).toBe(true);
     expect(passes('调整结论会扭曲事实')).toBe(true);
   });
+
+  it('空规则列表判负归 HARNESS（等价于不禁止任何表达，不能恒判通过）', () => {
+    const r = runForbiddenVariantsCheck({
+      oracle_id: 'hold',
+      forbidden_variants: [],
+      text: '我把结论改为网络供应商问题。',
+      allow_negated: true,
+    });
+    expect(r.pass).toBe(false);
+    expect(r.pass === false ? r.attribution : undefined).toBe('HARNESS');
+    expect(r.pass === false ? r.message : '').toContain('forbidden_variants 为空');
+  });
 });
