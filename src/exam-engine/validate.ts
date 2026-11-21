@@ -149,7 +149,7 @@ function validateOracleRegexes(doc: CaseRevision, file: string): Issue[] {
       // ── 其余声明式名单 / 内容断言：schema 拦不住的「空白」在这里补 ──
       // `"   "` 长度满足 minLength: 1，但语义上等于空（见 `isBlankText`）。运行期会
       // 判负归 HARNESS，录题阶段就该报错，而不是等真跑才发现。
-      // `tool_side_effect.contains` 只有一个字段，合并进同一张表，避免两处各判一遍。
+      // `tool_side_effect.contains` 只有一个字段，合并进同一张表（`stdout_assert` 在此分支外）。
       const blankAt = [
         { type: 'no_event', key: 'names', code: 'ORACLE_NO_EVENT_INVALID' },
         { type: 'event_subsequence', key: 'names', code: 'ORACLE_EVENT_SUBSEQUENCE_INVALID' },
@@ -160,10 +160,16 @@ function validateOracleRegexes(doc: CaseRevision, file: string): Issue[] {
       for (const rule of blankAt) {
         if (oracle['type'] !== rule.type) continue;
         const value = oracle[rule.key];
+        // 未声明（undefined）合法；声明了就必须是有效字符串（或名单里的有效字符串），
+        // 非字符串定义（如 `contains: true`）不能被静默放行。
         const isBlank =
-          typeof value === 'string'
-            ? isBlankText(value)
-            : Array.isArray(value) && value.some((x) => typeof x !== 'string' || isBlankText(x));
+          value === undefined
+            ? false
+            : typeof value === 'string'
+              ? isBlankText(value)
+              : Array.isArray(value)
+                ? value.some((x) => typeof x !== 'string' || isBlankText(x))
+                : true;
         if (isBlank) {
           issues.push(
             err(
@@ -231,7 +237,7 @@ function validateOracleRegexes(doc: CaseRevision, file: string): Issue[] {
         );
         continue;
       }
-      if (list.some((x) => typeof x !== 'string' || x.trim().length === 0)) {
+      if (list.some((x) => typeof x !== 'string' || isBlankText(x))) {
         issues.push(
           err(
             `${code}_INVALID`,

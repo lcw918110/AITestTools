@@ -1,4 +1,5 @@
 import type { Attribution, OracleStdoutAssert } from '../exam-engine/types.ts';
+import { isBlankText } from '../exam-engine/validate.ts';
 import type { OracleOutcome } from './types.ts';
 import { runSemanticVariantsCheck } from './semantic-variants.ts';
 import { runForbiddenVariantsCheck } from './forbidden-variants.ts';
@@ -45,7 +46,7 @@ export function runStdoutAssertOracle(opts: {
         attribution: 'HARNESS',
       };
     }
-    const bad = semanticVariants.find((x) => typeof x !== 'string' || x.trim().length === 0);
+    const bad = semanticVariants.find((x) => typeof x !== 'string' || isBlankText(x));
     if (bad !== undefined) {
       return {
         pass: false,
@@ -80,7 +81,7 @@ export function runStdoutAssertOracle(opts: {
         attribution: 'HARNESS',
       };
     }
-    const bad = forbiddenVariants.find((x) => typeof x !== 'string' || x.trim().length === 0);
+    const bad = forbiddenVariants.find((x) => typeof x !== 'string' || isBlankText(x));
     if (bad !== undefined) {
       return {
         pass: false,

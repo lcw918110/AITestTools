@@ -1,6 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Attribution } from '../exam-engine/types.ts';
+import { isBlankText } from '../exam-engine/validate.ts';
 import type { AxisItemResult } from './runner-types.ts';
 import {
   FoldResolveError,
@@ -160,7 +161,7 @@ export class L1Adapter implements ExecutionAdapter {
         // 两者都能绕过 trim 检查，使 forbidden 集合无命中而恒通过（假绿）。
         const declared = Array.isArray(oracle.names) ? oracle.names.length : 0;
         const names = Array.isArray(oracle.names)
-          ? oracle.names.filter((n): n is string => typeof n === 'string' && n.trim() !== '')
+          ? oracle.names.filter((n): n is string => typeof n === 'string' && !isBlankText(n))
           : [];
         // 空 names 会让 forbidden 为空 Set、find 恒 undefined → 恒通过（假绿）。
         // 与 L2 / hosted 口径对齐：视为试题配错，归因 HARNESS。

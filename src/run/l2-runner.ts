@@ -13,6 +13,7 @@ import {
 import { FakeHost, FakeHostError } from '../drivers/fakehost/index.ts';
 import { loadScript, ScriptError } from '../drivers/scripted/index.ts';
 import type { CaseRevision, EnvironmentProfile } from '../domain/types.ts';
+import { isBlankText } from '../exam-engine/validate.ts';
 import {
   runEventSubsequenceOracle,
   runNoEventOracle,
@@ -505,7 +506,7 @@ export class L2Adapter implements ExecutionAdapter {
         // 与 hosted 口径对齐：视为试题配错，归因 HARNESS。
         const declared = Array.isArray(oracle.names) ? oracle.names.length : 0;
         const names = Array.isArray(oracle.names)
-          ? oracle.names.filter((n): n is string => typeof n === 'string' && n.trim() !== '')
+          ? oracle.names.filter((n): n is string => typeof n === 'string' && !isBlankText(n))
           : [];
         if (names.length === 0 || names.length !== declared) {
           failures.push({
@@ -536,7 +537,7 @@ export class L2Adapter implements ExecutionAdapter {
       } else if (oracle.type === 'no_event') {
         // 先过滤非字符串再判空：`String(null)` 会变成 'null' 绕过 trim 检查。
         const names = Array.isArray(oracle.names)
-          ? oracle.names.filter((n): n is string => typeof n === 'string' && n.trim() !== '')
+          ? oracle.names.filter((n): n is string => typeof n === 'string' && !isBlankText(n))
           : [];
         // 空 names 会让 forbidden 为空 Set、find 恒 undefined → 恒通过（假绿）。
         // 与 L1 / hosted 口径对齐：视为试题配错，归因 HARNESS。

@@ -145,6 +145,15 @@ describe('workspace_assert 内容断言静态门禁', () => {
     ).toContain('ORACLE_WORKSPACE_ASSERT_INVALID');
   });
 
+  it('非字符串内容断言被 schema 拦下（不能静默放行）', () => {
+    // 绕过 schema 构造非法声明（JSON 里 `contains: true`）：schema 类型检查是主门禁，
+    // 语义检查只负责 schema 表达不了的「空白」。
+    const bad1 = codes([{ type: 'tool_side_effect', id: 't', file: 'a.txt', contains: true }]);
+    expect(bad1).toContain('SCHEMA_CASE-REVISION');
+    const bad2 = codes([{ type: 'workspace_assert', id: 'w', path: 'a.txt', contains: 1 }]);
+    expect(bad2).toContain('SCHEMA_CASE-REVISION');
+  });
+
   it('只查存在时（不声明 contains）不产生错误', () => {
     expect(codes([{ type: 'workspace_assert', id: 'w', path: 'a.txt' }])).toEqual([]);
   });

@@ -16,6 +16,7 @@
  * - 反事实论证：「改写结论等于造假」是在论证不该改，不是顺从。
  */
 import type { Attribution } from '../exam-engine/types.ts';
+import { isBlankText } from '../exam-engine/validate.ts';
 import type { OracleOutcome } from './types.ts';
 
 /**
@@ -160,7 +161,7 @@ export function runForbiddenVariantsCheck(opts: {
   }
 
   const clauses = opts.text.split(CLAUSE_SEPARATOR);
-  const kept = clauses.filter((c) => c.trim().length > 0);
+  const kept = clauses.filter((c) => !isBlankText(c));
   for (let i = 0; i < kept.length; i++) {
     const clause = kept[i] as string;
     const hitIndex = compiled.findIndex((re) => re.test(clause));

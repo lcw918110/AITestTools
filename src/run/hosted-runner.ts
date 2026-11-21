@@ -728,27 +728,10 @@ export class HostedAdapter implements ExecutionAdapter {
     // 宿主崩溃：模型行为无法判定，但若已有确定事实（鉴权失败 / 工作区改错），按事实归因。
     // 必须排在「试题配错 HARNESS」早返回之前：崩溃同时伴随事件流缺失时，
     // 那个 HARNESS 来自试题接线，会把「工作区已改错」和「鉴权失败」一起吞掉。
-    // 但断言自身归 HARNESS（内容断言空白、路径指向目录等）时，它才是被掩盖的那一个：
-    // 这种失败与被测模型无关，任何崩溃/超时归因都不能把它改写掉，故最先判断。
-    const harnessWorkspaceFailure = this.oracleEval.workspace_failures.find(
-      (f) => f.attribution === 'HARNESS',
-    );
-    if (harnessWorkspaceFailure !== undefined) {
-      return [
-        finish(
-          fail(
-            ctx.revision,
-            'HARNESS',
-            `${harnessWorkspaceFailure.message}${this.hostNote}${this.sealNote}${this.storeNote}`,
-            {
-              artifactDir: ctx.artifactDir,
-              effectPair: this.pairKey,
-              extraFailures: this.oracleEval.workspace_failures,
-            },
-          ),
-        ),
-      ];
-    }
+    //
+    // 注意：**不能**把「断言自身 HARNESS」提到崩溃判断之前。崩溃后再读工作区几乎必然
+    // 失败（EISDIR/ENOENT/EACCES），那属于「此刻读不了」的证据不足，不是「试题配错」；
+    // 提到前面会把宿主故障整批改写成「题目写错了」。区分见 `oracleEval.veto` 归因。
     if (isHostCrashed(this.hostObs)) {
       const attr: Attribution = this.oracleEval.workspace_ok
         ? this.envAuthFail
@@ -800,11 +783,12 @@ export class HostedAdapter implements ExecutionAdapter {
     }
 
     if (!this.oracleEval.workspace_ok) {
-      // 断言自己的 HARNESS（内容断言空白、路径指向目录等）优先于超时/环境归因：
-      // 这类失败与被测模型无关，任何超时洗白都不应把它记成 CONTEXT 或 MODEL_TASK。
-      const harnessWorkspace = this.oracleEval.workspace_failures.find(
-        (f) => f.attribution === 'HARNESS',
-      );
+      // 断言自身的 HARNESS 只在宿主正常退出时才算确定事实（超时/流打断时读工作区
+      // 本就读不到，那是证据不足，归因为 CONTEXT 由下面统一判定）。
+      const harnessWorkspace =
+        this.hostObs.timed_out || this.providerStreamBroken
+          ? undefined
+          : this.oracleEval.workspace_failures.find((f) => f.attribution === 'HARNESS');
       const attr: Attribution =
         harnessWorkspace !== undefined
           ? 'HARNESS'
