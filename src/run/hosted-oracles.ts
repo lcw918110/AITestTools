@@ -7,7 +7,7 @@ import { runStdoutAssertOracle } from '../oracles/stdout-assert.ts';
 import { runToolSideEffectOracle } from '../oracles/tool-side-effect.ts';
 import { runWorkspaceAssertOracle } from '../oracles/workspace-assert.ts';
 import { resolveHostedAttribution } from '../attribution/hosted-tree.ts';
-import { isBlankText } from '../exam-engine/validate.ts';
+import { isBlankText } from '../exam-engine/blank.ts';
 
 /**
  * 构造 oracle 否决项。

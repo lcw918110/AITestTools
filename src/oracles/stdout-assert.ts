@@ -1,5 +1,5 @@
 import type { Attribution, OracleStdoutAssert } from '../exam-engine/types.ts';
-import { isBlankText } from '../exam-engine/validate.ts';
+import { isBlankText } from '../exam-engine/blank.ts';
 import type { OracleOutcome } from './types.ts';
 import { runSemanticVariantsCheck } from './semantic-variants.ts';
 import { runForbiddenVariantsCheck } from './forbidden-variants.ts';

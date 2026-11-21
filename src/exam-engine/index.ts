@@ -25,7 +25,7 @@ export {
   type ExamProject,
 } from './project.ts';
 export { ASSET_PROTOCOL_VERSION, validateAgainstSchema, type SchemaName } from './schema.ts';
-export { isBlankText } from './validate.ts';
+export { isBlankText } from './blank.ts';
 export {
   validateCaseV2,
   validateCaseRevision,

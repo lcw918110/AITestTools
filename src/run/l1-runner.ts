@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import type { Attribution } from '../exam-engine/types.ts';
-import { isBlankText } from '../exam-engine/validate.ts';
+import { isBlankText } from '../exam-engine/blank.ts';
 import type { AxisItemResult } from './runner-types.ts';
 import {
   FoldResolveError,

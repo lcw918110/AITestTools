@@ -13,7 +13,7 @@ import {
 import { FakeHost, FakeHostError } from '../drivers/fakehost/index.ts';
 import { loadScript, ScriptError } from '../drivers/scripted/index.ts';
 import type { CaseRevision, EnvironmentProfile } from '../domain/types.ts';
-import { isBlankText } from '../exam-engine/validate.ts';
+import { isBlankText } from '../exam-engine/blank.ts';
 import {
   runEventSubsequenceOracle,
   runNoEventOracle,

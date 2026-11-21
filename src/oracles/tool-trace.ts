@@ -1,5 +1,5 @@
 import type { Attribution } from '../exam-engine/types.ts';
-import { isBlankText } from '../exam-engine/validate.ts';
+import { isBlankText } from '../exam-engine/blank.ts';
 import type { OracleOutcome } from './types.ts';
 
 export interface ToolCallTrace {

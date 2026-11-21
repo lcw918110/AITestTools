@@ -1,7 +1,7 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { resolve, sep } from 'node:path';
 import type { Attribution, OracleToolSideEffect } from '../exam-engine/types.ts';
-import { isBlankText } from '../exam-engine/validate.ts';
+import { isBlankText } from '../exam-engine/blank.ts';
 import type { OracleOutcome } from './types.ts';
 
 /**

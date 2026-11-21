@@ -7,6 +7,7 @@ import {
 } from './loader.ts';
 import { checkProtocolCompatibility } from './project.ts';
 import type { ExamProject } from './project.ts';
+import { isBlankText } from './blank.ts';
 import { validateAgainstSchema } from './schema.ts';
 import { revisionDigest, closureDigest } from './digest.ts';
 import type {
@@ -60,18 +61,6 @@ function err(code: string, message: string, file: string, instancePath?: string)
  * 本函数补拦 schema 表达不了的「空白」语义：schema 全绿之后才执行到这里，
  * 两道门禁互补——schema 管「有没有声明」，本函数管「声明了但是不是等于没声明」。
  */
-
-/**
- * 「空白」的唯一定义：去掉空白后为空，即只由空格 / 制表 / 换行 / 全角空格 / 零宽字符组成。
- *
- * 不用 `String.prototype.trim()`：它不认全角空格 U+3000、零宽空格 U+200B 与
- * 不换行空格 U+00A0，这些字符肉眼不可见却会让断言「看起来声明了、实际匹配不到」。
- * 注意 `\t` / `\n` 是真实字符语义（如「必须用 tab 缩进」），但**单独**声明它们时
- * 同样没有任何可判内容，故一并归入空白；和文字混排（`"a\tb"`）不受影响。
- */
-export function isBlankText(value: string): boolean {
-  return value.replace(/[\s\u00a0\u200b-\u200d\u3000\ufeff]/g, '') === '';
-}
 
 function validateOracleRegexes(doc: CaseRevision, file: string): Issue[] {
   const issues: Issue[] = [];
