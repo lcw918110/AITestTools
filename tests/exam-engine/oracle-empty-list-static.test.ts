@@ -67,3 +67,49 @@ describe('schema_obedience 名单静态门禁', () => {
     ).toEqual([]);
   });
 });
+
+describe('event_subsequence / no_event 名单静态门禁', () => {
+  it('空 names 被 schema minItems 拦住', () => {
+    expect(codes([{ type: 'event_subsequence', id: 'e', names: [] }])).toContain(
+      'SCHEMA_CASE-REVISION',
+    );
+    expect(codes([{ type: 'no_event', id: 'n', names: [] }])).toContain('SCHEMA_CASE-REVISION');
+  });
+
+  it('空白事件名被语义检查拦住（`"  "` 能满足 schema minLength）', () => {
+    expect(codes([{ type: 'no_event', id: 'n', names: ['  '] }])).toContain(
+      'ORACLE_NO_EVENT_INVALID',
+    );
+    // 空串 `""` 由 schema `minLength: 1` 先拦下，语义检查只在 schema 放行后才执行；
+    // 纯空白 `"  "` 长度够但语义为空，必须由语义检查补拦。
+    expect(codes([{ type: 'event_subsequence', id: 'e', names: [''] }])).toContain(
+      'SCHEMA_CASE-REVISION',
+    );
+    expect(codes([{ type: 'event_subsequence', id: 'e', names: ['  '] }])).toContain(
+      'ORACLE_EVENT_SUBSEQUENCE_INVALID',
+    );
+  });
+
+  it('有效名单不产生错误', () => {
+    expect(codes([{ type: 'event_subsequence', id: 'e', names: ['A', 'B'] }])).toEqual([]);
+    expect(codes([{ type: 'no_event', id: 'n', names: ['A'] }])).toEqual([]);
+  });
+});
+
+describe('tool_side_effect / metric_threshold 静态门禁', () => {
+  it('空 contains 被 schema minLength 拦住', () => {
+    expect(codes([{ type: 'tool_side_effect', id: 't', file: 'a.txt', contains: '' }])).toContain(
+      'SCHEMA_CASE-REVISION',
+    );
+  });
+
+  it('metric_threshold 未声明阈值被 anyOf 拦住', () => {
+    expect(codes([{ type: 'metric_threshold', id: 'm', metric: 'x' }])).toContain(
+      'SCHEMA_CASE-REVISION',
+    );
+  });
+
+  it('声明 min 即合法', () => {
+    expect(codes([{ type: 'metric_threshold', id: 'm', metric: 'x', min: 0 }])).toEqual([]);
+  });
+});

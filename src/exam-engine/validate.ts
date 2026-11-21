@@ -132,7 +132,43 @@ function validateOracleRegexes(doc: CaseRevision, file: string): Issue[] {
       continue;
     }
 
-    if (oracle['type'] !== 'stdout_assert') continue;
+    if (oracle['type'] !== 'stdout_assert') {
+      // ── 其余声明式名单 / 内容断言：schema 拦不住的「纯空白」在这里补 ──
+      // `"   "` 的长度满足 minLength: 1，但语义上等于空：运行期会被过滤成空清单
+      // 并判负归 HARNESS，录题阶段就该报错，而不是等真跑才发现。
+      const blankAt = [
+        { type: 'no_event', key: 'names', code: 'ORACLE_NO_EVENT_INVALID' },
+        { type: 'event_subsequence', key: 'names', code: 'ORACLE_EVENT_SUBSEQUENCE_INVALID' },
+      ] as const;
+      for (const rule of blankAt) {
+        if (oracle['type'] !== rule.type) continue;
+        const list = oracle[rule.key];
+        if (Array.isArray(list) && list.some((x) => typeof x !== 'string' || x.trim() === '')) {
+          issues.push(
+            err(
+              rule.code,
+              `${rule.key} 含非字符串或空白名（等价于空清单，等于无断言）`,
+              file,
+              `${base}/${rule.key}`,
+            ),
+          );
+        }
+      }
+      if (oracle['type'] === 'tool_side_effect') {
+        const contains = oracle['contains'];
+        if (contains !== undefined && (typeof contains !== 'string' || contains.trim() === '')) {
+          issues.push(
+            err(
+              'ORACLE_TOOL_SIDE_EFFECT_INVALID',
+              'contains 为空白（等于没声明内容断言，运行期会判负）',
+              file,
+              `${base}/contains`,
+            ),
+          );
+        }
+      }
+      continue;
+    }
 
     const flagsRaw = oracle['regex_flags'];
     const flags = typeof flagsRaw === 'string' ? flagsRaw : 'i';

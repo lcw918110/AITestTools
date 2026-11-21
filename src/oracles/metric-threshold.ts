@@ -21,7 +21,17 @@ export function runMetricThresholdOracle(opts: {
     };
   }
   const actual = opts.metrics[metric];
-  if (actual === undefined || Number.isNaN(actual)) {
+  // NaN 属「指标算坏了」，不是「未产出」：把两者混为一谈会让统计口径错误被当成
+  // HARNESS 环境问题一笔带过，真正的原因（指标实现或试题配置）永远查不出来。
+  if (typeof actual === 'number' && Number.isNaN(actual)) {
+    return {
+      pass: false,
+      oracle_id: opts.oracle_id,
+      message: `指标 "${metric}" 值为 NaN（指标实现或统计口径有误，属试题/HARNESS 问题）`,
+      attribution: 'HARNESS',
+    };
+  }
+  if (actual === undefined) {
     return {
       pass: false,
       oracle_id: opts.oracle_id,
