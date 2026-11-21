@@ -113,3 +113,24 @@ describe('tool_side_effect / metric_threshold 静态门禁', () => {
     expect(codes([{ type: 'metric_threshold', id: 'm', metric: 'x', min: 0 }])).toEqual([]);
   });
 });
+
+describe('workspace_assert 内容断言静态门禁', () => {
+  it('空 contains 被 schema minLength 拦住', () => {
+    expect(codes([{ type: 'workspace_assert', id: 'w', path: 'a.txt', contains: '' }])).toContain(
+      'SCHEMA_CASE-REVISION',
+    );
+  });
+
+  it('纯空白 contains / not_contains 被语义检查拦住', () => {
+    expect(
+      codes([{ type: 'workspace_assert', id: 'w', path: 'a.txt', contains: '   ' }]),
+    ).toContain('ORACLE_WORKSPACE_ASSERT_INVALID');
+    expect(
+      codes([{ type: 'workspace_assert', id: 'w', path: 'a.txt', not_contains: ' \t ' }]),
+    ).toContain('ORACLE_WORKSPACE_ASSERT_INVALID');
+  });
+
+  it('只查存在时（不声明 contains）不产生错误', () => {
+    expect(codes([{ type: 'workspace_assert', id: 'w', path: 'a.txt' }])).toEqual([]);
+  });
+});

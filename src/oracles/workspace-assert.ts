@@ -55,25 +55,40 @@ export function runWorkspaceAssertOracle(opts: {
   }
   const contains = opts.oracle.contains;
   const notContains = opts.oracle.not_contains;
-  const needsText =
-    exists &&
-    ((typeof contains === 'string' && contains.length > 0) ||
-      (typeof notContains === 'string' && notContains.length > 0));
+  // 声明了内容断言就必须是有效文本：`""` 与纯空白（`"   "`）语义上都等于「没声明」，
+  // 放行会让「要检查文件内容」的断言退化成只查文件存在；拿去 `includes("   ")` 比对
+  // 又把试题笔误记成被测失败。两者都属试题配错，录题阶段已由 schema minLength +
+  // 语义检查拦住，这里兜住绕过静态门禁的路径。
+  for (const [key, value] of [
+    ['contains', contains],
+    ['not_contains', notContains],
+  ] as const) {
+    if (value !== undefined && (typeof value !== 'string' || value.trim() === '')) {
+      return {
+        pass: false,
+        oracle_id: opts.oracle_id,
+        message: `workspace_assert 的 ${key} 为空白（等价于没声明内容断言）`,
+        attribution: 'HARNESS',
+      };
+    }
+  }
+  const needsText = exists && (contains !== undefined || notContains !== undefined);
   if (needsText) {
     let text: string;
     try {
       text = readFileSync(abs, 'utf8');
     } catch (err) {
       // 读不了（指向目录、权限不足等）是环境或试题问题，不能记成「模型没做到」，
-      // 否则环境故障会污染被测系统的缺陷数。
+      // 否则环境故障会污染被测系统的缺陷数。调用方传的 attribution 只对「内容不匹配」
+      // 生效——与 tool_side_effect 读失败硬归 HARNESS 保持同一口径。
       return {
         pass: false,
         oracle_id: opts.oracle_id,
         message: `读取文件 ${rel} 失败：${err instanceof Error ? err.message : String(err)}`,
-        attribution: opts.attribution ?? 'HARNESS',
+        attribution: 'HARNESS',
       };
     }
-    if (typeof contains === 'string' && contains.length > 0 && !text.includes(contains)) {
+    if (contains !== undefined && !text.includes(contains)) {
       return {
         pass: false,
         oracle_id: opts.oracle_id,
@@ -81,7 +96,7 @@ export function runWorkspaceAssertOracle(opts: {
         attribution: opts.attribution ?? 'TOOL',
       };
     }
-    if (typeof notContains === 'string' && notContains.length > 0 && text.includes(notContains)) {
+    if (notContains !== undefined && text.includes(notContains)) {
       return {
         pass: false,
         oracle_id: opts.oracle_id,

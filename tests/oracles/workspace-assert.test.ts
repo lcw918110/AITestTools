@@ -166,4 +166,68 @@ describe('runWorkspaceAssertOracle', () => {
     expect(o.pass).toBe(false);
     expect(o.message).toContain('安全拒绝');
   });
+
+  it('contains 为空白串时归 HARNESS，不拿去 includes 比对', () => {
+    const ws = join(tmpdir(), `ws-assert-blank-${Date.now()}`);
+    mkdirSync(ws, { recursive: true });
+    writeFileSync(join(ws, 'data.txt'), 'abc');
+    const o = runWorkspaceAssertOracle({
+      oracle_id: 'w1',
+      oracle: { type: 'workspace_assert', path: 'data.txt', contains: '   ' },
+      workspace: ws,
+      attribution: 'MODEL_TASK',
+    });
+    expect(o).toMatchObject({ pass: false, attribution: 'HARNESS' });
+    if (!o.pass) expect(o.message).toContain('contains');
+  });
+
+  it('contains 为空串时不退化成只查存在', () => {
+    const ws = join(tmpdir(), `ws-assert-empty-contains-${Date.now()}`);
+    mkdirSync(ws, { recursive: true });
+    writeFileSync(join(ws, 'data.txt'), 'abc');
+    const o = runWorkspaceAssertOracle({
+      oracle_id: 'w1',
+      // 绕过静态门禁构造非法声明，运行期必须拦
+      oracle: { type: 'workspace_assert', path: 'data.txt', contains: '' },
+      workspace: ws,
+    });
+    expect(o).toMatchObject({ pass: false, attribution: 'HARNESS' });
+  });
+
+  it('not_contains 为空白串同样归 HARNESS', () => {
+    const ws = join(tmpdir(), `ws-assert-blank-not-${Date.now()}`);
+    mkdirSync(ws, { recursive: true });
+    writeFileSync(join(ws, 'data.txt'), 'abc');
+    const o = runWorkspaceAssertOracle({
+      oracle_id: 'w1',
+      oracle: { type: 'workspace_assert', path: 'data.txt', not_contains: ' \t ' },
+      workspace: ws,
+    });
+    expect(o).toMatchObject({ pass: false, attribution: 'HARNESS' });
+  });
+
+  it('读文件失败时传了 MODEL_TASK 归因仍归 HARNESS', () => {
+    const ws = join(tmpdir(), `ws-assert-readfail-${Date.now()}`);
+    mkdirSync(join(ws, 'subdir'), { recursive: true });
+    const o = runWorkspaceAssertOracle({
+      oracle_id: 'w1',
+      oracle: { type: 'workspace_assert', path: 'subdir', contains: 'x' },
+      workspace: ws,
+      attribution: 'MODEL_TASK',
+    });
+    expect(o).toMatchObject({ pass: false, attribution: 'HARNESS' });
+  });
+
+  it('内容不匹配才使用调用方归因', () => {
+    const ws = join(tmpdir(), `ws-assert-mismatch-attr-${Date.now()}`);
+    mkdirSync(ws, { recursive: true });
+    writeFileSync(join(ws, 'data.txt'), 'abc');
+    const o = runWorkspaceAssertOracle({
+      oracle_id: 'w1',
+      oracle: { type: 'workspace_assert', path: 'data.txt', contains: 'zzz' },
+      workspace: ws,
+      attribution: 'MODEL_TASK',
+    });
+    expect(o).toMatchObject({ pass: false, attribution: 'MODEL_TASK' });
+  });
 });

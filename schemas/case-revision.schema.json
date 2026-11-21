@@ -251,8 +251,8 @@
         "id": { "type": "string" },
         "path": { "type": "string", "minLength": 1 },
         "file": { "type": "string", "minLength": 1 },
-        "contains": { "type": "string" },
-        "not_contains": { "type": "string" },
+        "contains": { "type": "string", "minLength": 1 },
+        "not_contains": { "type": "string", "minLength": 1 },
         "exists": { "type": "boolean" }
       },
       "additionalProperties": false

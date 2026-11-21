@@ -20,3 +20,36 @@ describe('runMetricThresholdOracle', () => {
     expect(o.pass).toBe(false);
   });
 });
+
+describe('runMetricThresholdOracle 归因（真实调用点都会传 focus）', () => {
+  it('指标未产出时即使传了焦点归因也归 HARNESS', () => {
+    const o = runMetricThresholdOracle({
+      oracle_id: 'm1',
+      oracle: { type: 'metric_threshold', metric: 'c_contract_pass_rate', min: 1 },
+      metrics: {},
+      attribution: 'MODEL_TASK',
+    });
+    expect(o.pass).toBe(false);
+    expect(o).toMatchObject({ attribution: 'HARNESS' });
+  });
+
+  it('指标为 NaN 归 HARNESS', () => {
+    const o = runMetricThresholdOracle({
+      oracle_id: 'm1',
+      oracle: { type: 'metric_threshold', metric: 'c_contract_pass_rate', min: 1 },
+      metrics: { c_contract_pass_rate: Number.NaN },
+      attribution: 'MODEL_TASK',
+    });
+    expect(o).toMatchObject({ pass: false, attribution: 'HARNESS' });
+  });
+
+  it('有值但越界才使用焦点归因', () => {
+    const o = runMetricThresholdOracle({
+      oracle_id: 'm1',
+      oracle: { type: 'metric_threshold', metric: 'c_contract_pass_rate', min: 1 },
+      metrics: { c_contract_pass_rate: 0 },
+      attribution: 'MODEL_TASK',
+    });
+    expect(o).toMatchObject({ pass: false, attribution: 'MODEL_TASK' });
+  });
+});

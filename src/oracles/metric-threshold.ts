@@ -32,11 +32,13 @@ export function runMetricThresholdOracle(opts: {
     };
   }
   if (actual === undefined) {
+    // 「指标未产出」是试题/口径问题（该产出却没产出），不是被测系统没做到，
+    // 因此硬归 HARNESS，与 NaN 同侧；调用方的 attribution 只用于「有值但越界」。
     return {
       pass: false,
       oracle_id: opts.oracle_id,
       message: `指标 "${metric}" 未产出`,
-      attribution: opts.attribution ?? 'HARNESS',
+      attribution: 'HARNESS',
     };
   }
   const min = typeof opts.oracle.min === 'number' ? opts.oracle.min : undefined;

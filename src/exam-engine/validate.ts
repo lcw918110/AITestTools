@@ -139,15 +139,21 @@ function validateOracleRegexes(doc: CaseRevision, file: string): Issue[] {
       const blankAt = [
         { type: 'no_event', key: 'names', code: 'ORACLE_NO_EVENT_INVALID' },
         { type: 'event_subsequence', key: 'names', code: 'ORACLE_EVENT_SUBSEQUENCE_INVALID' },
+        { type: 'workspace_assert', key: 'contains', code: 'ORACLE_WORKSPACE_ASSERT_INVALID' },
+        { type: 'workspace_assert', key: 'not_contains', code: 'ORACLE_WORKSPACE_ASSERT_INVALID' },
       ] as const;
       for (const rule of blankAt) {
         if (oracle['type'] !== rule.type) continue;
-        const list = oracle[rule.key];
-        if (Array.isArray(list) && list.some((x) => typeof x !== 'string' || x.trim() === '')) {
+        const value = oracle[rule.key];
+        const isBlank =
+          typeof value === 'string'
+            ? value.trim() === ''
+            : Array.isArray(value) && value.some((x) => typeof x !== 'string' || x.trim() === '');
+        if (isBlank) {
           issues.push(
             err(
               rule.code,
-              `${rule.key} 含非字符串或空白名（等价于空清单，等于无断言）`,
+              `${rule.key} 含非字符串或空白名（等价于空清单/空文本，等于无断言）`,
               file,
               `${base}/${rule.key}`,
             ),

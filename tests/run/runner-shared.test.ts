@@ -455,8 +455,9 @@ describe('applyMetricThresholdPass：只处理 metric_threshold 类型', () => {
     expect(seen[0]?.pass).toBe(true);
   });
 
-  it('指标未产出时沿用传入的 attribution', () => {
-    // 与「配置错误」不同：指标缺失可能由运行环境导致，故允许调用方指定归因。
+  it('指标未产出时即使传了调用方归因也归 HARNESS', () => {
+    // 「未产出」是试题/指标口径问题，不是被测系统没做到：真实调用点（l1/l2/b/c）
+    // 都会传焦点归因，若沿用会把口径错误记成模型缺陷。
     const seen: OracleOutcome[] = [];
     applyMetricThresholdPass(
       [{ type: 'metric_threshold', id: 'm1', metric: 'missing', min: 1 }],
@@ -465,7 +466,7 @@ describe('applyMetricThresholdPass：只处理 metric_threshold 类型', () => {
       (o) => seen.push(o),
     );
     expect(seen[0]?.pass).toBe(false);
-    expect((seen[0] as { attribution?: string }).attribution).toBe('MODEL_TASK');
+    expect((seen[0] as { attribution?: string }).attribution).toBe('HARNESS');
   });
 
   it('指标未产出且未传 attribution 时兜底 HARNESS', () => {
