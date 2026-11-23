@@ -491,7 +491,8 @@ function probeReadable(child: ChildProcess): Readable | undefined {
  *   （例如引擎本身就跑在沙箱门内），交出去会让子进程一启动就切到替身/调试语义，
  *   观测被静默改写、stderr 还会被 `PEERDBG` 污染。入口标记由调用点显式重新设置。
  */
-const CHILD_STRIPPED_ENV = /^(https?_proxy|all_proxy|no_proxy|SRT_ISOLATION_CHILD_ENTRY|SR_SPAWN_CHILD|SRT_WATCHDOG_DEBUG)$/i;
+const CHILD_STRIPPED_ENV =
+  /^(https?_proxy|all_proxy|no_proxy|SRT_ISOLATION_CHILD_ENTRY|SR_SPAWN_CHILD|SRT_WATCHDOG_DEBUG)$/i;
 
 function childEnv(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const out: NodeJS.ProcessEnv = { ...env };

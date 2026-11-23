@@ -353,9 +353,7 @@ function createPeerWatchdog(probeFd: number): PeerWatchdog {
     }
     // 退出时事件循环不再转：同步删掉本进程持有的全部目录（`live` + 待清理），
     // 删不掉的（极小概率占用）才交给脱离的 `sh`。守夜进程发现 `ppid` 为 1 也会自行收工。
-    const held = [liveGuardDir, ...pendingGuardDirs.keys()].filter(
-      (d): d is string => d !== null,
-    );
+    const held = [liveGuardDir, ...pendingGuardDirs.keys()].filter((d): d is string => d !== null);
     liveGuardDir = null;
     pendingGuardDirs.clear();
     for (const stale of held) {
@@ -568,7 +566,6 @@ function createPeerWatchdog(probeFd: number): PeerWatchdog {
    * 仍然归本进程所有。只认 `guardState` 就会把它漏在临时目录里——实测漏掉的正是这一个。
    */
   function stopGuard(): void {
-
     guardStopped = true;
 
     // 先收「交给定时器」的旧目录：本进程即将退出或重建，它们的定时器不一定会再跑。
@@ -615,15 +612,11 @@ function createPeerWatchdog(probeFd: number): PeerWatchdog {
       }
     }
     try {
-      spawn(
-        'sh',
-        ['-c', 'sleep 1; cleanup --claim "$1"', 'sh', dir],
-        {
-          stdio: 'ignore',
-          detached: true,
-          env: { ...process.env, PATH: guardLibPath(process.env.PATH) },
-        },
-      ).unref();
+      spawn('sh', ['-c', 'sleep 1; cleanup --claim "$1"', 'sh', dir], {
+        stdio: 'ignore',
+        detached: true,
+        env: { ...process.env, PATH: guardLibPath(process.env.PATH) },
+      }).unref();
     } catch {
       /* 兜底失败只留一个空目录 */
     }
@@ -1464,7 +1457,6 @@ function errorText(err: unknown): string {
 function openControlStdin(): Readable {
   return derivedStdin;
 }
-
 
 /**
  * 读请求：stdin 的第一行是请求 JSON；之后的行都是父进程的心跳确认（每行即一代）。

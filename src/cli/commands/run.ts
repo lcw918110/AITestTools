@@ -122,10 +122,7 @@ function withTrialSuffix(caseRevisionId: string, replicateIndex: number): string
 }
 
 /** 按 mode + environment.recipe.kind 解析执行 adapter（替代原 runOneItem switch）。 */
-function resolveAdapter(
-  revision: CaseRevision,
-  environment: EnvironmentProfile,
-): ExecutionAdapter {
+function resolveAdapter(revision: CaseRevision, environment: EnvironmentProfile): ExecutionAdapter {
   const mode = revision.execution_profile?.mode ?? 'hosted';
 
   switch (mode) {
