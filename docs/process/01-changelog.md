@@ -2981,7 +2981,34 @@ const files = await this.call('glob **/* --type f');
 
 统计该次运行程序体内出现的成员调用：`this.call` 共 **7 次**，其余成员 **0 次**。而 `call` 不在合法成员清单 `["commission","horizon"]` 中，故每步报 `unavailable tool 'invalid'`。
 
-**模型为什么这么写**：系统提示中描述 JsProgram 基类的那段说明，模型理解成了「可以像 CLI 一样执行 shell 命令」。它把自己当成可以直接跑命令的角色，而没有意识到唯一可用的委派动作是 `this.commission({ charge })`。
+**模型的完整错误行为序列（实测日志）**
+
+1. 先写 `todowrite-for-orchestrator` 程序体，函数体内用 `this.call("glob **/* --type f")`、`this.call("read tests/invoice.test.mjs")` 等（第 32、43、814 行）→ 全报 `unavailable tool 'invalid'`；
+2. 约 57 步后放弃程序体，改在**顶层**直接调 `commission`（第 800、808 行）→ 同样报 `'invalid'`，因为 `commission` 不是 provider 工具；
+3. 直至 600s 超时。
+
+**全程 `this.commission` 出现 0 次。** 模型始终没有意识到正确写法是把 `commission` 放进程序体：
+
+```js
+class Js extends JsProgram {
+  async run() {
+    return await this.commission({ charge: '...' });
+  }
+}
+```
+
+**模型为什么这么写**：`call` 是 **`Exec` 能力的成员名**（`Exec => ["call","signal","send"]`），只有持有 `Exec` 权限的角色（如 Engineer）才会在基类里看到 `async call(command)`。orchestrator 的权限是 `["Fork","Join","Horizon","ResetScope"]`，**不含 `Exec`**，因此 `this.call(...)` 对它非法。模型把「工程师才有的执行能力」误用到了指挥官身上，并且在顶层调用时误以为 `commission` 是普通工具。
+
+**角色能力对照（实测）**
+
+```text
+Orchestrator => ["commission","horizon"]          无 call、无任何读写文件手段
+Manager      => ["reviewOnly.cat",...,"fork","resume","horizon","review"]
+Engineer     => ["write","rm","mv","cat","ls","rg","stat","mkdir",...,"fission"]
+Plan         => ["write","cat","stat","mkdir","devops","ask","review"]
+```
+
+四个角色**没有任何一个**拥有 `call`——它属于 `Exec` 能力，而本题没有任何角色被授予 `Exec`。
 
 **影响**：ON 侧所有运行（含 `wave-anthropic/claude-sonnet-5` 5 次、`kw92.cyou/lazy/task`、`mistral/mistral-medium-latest`）均未能完成真实委派，`delegated_worktrees` 恒为 0。
 
@@ -2992,6 +3019,16 @@ const files = await this.call('glob **/* --type f');
 - 日志实测：程序体内 `this.call` 出现 7 次，`this.commission` 出现 0 次。
 - dist 产物（2026-11-14 构建）晚于当前源码（2026-11-04），且 `Description.js` 含 `async commission(payload)` 定义，排除「产物陈旧」的可能。
 
-**待办（本仓侧）**
+**待办（需万象术侧介入）**
 
-ON 侧的模型行为偏差需要靠提示词引导，这属于评测器侧的题面/环境调优范畴：让模型明确知道「只能 `this.commission({ charge })`，不能 `this.call(...)`」。本项尚未实施。
+**不能通过改考材解决。** ON/OFF 共用同一份 `bank/materials/PAIRED-TASK-160/prompt.txt`，配对实验要求同题同输入、只改变「是否装插件」这一个变量；给 ON 单独造提示词会破坏配对差分（见 `docs/04-首期实验方案与用例治理.md` 第 34、76、86 行）。且题面已明确要求「Use the `commission` tool with a `charge`」，方向本身没错。
+
+问题出在**插件没有让模型看清 JsProgram 的成员边界**：orchestrator 唯一可用的委派成员是程序体内的 `this.commission({ charge })`，但模型既不知道它是程序体成员，也不知道自己没有任何读写文件或执行命令的能力。
+
+可行的改进点（万象术 `resources/provider/tool/js-program/` 下的基类文案，不涉及业务逻辑）：
+
+1. 在 `base-class-commission/en.md` 中显式给出完整调用形态，而不只是方法签名片段——当前只写了 `async commission(payload) {...}`，模型容易理解为顶层工具。
+2. 在基类文案中声明「本角色的程序体内没有文件读取、文件写入、命令执行成员」，切断模型尝试 `this.call` / `this.cat` 的念头。
+3. 考虑在成员缺失时把可用的成员名直接回给模型，让 `unavailable tool 'invalid'` 带上 `Available members: commission, horizon`。
+
+> 以上属万象术侧改动，本仓不实施。
