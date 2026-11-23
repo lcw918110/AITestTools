@@ -2914,3 +2914,38 @@ return REQUIRED_ISOLATION_PROOFS.filter((proof) => {
 - 守夜目录零泄漏：清零 `$TMPDIR/srt-guard-*` 后跑全量测试，跑完残留 **0** 个数据目录（仅保留 `srt-guard-bin` shim）。
 - 边界场景同样零残留：父进程 `SIGKILL` 子进程、子进程正常结算、10 次混合观测（含宿主超时）。
 - 可证伪：修复前子进程读完请求后彻底静默（`DBG after main` 之后无任何收场日志，父进程 close 永不触发）；隔离环境里父进程继承 `SRT_ISOLATION_CHILD_ENTRY` 时，子进程提前按主人模式跑起来并把宿主当孤儿收掉（`FRAME {"ok":false,"stage":"wrap"...}` 之后宿主消失）。
+
+---
+
+## 67. 评测宿主端点切到 Mistral：`parentProxy` 让沙箱经本机代理出网（2026-11-23）
+
+**背景**：原基准模型 `wave-anthropic/claude-sonnet-5` 的上游持续返回 HTTP 402 `Payment Required`（单次运行 585 次），manager / engineer / devops 会话反复重试直到 600s 超时，端到端闭环无法验证。改用 Mistral 端点。
+
+**排查结论（均为本机实测）**
+
+1. **`claude-sonnet-5` 在 Mistral 上不存在**：`/v1/models` 无此模型，且该端点不提供 Anthropic 协议（`/v1/messages` 返回 404）。仅改 `baseURL` 必然失败，必须换 OpenAI 兼容 provider。
+2. **`mistral-large-latest` 响应不合规**：`content` 恒为数组（`[{"type":"thinking",...},{"type":"text",...}]`），流式逐帧混用「数组（thinking/text）」与「字符串（正文）」两种形态；`@ai-sdk/openai-compatible` 要求字符串，直接报 `expected string, received array`。`reasoning_effort` 只接受 `high/low/medium`（`none` 返回 400），`thinking` 字段被拒（422），各档位均无法关闭 thinking。
+3. **`mistral-medium-latest` / `mistral-small-latest` 返回标准字符串**，可正常消费。
+4. **`api.mistral.ai` 在本机被 DNS 污染**：不同 DNS 分别解析到 `31.13.95.34`（Meta）、`104.244.46.165`（Twitter）等无关网段，裸连 TCP 超时；经本机全局代理可达，响应头含 `mistral-correlation-id` / `x-kong-request-id` / `server: cloudflare`，确认为官方端点。
+5. **sandbox-runtime 默认禁止沙箱内进程连本机端口**，而 Node 不读 macOS 系统代理（`scutil --proxy`），只认环境变量。
+
+**改动**
+
+1. `src/security/sandbox-runtime.ts`：`wrapHostCommand` 新增可选 `parentProxy`，透传给 sandbox-runtime 的 `network.parentProxy`（SDK 原生支持的「上游代理」能力）。出口由沙箱代理自己发起，**沙箱内进程依旧拿不到任何本机端口访问权**，比放开 loopback 更窄。
+2. `src/security/sandbox-exec-child.ts`：新增 `readParentProxy`，只放行 `http`/`https` 协议的合法 URL 与 `noProxy` 字段，畸形输入一律按「未配置」丢弃，不让 IPC 输入改变沙箱出网路径。
+3. `src/security/sandbox-exec.ts`：`SandboxExecInput` 与请求帧逐层透传 `parentProxy`。
+4. `src/run/hosted-runner.ts`：新增 `PROCTOR_HOSTED_PROXY=1` 开关（opt-in，默认仍剥代理变量），开启时保留代理环境变量并交给 `parentProxy`；产物 `hosted-run.json` 增加 `host_proxy` 字段留痕。出网地址（`hostProxyUpstream`，含 userinfo）与留痕地址（`hostProxyKept`，`redactProxyCredentials` 后的 scheme + host + port）分开持有：合成一个字段就必然在「能连带认证的代理」与「不把凭据写进产物」之间二选一。
+5. 两个考场 `hosted-plugin-v1` / `hosted-plain-v1` 的 `host_model` 改为 `mistral/mistral-medium-latest`（ON/OFF 同步）。
+
+**验证**
+
+- `npx tsc --noEmit` 通过；`npx eslint src/security src/run/hosted-runner.ts` 无错误；Prettier 已整理。
+- 全量 `npx vitest run`：132 文件 / **1290** 用例全绿。
+- 端到端实测：沙箱内 `mistral/mistral-medium-latest` 调用 OFF 侧 11 次、ON 侧 190 次，**隧道错误 0**；`host_proxy` / `model` 在产物中如实落盘。修复前同一路径报 `ERR_PROXY_TUNNEL: 502 Bad Gateway`。
+- 回归守卫：`if (sandboxBypass)` 切片段断言一度因新增 `} else {` 误伤（修复前 11 例全绿、修复后 1 例红），改为无 `else` 写法后恢复。
+- 代理凭据不落盘：独立审查指出 `readHostProxyUrl` 原样落盘会把 `http://user:password@host:port` 的密码写进产物。改为「出网值 / 留痕值」分持后，实测脱敏对 `http://127.0.0.1:7890` 原样保留、对 `http://user:password@proxy.corp:8080` 输出 `http://proxy.corp:8080`；脱敏后重跑 OFF 侧仍 `PASS`（26.8s、隧道错误 0），证明拆分未破坏出网。
+
+**未解决（已移交）**
+
+- `mistral-large-latest` 因数组 `content` 无法在 opencode 内消费，故当前考场暂用 medium。medium 在插件场景下无法遵循 orchestrator 的 6 个定制工具契约：日志实测 `Model tried to call unavailable tool 'invalid'. Available tools: askPreviousScope, assume, horizon, join, skill, todowrite-for-orchestrator`，190 次 stream 全部来自 `agent=orchestrator`，manager / engineer / devops / plan / bookkeeper 各 0 次，600s 超时；同题无插件场景 32 秒正常完成（manager 8 次、coder 3 次）。ON 侧仍判 `CONTEXT`。
+- 解决路径已写成跨项目交接要求：[15-Mistral端点兼容改写交接要求.md](../15-Mistral端点兼容改写交接要求.md)，由代理项目在代理层把数组 `content` 拍平为字符串后，考场再切回 `mistral/mistral-large-latest`。

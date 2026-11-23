@@ -12,7 +12,7 @@
     "network_policy": "allow",
     "isolation_profile": "isolated",
     "host_command": "opencode",
-    "host_model": "wave-anthropic/claude-sonnet-5",
+    "host_model": "mistral/mistral-medium-latest",
     "host_agent": "orchestrator",
     "managed_agents": ["orchestrator", "manager", "engineer", "devops", "plan", "bookkeeper"],
     "host_plugin": "dist/OpenCode/Plugin/Plugin.js",

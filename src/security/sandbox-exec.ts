@@ -53,6 +53,8 @@ export interface SandboxExecInput {
   allowedWrite: string[];
   allowedDomains: string[];
   timeoutMs: number;
+  /** 上游代理：交给沙箱自身出网用，不向沙箱内进程开放本机端口。 */
+  parentProxy?: { http?: string; https?: string; noProxy?: string } | undefined;
   /** 旁路诊断：只跳过包裹，仍在子进程内执行。 */
   sandboxBypass?: boolean;
 }
@@ -93,6 +95,7 @@ export async function runSandboxedHostInChild(
     allowedWrite: input.allowedWrite,
     allowedDomains: input.allowedDomains,
     timeoutMs: input.timeoutMs,
+    ...(input.parentProxy !== undefined ? { parentProxy: input.parentProxy } : {}),
     ...(input.sandboxBypass === true ? { sandboxBypass: true } : {}),
   };
 

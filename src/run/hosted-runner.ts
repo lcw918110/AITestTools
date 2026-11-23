@@ -128,6 +128,10 @@ export class HostedAdapter implements ExecutionAdapter {
   private sandboxBypassed = false;
   private inheritedProvider: unknown;
   private allowedDomains: string[] = [];
+  /** 本次实际用于出网的代理地址，**含凭据**，只传给沙箱，绝不落盘。 */
+  private hostProxyUpstream: string | null = null;
+  /** 同一代理的脱敏形态（scheme + host + port），只用于产物留痕。 */
+  private hostProxyKept: string | null = null;
 
   async discover(ctx: AdapterContext): Promise<DiscoveredInput> {
     this.pairKey = ctx.pairKey;
@@ -359,12 +363,26 @@ export class HostedAdapter implements ExecutionAdapter {
     this.isolatedHome = hostConfig.home;
     // 模型端点域名要并入沙箱放行名单，故记下本次实际继承的 provider 段。
     this.inheritedProvider = inheritedProviderConfig().provider;
-    // 代理变量必须剥掉：IDE 沙箱注入的 http(s)_proxy 会拦下 opencode 的模型请求
+    // 代理变量默认必须剥掉：IDE 沙箱注入的 http(s)_proxy 会拦下 opencode 的模型请求
     // （ERR_PROXY_TUNNEL 403），client-server 架构下 server 端静默重试直到超时，
     // 表象是 stderr 停在 init 无模型流。隔离环境一律直连模型端点。
+    //
+    // 例外：端点域名被本机 DNS 污染（TCP 直连超时）时，直连根本走不通，必须借本机
+    // 全局代理出网。此时用 PROCTOR_HOSTED_PROXY 显式放行——它是 opt-in 开关，
+    // 缺省仍剥代理，避免把「IDE 白名单代理导致 403」由默认路径带回来。
+    // 注意 Node 不读 macOS 系统代理（scutil --proxy），只认环境变量，故这里必须显式传递。
     const proxyStripped: NodeJS.ProcessEnv = { ...process.env };
-    for (const key of Object.keys(proxyStripped)) {
-      if (/^(https?_proxy|all_proxy|no_proxy)$/i.test(key)) delete proxyStripped[key];
+    const keepHostProxy = shouldKeepHostProxy();
+    if (keepHostProxy) {
+      // 实际出网地址与留痕地址必须分开：前者要带凭据才能连上带认证的代理，
+      // 后者必须脱敏后才能落盘。合成一个字段就必然在「能连」与「不泄」之间二选一。
+      this.hostProxyUpstream = readHostProxyUpstream();
+      this.hostProxyKept = redactProxyCredentials(this.hostProxyUpstream);
+    }
+    if (!keepHostProxy) {
+      for (const key of Object.keys(proxyStripped)) {
+        if (/^(https?_proxy|all_proxy|no_proxy)$/i.test(key)) delete proxyStripped[key];
+      }
     }
     const runEnv: NodeJS.ProcessEnv = {
       ...proxyStripped,
@@ -468,6 +486,10 @@ export class HostedAdapter implements ExecutionAdapter {
             ...(this.isolatedHome !== undefined ? [this.isolatedHome] : []),
           ],
           allowedDomains,
+          // 端点必须经本机全局代理才能出网时，把代理交给沙箱自身（parentProxy），
+          // 而不是放开沙箱内进程访问本机端口。未开启时传 undefined，行为与原先完全一致。
+          parentProxy:
+            this.hostProxyUpstream === null ? undefined : { https: this.hostProxyUpstream },
           timeoutMs: p.deadline,
         });
       } catch (err) {
@@ -643,6 +665,8 @@ export class HostedAdapter implements ExecutionAdapter {
         this.frozenModel === undefined ? null : this.hostModel === this.frozenModel,
       agent: this.hostAgent ?? null,
       plugin: this.pluginPath ?? null,
+      // 代理是否交给宿主必须留痕：它决定 endpoint 怎么出网，缺了就无法复现本次实验条件。
+      host_proxy: this.hostProxyKept,
       work_dir: this.workDir,
       workspace_isolated: this.wantIsolated,
       materials_seeded: this.seeded,
@@ -1008,6 +1032,45 @@ function trySealRecordedCassette(opts: {
 }
 
 /** 宿主全局配置中只有 provider 段可继承；其余字段一律不带入隔离配置。 */
+/**
+ * 是否把代理变量交给宿主进程。
+ *
+ * 缺省为否：IDE 沙箱注入的白名单代理会拦下模型请求（403），必须剥掉。
+ * 端点域名被本机 DNS 污染、直连超时时，用 `PROCTOR_HOSTED_PROXY=1` 显式开启，
+ * 让宿主经本机全局代理出网。只认字面量 `1`，其余取值一律按关闭处理。
+ */
+function shouldKeepHostProxy(): boolean {
+  return process.env.PROCTOR_HOSTED_PROXY === '1';
+}
+
+/**
+ * 取本次实际用于出网的第一条代理地址（原样，含可能存在的 userinfo）。
+ *
+ * 该值只交给 sandbox-runtime 的 parentProxy，**不得写进任何产物**：
+ * 企业代理常写成 `http://user:password@host:port`，落盘即泄凭据。
+ * 需要留痕请用 {@link redactProxyCredentials} 脱敏后的形态。
+ */
+function readHostProxyUpstream(): string | null {
+  for (const key of ['https_proxy', 'HTTPS_PROXY', 'http_proxy', 'HTTP_PROXY', 'all_proxy']) {
+    const value = process.env[key];
+    if (typeof value === 'string' && value.trim() !== '') return value.trim();
+  }
+  return null;
+}
+
+/** 去掉代理地址里的 userinfo，保留 scheme + host + port；解析失败时不给原文。 */
+function redactProxyCredentials(raw: string | null): string | null {
+  if (raw === null) return null;
+  try {
+    const url = new URL(raw);
+    return `${url.protocol}//${url.host}`;
+  } catch {
+    // 解析不了就别猜：只报协议前缀，宁缺凭据也不泄漏原文。
+    const scheme = raw.includes('://') ? raw.slice(0, raw.indexOf('://')) : 'unknown';
+    return `${scheme}://<unparsable>`;
+  }
+}
+
 function inheritedProviderConfig(): { provider?: unknown; source?: string } {
   const bases = [process.env.XDG_CONFIG_HOME, join(homedir(), '.config')].filter(
     (b): b is string => typeof b === 'string' && b.length > 0,

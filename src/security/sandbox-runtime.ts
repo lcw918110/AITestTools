@@ -18,6 +18,12 @@ export async function wrapHostCommand(input: {
   cwd: string;
   allowedWrite: string[];
   allowedDomains: string[];
+  /**
+   * 上游（父）代理。沙箱自身无法直连外网时（例如端点域名被本机 DNS 污染、
+   * 必须借宿主机器的全局代理出网）由此交给 sandbox-runtime 的 parentProxy，
+   * 由它统一出网；沙箱内进程仍然拿不到任何本机端口访问权。
+   */
+  parentProxy?: { http?: string; https?: string; noProxy?: string } | undefined;
 }): Promise<WrappedHostCommand> {
   const command = [input.bin, ...input.args].map(shellQuote).join(' ');
   // 写入白名单必须按真实路径授权：
@@ -35,6 +41,9 @@ export async function wrapHostCommand(input: {
     network: {
       allowedDomains: input.allowedDomains,
       deniedDomains: [],
+      // 传给 sandbox-runtime 的 parentProxy 是「沙箱代理自己的出口」，
+      // 与被测进程无关：被测进程依旧只能访问 allowedDomains，本机端口依旧不可达。
+      ...(input.parentProxy !== undefined ? { parentProxy: input.parentProxy } : {}),
       // opencode 是 client-server 架构，启动即在本机 listen（HTTP + Unix socket），
       // 缺这项会在沙箱内 init 挂起。只放开本机绑定；不放开 allowAllUnixSockets，
       // 否则沙箱内进程可连宿主任意 Unix socket（docker.sock、ssh-agent 等），

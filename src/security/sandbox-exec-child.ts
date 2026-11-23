@@ -41,6 +41,8 @@ export interface SandboxExecRequest {
   allowedWrite: string[];
   allowedDomains: string[];
   timeoutMs: number;
+  /** 上游代理：由沙箱自身出网，不向沙箱内进程开放本机端口。 */
+  parentProxy?: { http?: string; https?: string; noProxy?: string };
   /** 旁路诊断：只跳过包裹，仍在子进程内执行（进程边界不变）。 */
   sandboxBypass?: boolean;
 }
@@ -1371,6 +1373,7 @@ async function main(): Promise<void> {
         cwd: request.cwd,
         allowedWrite: Array.isArray(request.allowedWrite) ? request.allowedWrite : [],
         allowedDomains: Array.isArray(request.allowedDomains) ? request.allowedDomains : [],
+        parentProxy: readParentProxy(request.parentProxy),
       });
     } catch (err) {
       emit({ ok: false, stage: 'wrap', message: `沙箱包裹失败：${errorText(err)}` }, pipeWatch);
@@ -1441,6 +1444,35 @@ function emit(reply: SandboxExecReply, pipeWatch: PeerWatchdog): void {
 function errorText(err: unknown): string {
   if (err instanceof Error) return err.message;
   return String(err);
+}
+
+/**
+ * 校验父进程经控制通道发来的上游代理配置。
+ *
+ * 请求体来自 IPC，不能直接透传给 sandbox-runtime：只放行 http/https 协议的合法 URL，
+ * 且只认 `http`/`https`/`noProxy` 三个字段。任何不合规的一律丢弃（返回 undefined
+ * 即「没有上游代理」），绝不让畸形输入改变沙箱出网路径。
+ */
+function readParentProxy(
+  raw: unknown,
+): { http?: string; https?: string; noProxy?: string } | undefined {
+  if (raw === null || typeof raw !== 'object' || Array.isArray(raw)) return undefined;
+  const src = raw as Record<string, unknown>;
+  const out: { http?: string; https?: string; noProxy?: string } = {};
+  for (const key of ['http', 'https'] as const) {
+    const value = src[key];
+    if (typeof value !== 'string' || value.trim() === '') continue;
+    try {
+      const url = new URL(value);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') continue;
+      out[key] = value.trim();
+    } catch {
+      /* 非法 URL 丢弃，按未配置处理 */
+    }
+  }
+  const noProxy = src.noProxy;
+  if (typeof noProxy === 'string' && noProxy.trim() !== '') out.noProxy = noProxy.trim();
+  return Object.keys(out).length === 0 ? undefined : out;
 }
 
 /**
