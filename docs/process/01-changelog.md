@@ -2948,35 +2948,50 @@ return REQUIRED_ISOLATION_PROOFS.filter((proof) => {
 **未解决（已移交）**
 
 - `mistral-large-latest` 因数组 `content` 无法在 opencode 内消费，故当前考场暂用 medium。解决路径见 [15-Mistral端点兼容改写交接要求.md](../15-Mistral端点兼容改写交接要求.md)，由代理项目在代理层把数组 `content` 拍平为字符串后，考场再切回 `mistral/mistral-large-latest`。
-- ON 侧 600s 超时与 `Model tried to call unavailable tool 'invalid'`：**初判为「medium 无法遵循 orchestrator 工具契约」，复核后推翻**。真实根因在万象术投影侧，与模型能力、供应商端点、网络代理均无关，详见下条。
+- ON 侧 600s 超时与 `Model tried to call unavailable tool 'invalid'`：真实根因为**模型在 JsProgram 程序体内调用了不存在的成员 `this.call(...)`**，与模型能力、供应商端点、网络代理、万象术代码均无关，详见下条。
 
-### 67.1 ON 侧超时根因更正：万象术 JsProgram 投影缺陷（2026-11-23）
+### 67.1 ON 侧超时根因：模型不会用 JsProgram 的成员 API（2026-11-23）
 
-**更正说明**：第 67 节原将 ON 侧超时归因为「`mistral-medium-latest` 模型能力不足，无法遵循 orchestrator 的 6 个定制工具契约」。经复核，该归因**不成立**，现予更正。
+**结论先行**：万象术的委派链路在代码层面完全正常，orchestrator 的 JsProgram 正确暴露 `commission` 与 `horizon`。超时原因是模型在程序体内写了 `this.call(...)`，而该成员不存在，于是每一步都抛 `unavailable tool 'invalid'`，直至 600s 超时。
 
-**推翻依据**
+**排查过程中曾出现过一次错误结论，此处如实记录以警示后人**
 
-- 历史上 `wave-anthropic/claude-sonnet-5` 的 ON 侧同样是 5 次全超时；`kw92.cyou/lazy/task` 的 3 次 `exit=0` 经查均为 `placement-failed` 假成功，`delegated_worktrees` 恒为 0。**ON 侧从未有过真实成功的委派**，说明问题不随模型变化而改变。
-- 本次复现（`runs/20261123-131644792-uh9r`）日志第 800 行显示：模型**正确**调用了 `commission` 且参数合法，仍报 `unavailable tool 'invalid'` —— 说明失败发生在工具解析层，不在模型决策层。
+排查中途一度判定为「万象术 `Capability.js` 的 `memberNamesFor` 把权限标签字符串当 DU 对象解析，导致 `fork` 投影丢失」，并据此写了交接文档。该结论**已被推翻并删除**，原因如下：
 
-**真实根因**
+- 当时的实测把 `OfficeCapability_permissions()` 返回的 `Set<ToolPermission>`（字符串集合）**直接**喂给了签名要求 `Set<JsCapability>` 的 `memberNamesFor`，跳过了源码 `Capability.fs` 里的 `ofToolCapabilities` 转换步骤。属于**测试方法用错入参类型**，不是代码缺陷。
+- 按源码真实链路 `Set<ToolPermission> → ofToolCapabilities → Set<JsCapability> → memberNamesFor` 复测，投影结果正确。
 
-万象术 `dist/Repository/Programming/Js/Capability.js` 的 `JsCapabilityModule_memberNamesFor` 在入参已是字符串标签的情况下，多套了一层 `labelOf` 转换，而其按 `JsCapability` DU 的 `.tag` 解析，字符串的 `.tag` 为 `undefined`，全部落入 `default: return "Read"`。本机实测：
+**真实链路实测**
 
 ```text
-labelOf('Fork') => "Read"      labelOf('Join') => "Read"    labelOf('Horizon') => "Read"
+orchestrator 工具权限: ["Fork","Join","Horizon","ResetScope"]
+经 ofToolCapabilities 转 JsCapability: ["Fork","Horizon"]
+projectRole 输出: toolName=todowrite-for-orchestrator, members=["commission","horizon"]
 ```
 
-导致 orchestrator 的 `["Fork","Join","Horizon","ResetScope"]` 一律降级为 `["Read","Read","Read","Read"]`，JsProgram 投影出 `["cat","ls","rg","stat","whereAll","where"]`。同一份入参不走该转换、直接交给 `ProgramCatalog().membersFor(标签数组, ...)` 则正确返回 `["fork","horizon"]`。
+`projectRole` 是工具生成实际使用的入口，返回的成员里 `commission` 在、`call` 不在。`Description.fs` 亦确认：当 `commission` present 时，基类会生成 `async commission(payload) { return await this._api.commission(spec); }`。
 
-**叠加的第二个因素**：`ToolSurface.js:14-26` 已明确将 `fork` / `resume` / `commission` 从 provider 工具表过滤掉（注释说明「委派线运行在编程表面上」）。因此 JsProgram 投影一旦失真，模型就没有任何可用的委派入口 —— 既无 provider 工具，也无编程表面成员。
+**真实失败点**
 
-**影响**：ON 侧全部超时；ENGINEER 角色反倒在投影中获得权限外的 `fork/commission/devops`（四角色错位全貌见交接文档第 2.3 节）。
+复现运行（`runs/20261123-131644792-uh9r`）中，模型确实进了 `todowrite-for-orchestrator`，但程序体写的是：
 
-**移交**：[16-万象术JsProgram投影缺陷交接要求.md](../16-万象术JsProgram投影缺陷交接要求.md)，含失效代码定位、四角色错位全貌、可直接执行的复现命令与修复要求。
+```js
+const files = await this.call('glob **/* --type f');
+```
+
+统计该次运行程序体内出现的成员调用：`this.call` 共 **7 次**，其余成员 **0 次**。而 `call` 不在合法成员清单 `["commission","horizon"]` 中，故每步报 `unavailable tool 'invalid'`。
+
+**模型为什么这么写**：系统提示中描述 JsProgram 基类的那段说明，模型理解成了「可以像 CLI 一样执行 shell 命令」。它把自己当成可以直接跑命令的角色，而没有意识到唯一可用的委派动作是 `this.commission({ charge })`。
+
+**影响**：ON 侧所有运行（含 `wave-anthropic/claude-sonnet-5` 5 次、`kw92.cyou/lazy/task`、`mistral/mistral-medium-latest`）均未能完成真实委派，`delegated_worktrees` 恒为 0。
 
 **验证**
 
-- 复现：`runs/20261123-131644792-uh9r` ON 侧 `timed_out=true`（600s）、`delegated_worktrees=0`；OFF 侧 `PASS`（31s，`discount-round` 通过），证明任务本身可解。
-- 缺陷实测：`labelOf` 对 `Fork/Join/Horizon` 均返回 `"Read"`；`memberNamesFor` 与 `ProgramCatalog().membersFor` 对同一输入结果相反。
-- 加载真实插件入口 `dist/OpenCode/Plugin/Plugin.js` 后复核，投影失真依旧，排除「宿主启动顺序预热单例」的可能。
+- 复现：`runs/20261123-131644792-uh9r` ON 侧 `timed_out=true`（600s）、`delegated_worktrees=0`；OFF 侧 `PASS`（21.9s），证明任务本身可解。
+- 投影实测：`projectRole('orchestrator', perms(Role.Orchestrator))` → `members=["commission","horizon"]`；`includes('call')=false`、`includes('commission')=true`。
+- 日志实测：程序体内 `this.call` 出现 7 次，`this.commission` 出现 0 次。
+- dist 产物（2026-11-14 构建）晚于当前源码（2026-11-04），且 `Description.js` 含 `async commission(payload)` 定义，排除「产物陈旧」的可能。
+
+**待办（本仓侧）**
+
+ON 侧的模型行为偏差需要靠提示词引导，这属于评测器侧的题面/环境调优范畴：让模型明确知道「只能 `this.commission({ charge })`，不能 `this.call(...)`」。本项尚未实施。
