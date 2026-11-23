@@ -1,6 +1,6 @@
 import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { main } from '../../src/cli/main.ts';
+import { installCrashReporter, main } from '../../src/cli/main.ts';
 import {
   createIsolatedProjectRoot,
   removeIsolatedProjectRoot,
@@ -221,5 +221,50 @@ describe('baseline pin + report show', () => {
     out = [];
     expect(await main(['report', 'show', '--run', runDir])).toBe(0);
     expect(out.join('\n')).toContain('demo-a-nudge-timing-01.r2');
+  });
+});
+
+/**
+ * 批跑的最后一道证据线：主流程之外的异步异常若无人接管，
+ * Node 会直接终止进程且不打印任何东西——长跑时表现为「引擎静默消失、日志 0 字节」。
+ * 这里验证兜底至少把栈打出来并把退出码置为非零。
+ */
+describe('installCrashReporter', () => {
+  it('未捕获异常被打印且退出码不会被当成 0', () => {
+    const errors: string[] = [];
+    const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+      errors.push(args.join(' '));
+    });
+    const before = process.exitCode;
+    process.exitCode = 0;
+    const remove = installCrashReporter();
+    try {
+      process.emit('uncaughtException', new Error('probe: 异步未捕获异常'));
+      expect(errors.join('\n')).toContain('probe: 异步未捕获异常');
+      expect(process.exitCode).toBe(1);
+    } finally {
+      remove();
+      process.exitCode = before;
+      spy.mockRestore();
+    }
+  });
+
+  it('未处理的 Promise 拒绝同样被打印', () => {
+    const errors: string[] = [];
+    const spy = vi.spyOn(console, 'error').mockImplementation((...args: unknown[]) => {
+      errors.push(args.join(' '));
+    });
+    const remove = installCrashReporter();
+    try {
+      // 'unhandledRejection' 不在 process.emit 的信号重载里，按事件名显式发。
+      (process.emit as (event: string, ...args: unknown[]) => boolean)(
+        'unhandledRejection',
+        new Error('probe: 拒绝'),
+      );
+      expect(errors.join('\n')).toContain('probe: 拒绝');
+    } finally {
+      remove();
+      spy.mockRestore();
+    }
   });
 });

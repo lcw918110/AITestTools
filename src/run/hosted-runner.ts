@@ -89,6 +89,8 @@ export class HostedAdapter implements ExecutionAdapter {
   private seeded: string[] = [];
   private seedSnapshot: SeedSnapshot = { digests: {}, unreadable: [] };
   private hostObs!: ReturnType<typeof observeHostExit>;
+  /** 结果管道在宿主结束前断开：该次观测不代表被测任务，归因 HARNESS。 */
+  private hostPipeBroken = false;
   private tokenObs!: ReturnType<typeof observeHostedPassToken>;
   private mutated = false;
   /** 交付面观察：改动是否只停在委派分支。`null` 表示未采成，不能当作「没搁浅」。 */
@@ -418,20 +420,32 @@ export class HostedAdapter implements ExecutionAdapter {
     // 产物里如实标注 sandbox_bypassed，报告读取方据此区分证据等级。
     const sandboxBypass = process.env.PROCTOR_SANDBOX_BYPASS === '1';
     this.sandboxBypassed = sandboxBypass;
+    // 结果通道丢失（子进程判死收场、父进程侧补刀）由 `runSandboxedHostInChild` 变成
+    // 一次 reject，走下面两条 catch 收敛成 HARNESS 故障；这里不需要另起回调。
     let run: SandboxExecOutcome;
     if (sandboxBypass) {
       // 旁路只是「不套 Seatbelt」，进程边界不变：仍在短命子进程里起宿主。
       // 若退回主进程内执行，进程树回收的误杀面会回到引擎进程本身（ADR-0014）。
-      run = await runSandboxedHostInChild({
-        bin: this.hostBin,
-        args: p.runArgs,
-        cwd: this.workDir,
-        env: p.runEnv,
-        allowedWrite: [],
-        allowedDomains: [],
-        timeoutMs: p.deadline,
-        sandboxBypass: true,
-      });
+      // 包裹层故障（含结果管道断开）必须收敛成 HARNESS 的 AdapterError：
+      // 让它按原样冒泡会把阶段信息丢掉，上层只能按「未知工装故障」记一句笼统消息。
+      try {
+        run = await runSandboxedHostInChild({
+          bin: this.hostBin,
+          args: p.runArgs,
+          cwd: this.workDir,
+          env: p.runEnv,
+          allowedWrite: [],
+          allowedDomains: [],
+          timeoutMs: p.deadline,
+          sandboxBypass: true,
+        });
+      } catch (err) {
+        const message =
+          err instanceof SandboxExecHarnessError
+            ? `沙箱旁路执行失败（${err.stage}）：${err.message}`
+            : `沙箱旁路执行失败：${err instanceof Error ? err.message : String(err)}`;
+        throw new AdapterError('submit_failed', 'HARNESS', message, false);
+      }
     } else {
       // 模型端点域名来自本机受控 provider 配置（不是被测对象输入），必须一并放行，
       // 否则沙箱代理会以 403 拒绝 opencode 的模型请求。
@@ -465,10 +479,14 @@ export class HostedAdapter implements ExecutionAdapter {
       }
     }
     const durationMs = Date.now() - startedAt;
+    this.hostPipeBroken = run.pipeBroken;
+    // 管道断开在上面的 catch 里已收敛成 AdapterError，这里恒为 false；
+    // 仍显式传递，避免日后放宽那条分支时它被静默忽略。
     this.hostObs = observeHostExit({
       ...run,
       deadlineFired: run.timedOut,
       stdioDestroyed: run.stdioDestroyed,
+      pipeBroken: run.pipeBroken,
     });
 
     const ndjsonPath = join(this.workDir, '.wanxiangshu.ndjson');
@@ -739,7 +757,7 @@ export class HostedAdapter implements ExecutionAdapter {
     // 注意：**不能**把「断言自身 HARNESS」提到崩溃判断之前。崩溃后再读工作区几乎必然
     // 失败（EISDIR/ENOENT/EACCES），那属于「此刻读不了」的证据不足，不是「试题配错」；
     // 提到前面会把宿主故障整批改写成「题目写错了」。区分见 `oracleEval.veto` 归因。
-    if (isHostCrashed(this.hostObs)) {
+    if (isHostCrashed(this.hostObs, this.hostPipeBroken)) {
       const attr: Attribution = this.oracleEval.workspace_ok
         ? this.envAuthFail
           ? 'CONTEXT'

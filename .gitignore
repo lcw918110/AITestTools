@@ -9,6 +9,8 @@ playwright-report/
 runs/
 baselines/
 .proctor-promptfoo*/
+# 调试期临时探针日志与复现脚本：只在本地排障时存在，不入库
+.proctor-logs/
 .harness-cache/
 .wanxiangshu.ndjson
 **/.wanxiangshu.ndjson

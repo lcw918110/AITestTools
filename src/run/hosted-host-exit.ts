@@ -33,6 +33,8 @@ export function observeHostExit(run: {
   deadlineFired?: boolean;
   /** 平台是否因 stdio 被孙进程占住而强制 destroy 了读端。 */
   stdioDestroyed?: boolean;
+  /** 结果管道在宿主结束前断开（宿主被连带杀死）：本次观测不代表被测任务。 */
+  pipeBroken?: boolean;
 }): HostedHostExitObservation {
   const err = run.error as NodeJS.ErrnoException | null | undefined;
   const signal = run.signal ?? null;
@@ -59,9 +61,11 @@ export function observeHostExit(run: {
  *
  * 与超时区分：超时是本平台主动 SIGTERM/SIGKILL（`timed_out=true`），语义是「模型没跑完」；
  * 崩溃是宿主自己死的（Bun panic / OOM / 段错误），spawn 失败是宿主根本没起来
- * （可执行文件不存在、句柄耗尽）。后两者模型行为完全无法判定，属工装故障，归因 HARNESS。
+ * （可执行文件不存在、句柄耗尽），管道断开是本进程把宿主连带杀掉。
+ * 三者模型行为都完全无法判定，属工装故障，归因 HARNESS。
  */
-export function isHostCrashed(obs: HostedHostExitObservation): boolean {
+export function isHostCrashed(obs: HostedHostExitObservation, pipeBroken = false): boolean {
+  if (pipeBroken) return true;
   if (obs.timed_out) return false;
   return obs.host_signal !== null || obs.host_spawn_error !== null;
 }

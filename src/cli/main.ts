@@ -305,6 +305,35 @@ async function run(): Promise<void> {
   }
 }
 
+/**
+ * 批跑的最后一道证据线：主流程之外的异步异常（写产物、回收句柄、清理钩子里的抛错）
+ * 若无人接管，Node 会直接终止进程且**不打印任何东西**。
+ *
+ * 长跑时这就是「引擎静默消失、日志 0 字节、一条结果不落盘」的成因——外部只能看到
+ * 进程没了，无从判断是哪一步出事。这里至少把错误与栈打到 stderr 并以非零码退出，
+ * 让失败可被观测、可被归因（是不是工装问题，一眼能分）。
+ *
+ * @returns 卸载函数：撤掉刚装的监听（测试需要；生产进程生命周期内不撤）
+ */
+export function installCrashReporter(): () => void {
+  const report = (kind: string, err: unknown) => {
+    const detail = err instanceof Error ? (err.stack ?? err.message) : String(err);
+    console.error(`[proctor] ${kind}：${detail}`);
+    // 已进入崩溃路径：不能再让它变成 0（0 表示「全部评测且通过」）。
+    process.exitCode =
+      process.exitCode === 0 || process.exitCode === undefined ? 1 : process.exitCode;
+  };
+  const onException = (err: unknown) => report('未捕获异常', err);
+  const onRejection = (err: unknown) => report('未处理的 Promise 拒绝', err);
+  process.on('uncaughtException', onException);
+  process.on('unhandledRejection', onRejection);
+  return () => {
+    process.off('uncaughtException', onException);
+    process.off('unhandledRejection', onRejection);
+  };
+}
+
 if (process.argv[1] !== undefined && fileURLToPath(import.meta.url) === resolve(process.argv[1])) {
+  installCrashReporter();
   void run();
 }

@@ -15,9 +15,12 @@ import { L1Adapter } from '../../run/l1-runner.ts';
 import { L2Adapter } from '../../run/l2-runner.ts';
 import { L3Adapter } from '../../run/l3-runner.ts';
 import { RunOrchestrator } from '../../run/run-orchestrator.ts';
+import { AdapterError } from '../../run/execution-adapter.ts';
 import type { ExecutionAdapter } from '../../run/execution-adapter.ts';
+import { resolveRepeats } from '../../run/repeats.ts';
 import { writeRunArtifacts } from '../../run/write-artifacts.ts';
 import type { AxisItemResult, RunCaseInput } from '../../run/runner-types.ts';
+import type { Attempt, CaseExecution } from '../../domain/types.ts';
 
 export interface RunOptions {
   project?: string | undefined;
@@ -68,8 +71,61 @@ async function mapPool<T, R>(
   return out;
 }
 
+/**
+ * 单题执行抛出异常时的记账行：归因 HARNESS（工装故障，不是被测系统缺陷），
+ * 但不标 `not_implemented`——它是「跑过且失败」，必须计入分母，否则批跑会看起来正常。
+ *
+ * 只在**拿不到任何已有结果**时才用它。编排器已产出的结果行带着工作区断言、宿主信号、
+ * 材料是否被改等证据，覆盖成笼统 HARNESS 会把真实归因与不变式计数一并抹掉。
+ */
+function harnessFailureResult(
+  revision: CaseRevision,
+  err: unknown,
+  replicateIndex: number,
+  recorded?: { caseExecution: CaseExecution; attempts: Attempt[] },
+): AxisItemResult {
+  const message = err instanceof Error ? err.message : String(err);
+  const attempt = recorded?.attempts.at(-1);
+  // 阶段与时间窗取自编排器已记账的 attempt：异常一抛这些事实就随栈帧消失，
+  // 只剩一句消息的话，事后无法分辨「没起来」「跑到一半崩了」「清理挂住」。
+  const facts: string[] = [];
+  if (attempt !== undefined) {
+    if (attempt.attempt_status !== undefined) facts.push(`attempt=${attempt.attempt_status}`);
+    if (attempt.started_at !== undefined) facts.push(`started_at=${attempt.started_at}`);
+    if (attempt.ended_at !== undefined) facts.push(`ended_at=${attempt.ended_at}`);
+  }
+  const executionOutcome = recorded?.caseExecution.execution_outcome;
+  if (executionOutcome !== undefined && executionOutcome !== 'unknown') {
+    facts.push(`execution_outcome=${executionOutcome}`);
+  }
+  return {
+    item_id: withTrialSuffix(revision.case_revision_id, replicateIndex),
+    item_rev: revision.revision_number,
+    pass: false,
+    attribution: 'HARNESS',
+    oracle_failures: [
+      {
+        oracle_id: 'harness',
+        message: facts.length === 0 ? message : `${message}（${facts.join('；')}）`,
+      },
+    ],
+    metrics: { a_case_pass_rate: 0, a_invariant_violations: 0 },
+  };
+}
+
+/**
+ * 追加 trial 后缀，与编排层 `executeOnce` 的命名约定一致（`<题号>::r<N>`）。
+ * 少了后缀，同一题的多个 trial 会被产物层当成同一题的不同行，分组与题级收敛都会错位。
+ */
+function withTrialSuffix(caseRevisionId: string, replicateIndex: number): string {
+  return replicateIndex > 0 ? `${caseRevisionId}::r${replicateIndex}` : caseRevisionId;
+}
+
 /** 按 mode + environment.recipe.kind 解析执行 adapter（替代原 runOneItem switch）。 */
-function resolveAdapter(revision: CaseRevision, environment: EnvironmentProfile): ExecutionAdapter {
+function resolveAdapter(
+  revision: CaseRevision,
+  environment: EnvironmentProfile,
+): ExecutionAdapter {
   const mode = revision.execution_profile?.mode ?? 'hosted';
 
   switch (mode) {
@@ -143,13 +199,57 @@ export function resolveDatasetItems(
   datasetName: string,
   environmentName: string,
 ): { cases: RunCaseInput[]; environment: EnvironmentProfile } {
-  const releases = loadDatasetReleases(project.dirs.dataset_releases, project.root);
+  const resolved = assembleDatasetItems(
+    project,
+    loadDatasetReleases(project.dirs.dataset_releases, project.root),
+    loadEnvironments(project.dirs.environments, project.root),
+    datasetName,
+    environmentName,
+  );
+  // 对外保持「一条坏就报错」的旧语义：调用方据此尽早修正组卷。
+  const first = resolved.unresolved[0];
+  if (first !== undefined) throw new Error(first.reason);
+  return { cases: resolved.cases, environment: resolved.environment };
+}
+
+/** 从修订 id 尾部 `rN` 取修订号；取不到用回退值（解析失败的条目拿不到文件里的修订号）。 */
+function revisionNumberFromId(caseRevisionId: string, fallback: number): number {
+  const matched = /\.r(\d+)$/.exec(caseRevisionId);
+  return matched === null ? fallback : Number.parseInt(matched[1] as string, 10);
+}
+
+/** 选题阶段无法解析的条目：不进执行队列，但要照常记进 run 清单与漏跑上报。 */
+export interface UnresolvedCase {
+  case_id: string;
+  case_revision_id: string;
+  reason: string;
+}
+
+interface DatasetSelection {
+  cases: RunCaseInput[];
+  environment: EnvironmentProfile;
+  unresolved: UnresolvedCase[];
+}
+
+/**
+ * 从已加载的组卷/环境清单组装执行清单（选题解析与单题解析共用同一份事实）。
+ *
+ * 单条修订解析失败**不中断整卷**：组卷里只要有一条引用了已改名/删除的修订，
+ * 过去会让整个 run 直接放弃、一条结果都不落盘（几小时批跑全部作废）。
+ * 现在把坏条目交给调用方记成「漏跑」，其余题照常执行。
+ */
+function assembleDatasetItems(
+  project: ReturnType<typeof loadProject>,
+  releases: ReturnType<typeof loadDatasetReleases>,
+  envs: ReturnType<typeof loadEnvironments>,
+  datasetName: string,
+  environmentName: string,
+): DatasetSelection {
   const release = releases.find((r) => r.doc.dataset_release_id === datasetName);
   if (release === undefined) {
     throw new Error(`找不到 dataset-release：${datasetName}`);
   }
 
-  const envs = loadEnvironments(project.dirs.environments, project.root);
   const env = envs.find((e) => e.doc.environment_profile_id === environmentName);
   if (env === undefined) {
     throw new Error(`找不到 environment：${environmentName}`);
@@ -162,26 +262,38 @@ export function resolveDatasetItems(
 
   // 按 dataset-release 的 case_revisions 顺序组装 RunCaseInput
   const runCases: RunCaseInput[] = [];
+  const unresolved: UnresolvedCase[] = [];
   for (const ref of release.doc.case_revisions) {
     const revision = revById.get(ref.case_revision_id);
     const caseDoc = caseById.get(ref.case_id);
     if (revision === undefined || caseDoc === undefined) {
-      throw new Error(
-        `dataset-release 引用了不存在的修订：${ref.case_revision_id}（case=${ref.case_id}）`,
-      );
+      unresolved.push({
+        case_id: ref.case_id,
+        case_revision_id: ref.case_revision_id,
+        reason: `dataset-release 引用了不存在的修订：${ref.case_revision_id}（case=${ref.case_id}）`,
+      });
+      continue;
     }
     const pairKey = caseDoc.pair_key ?? caseDoc.case_id.toUpperCase();
     // 配对题按侧解析环境（OFF 走无插件环境，ON 走挂插件环境），
     // 否则两侧共用 --environment 会让 OFF 也挂插件，配对前提失效。
-    const sideEnv = resolveSideEnvironment(revision, env.doc, envs);
-    runCases.push({
-      revision,
-      ...(pairKey !== undefined ? { pairKey } : {}),
-      environment: sideEnv,
-    });
+    try {
+      const sideEnv = resolveSideEnvironment(revision, env.doc, envs);
+      runCases.push({
+        revision,
+        ...(pairKey !== undefined ? { pairKey } : {}),
+        environment: sideEnv,
+      });
+    } catch (e) {
+      unresolved.push({
+        case_id: ref.case_id,
+        case_revision_id: ref.case_revision_id,
+        reason: e instanceof Error ? e.message : String(e),
+      });
+    }
   }
 
-  return { cases: runCases, environment: env.doc };
+  return { cases: runCases, environment: env.doc, unresolved };
 }
 
 export async function runCommand(options: RunOptions): Promise<number> {
@@ -191,14 +303,28 @@ export async function runCommand(options: RunOptions): Promise<number> {
 
   let selected: RunCaseInput[];
   let environment: EnvironmentProfile;
+  let unresolved: UnresolvedCase[] = [];
   try {
-    const resolved = resolveDatasetItems(project, datasetName, environmentName);
+    const resolved = assembleDatasetItems(
+      project,
+      loadDatasetReleases(project.dirs.dataset_releases, project.root),
+      loadEnvironments(project.dirs.environments, project.root),
+      datasetName,
+      environmentName,
+    );
     selected = resolved.cases;
     environment = resolved.environment;
+    unresolved = resolved.unresolved;
   } catch (e) {
     console.error((e as Error).message);
     return 1;
   }
+  // 解析不了的条目照常进清单：报告的「漏跑」要能指出是哪道题、为什么。
+  // 只在没加 --only 时保留——加了 --only 就是明确不要其他题。
+  const unresolvedItems =
+    options.only !== undefined && options.only.length > 0
+      ? unresolved.filter((u) => options.only?.includes(u.case_revision_id) === true)
+      : unresolved;
 
   const only = options.only;
   let filtered = selected;
@@ -221,25 +347,47 @@ export async function runCommand(options: RunOptions): Promise<number> {
 
   let batchResults: AxisItemResult[][];
   try {
+    // 单题异常不得拖垮整卷：否则一条工装故障会让整个 run 一条结果都不落盘，
+    // 一次几小时的批跑全部作废（账实不符、也无法复盘是哪道题出的问题）。
+    // 这里把异常收敛成该题自己的 HARNESS 结果行，其余题继续跑、照常落盘。
     batchResults = await mapPool(filtered, concurrency, async (runCase) => {
       const artifactDir = join(runsRoot, rid, 'artifacts', runCase.revision.case_revision_id);
       // 配对题按侧解析后的环境优先；非配对题回落到命令行指定的环境。
       const caseEnv = runCase.environment ?? environment;
-      const adapter = resolveAdapter(runCase.revision, caseEnv);
+      // 编排器在 try 外构造：抛错时还要从它身上取回已记账的 attempt 证据。
       const orch = new RunOrchestrator();
-      orch.beginRun({});
-      orch.transitionRun('preflight');
-      orch.transitionRun('running');
-      const { results } = await orch.executeCase(runCase.revision, caseEnv, adapter, {
-        projectRoot: project.root,
-        models,
-        artifactDir,
-        ...(sutRoot !== undefined ? { sutRoot } : {}),
-        ...(runCase.pairKey !== undefined ? { pairKey: runCase.pairKey } : {}),
-      });
-      return results;
+      try {
+        const adapter = resolveAdapter(runCase.revision, caseEnv);
+        orch.beginRun({});
+        orch.transitionRun('preflight');
+        orch.transitionRun('running');
+        const { results } = await orch.executeCase(runCase.revision, caseEnv, adapter, {
+          projectRoot: project.root,
+          models,
+          artifactDir,
+          ...(sutRoot !== undefined ? { sutRoot: sutRoot } : {}),
+          ...(runCase.pairKey !== undefined ? { pairKey: runCase.pairKey } : {}),
+        });
+        return results;
+      } catch (e) {
+        // 只有「一条结果都没拿到」才兜底：编排器已产出的行带着工作区断言、宿主信号、
+        // 材料是否被改等证据，覆盖掉会把真实归因抹成笼统 HARNESS。
+        const produced = e instanceof AdapterError ? e.result : undefined;
+        if (produced !== undefined && produced.length > 0) {
+          console.error(
+            `[proctor] ${runCase.revision.case_revision_id} 执行异常，沿用已产出的结果行：${(e as Error).message}`,
+          );
+          return produced;
+        }
+        const replicas = resolveRepeats(runCase.revision, caseEnv);
+        const recorded = orch.lastCaseExecution();
+        return Array.from({ length: replicas }, (_, index) =>
+          harnessFailureResult(runCase.revision, e, index, recorded),
+        );
+      }
     });
   } catch (e) {
+    // 走到这里只剩「整卷级」故障（选题/环境解析、并发调度本身崩了）。
     console.error((e as Error).message);
     return 2;
   }
@@ -258,13 +406,23 @@ export async function runCommand(options: RunOptions): Promise<number> {
         environment: environmentName,
         started_at: new Date().toISOString(),
         project_root: project.root,
-        items: filtered.map((i) => ({
-          id: i.revision.case_revision_id,
-          rev: i.revision.revision_number,
-          // 记账用实际执行的环境：配对题按侧解析后可能与顶层 environment 不同，
-          // 只写基准值会让报告与执行账实不符。
-          environment: (i.environment ?? environment).environment_profile_id,
-        })),
+        items: [
+          ...filtered.map((i) => ({
+            id: i.revision.case_revision_id,
+            // 修订号以文件里的权威值为准：从 id 反解只在解析失败时兜底，不覆盖权威值。
+            rev: i.revision.revision_number,
+            // 记账用实际执行的环境：配对题按侧解析后可能与顶层 environment 不同，
+            // 只写基准值会让报告与执行账实不符。
+            environment: (i.environment ?? environment).environment_profile_id,
+          })),
+          // 解析不了的条目必须进清单：否则 run 会「看起来全跑完了」，
+          // 而组卷里被引用的坏修订既没执行、也没留下任何痕迹。
+          ...unresolvedItems.map((u) => ({
+            id: u.case_revision_id,
+            rev: revisionNumberFromId(u.case_revision_id, 0),
+            environment: environment.environment_profile_id,
+          })),
+        ],
       },
       results,
       gates: undefined,

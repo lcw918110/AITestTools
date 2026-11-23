@@ -2883,3 +2883,34 @@ return REQUIRED_ISOLATION_PROOFS.filter((proof) => {
 3. 复核 `stdout_assert` 的 `contains: ""` / `contains: [""]` 等形态：`asStringList` 过滤后为空即报配错（`HARNESS`），**不产生假绿**，无需改动。
 
 **验证**：新增 `forbidden-variants.test.ts` 空列表用例；`tests/oracles` 307 例全绿；串行全量 `vitest run --no-file-parallelism` 130 文件 / **1226** 用例全绿。
+
+---
+
+## 66. 沙箱子进程生命期通道改用 socket 对，父进程环境不再串台（2026-11-22）
+
+**发现**
+
+1. 生命期探针（fd 4）原设计靠 FIFO 建「对端读端」，`openSync` 要等读者，本机 macOS 实测会同步卡死；`spawnSync` 起 helper 的写法又会把本进程事件循环整段堵死，回环连接的另一端永远收不到 `connection`。
+2. `spawn` 子进程时整份 `process.env` 被继承：父进程运行在有隔离门的进程里时，子进程一启动就按「主人模式」跑起来；父进程若恰好带着替身/调试开关（`SR_SPAWN_CHILD`、`SRT_WATCHDOG_DEBUG`），真实入口会切到替身语义，生命期通道一接上就把宿主当孤儿收掉——观测被静默改写。
+3. `tests/fixtures/sandbox-exec-child-stub.ts` 用 `fs.createReadStream` 接管 fd 4；fd 4 现在是已连接 socket，`fs` 读流在 macOS kqueue 上直接断言崩溃，替身测试全线红。
+4. 看门狗真进程用例按「父进程只读不回确认 → 子进程必须在 1s 内带走宿主」断言，这条口径会把「父进程事件循环被 HTTP 代理等同步调用占住」的正常慢对端误杀。
+5. 守夜状态目录 `$TMPDIR/srt-guard-*` 每跑一次全量测试就漏一批，且无任何删除留痕：入口 `sandbox-exec-child.ts` 末尾同时保留了「`SRT_ISOLATION_CHILD_ENTRY`」与「`invokedAsScript`」两处 `main()` 启动，同一进程跑起两套监视器、各拉一个守夜进程，第二个目录从未被任何变量登记，`stop()` 时无人收。
+
+**修复**
+
+1. `createLivenessChannel` 改为：本进程 `listen(127.0.0.1:0)` + `connect` 自连，`connection` 事件拿到另一端；拿到后立刻关监听，只把子进程那一端的**原生 fd** 交给 `spawn`，本进程保留另一端句柄撑住连接（只销毁句柄会让内核进入 CLOSE_WAIT，子进程永远等不到 `end`）。结算时 `keepOpen.close()` 两端一起关，不留句柄残留。
+2. `childSpawnPlan` 把「建通道 → spawn」收成一步：通道要先 `await`，`spawn` 等它就绪后再发生；`spawn` 的参数与顺序不变（stdin 请求、fd 3 探针、stderr 透传）。
+3. `childEnv` 显式剥掉 `SRT_ISOLATION_CHILD_ENTRY` / `SR_SPAWN_CHILD` / `SRT_WATCHDOG_DEBUG`：这些变量只对当前进程有意义，交出去只会串台。
+4. 替身 `watchParent` 改用只读 `net.Socket` 接管 fd 4，与真实入口 `openLivenessStream` 同一口径。
+5. 看门狗真进程用例改断「不误判、不误杀」：父进程只读不回确认 / 干脆不读，子进程与宿主都必须仍存活；心跳彻底堵死仍由 `isPeerGone` 的 `writeStuckAge` / `landedAge` 判死（纯函数用例覆盖）。
+6. 入口收敛为一处：只认 `SRT_ISOLATION_CHILD_ENTRY === '1'`，删除 `invokedAsScript` 分支。测试与调试脚本本来就显式带该标记，删除后不失效。
+7. 守夜目录所有权收口：`stopGuard()` 改按 `liveGuardDir` / `guardPid` 直接删（不再依赖 `guardState`，守夜进程自行先退出时也照删）；`discardGuardDir()` 去掉定时器 `unref()`（事件循环一空就会跳过删除），到点只删「inode 仍相同」的目录，避免同名被 `mkdtemp` 复用时误删新观测；`startGuard()` 的 `catch` 分支同步删除已建目录；`reapAndRemoveGuardDir()` 由 `kill -9` 改为 `kill -TERM`，让守夜脚本走 `trap` 自删。
+8. 守夜脚本补 `trap 'drop' TERM INT HUP`，并在「`ppid` 被收养为 1」分支自己删目录：父进程被硬杀时这是唯一还活着的一方。
+
+**验证**
+
+- `npx tsc --noEmit` 通过；`npx eslint src/security tests/security` 无错误。
+- 全量 `npx vitest run`：132 文件 / **1290** 用例全绿（含真实隔离后端的 9 条），连跑 3 次稳定。
+- 守夜目录零泄漏：清零 `$TMPDIR/srt-guard-*` 后跑全量测试，跑完残留 **0** 个数据目录（仅保留 `srt-guard-bin` shim）。
+- 边界场景同样零残留：父进程 `SIGKILL` 子进程、子进程正常结算、10 次混合观测（含宿主超时）。
+- 可证伪：修复前子进程读完请求后彻底静默（`DBG after main` 之后无任何收场日志，父进程 close 永不触发）；隔离环境里父进程继承 `SRT_ISOLATION_CHILD_ENTRY` 时，子进程提前按主人模式跑起来并把宿主当孤儿收掉（`FRAME {"ok":false,"stage":"wrap"...}` 之后宿主消失）。

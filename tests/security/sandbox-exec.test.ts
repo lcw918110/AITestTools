@@ -47,6 +47,8 @@ describe('沙箱执行子进程契约', () => {
     expect(result.status).toBe(0);
     expect(result.timedOut).toBe(false);
     expect(result.error).toBeNull();
+    // 探针字节只走 fd 3：结果帧必须纯净，任何混入都会让「首行合法帧」解析落空。
+    expect(result.pipeBroken).toBe(false);
     expect(result.stdout).toContain('hello-child');
     expect(result.stderr).toContain('HOST_STDERR');
   }, 60_000);

@@ -402,8 +402,25 @@ export class RunOrchestrator {
     return outcome;
   }
 
-  /** 封存 Run 终态，写 RunFinalManifest。 */
-  sealRun(status: RunLifecycleStatus): RunFinalManifest {
+  /**
+   * 本题已记录的执行事实（无论 executeCase 是正常返回还是抛异常，都先记账再返回）。
+   *
+   * 供上层在 `executeCase` 抛错时补证据：case execution 与 attempt 的起止时间、
+   * 失败状态都在编排器内部，异常一抛这些就随栈帧消失，落盘的结果行会只剩一句异常消息。
+   */
+  lastCaseExecution(): { caseExecution: CaseExecution; attempts: Attempt[] } | undefined {
+    const caseExecution = this.caseExecutions.at(-1);
+    if (caseExecution === undefined) return undefined;
+    const ids = new Set(caseExecution.attempts);
+    return {
+      caseExecution,
+      attempts: this.attempts.filter((attempt) => ids.has(attempt.attempt_id)),
+    };
+  }
+
+  /** 封存 Run 终态，写 RunFinalManifest。 */ sealRun(
+    status: RunLifecycleStatus,
+  ): RunFinalManifest {
     if (this.run === null) {
       throw new AdapterError('preflight_failed', 'HARNESS', 'RunOrchestrator 未 beginRun');
     }

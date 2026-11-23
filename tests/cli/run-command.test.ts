@@ -1,6 +1,7 @@
-import { existsSync, rmSync } from 'node:fs';
+import { existsSync, readFileSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from 'vitest';
+import * as loader from '../../src/exam-engine/loader.ts';
 import { loadProject } from '../../src/exam-engine/project.ts';
 import { runCommand } from '../../src/cli/commands/run.ts';
 import {
@@ -75,6 +76,61 @@ describe('runCommand 端到端 smoke', () => {
     expect(existsSync(join(runDir as string, 'results.ndjson'))).toBe(true);
     expect(existsSync(join(runDir as string, 'metrics.json'))).toBe(true);
     expect(existsSync(join(runDir as string, 'report.md'))).toBe(true);
+  });
+
+  it('题库坏一条不影响整卷：其余题照跑照落盘，坏题按漏跑上报', async () => {
+    // 真实故障形态：组卷仍引用已被改名/删除的修订。以前会让整个 run 以退出码 2
+    // 直接放弃，一条结果都不落盘，几小时的批跑全部作废。
+    // 先取快照再 mock：mockImplementation 内再调同名导入会递归到自身（栈溢出）。
+    const originalLoadDatasetReleases = loader.loadDatasetReleases;
+    const spy = vi.spyOn(loader, 'loadDatasetReleases').mockImplementation((dir, root) => {
+      const releases = originalLoadDatasetReleases(dir, root);
+      return releases.map((release) => ({
+        ...release,
+        doc: {
+          ...release.doc,
+          case_revisions: release.doc.case_revisions.map((ref) =>
+            ref.case_revision_id === 'demo-a-todo-fold-02.r1'
+              ? { ...ref, case_revision_id: 'demo-a-todo-fold-02.r999' }
+              : ref,
+          ),
+        },
+      }));
+    });
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const logSpy = vi.spyOn(console, 'log').mockImplementation(() => {});
+    let code = -1;
+    let logs: unknown[][] = [];
+    try {
+      code = await runCommand({
+        project: demo,
+        json: true,
+        dataset: 'smoke-a-l1',
+        environment: 'fold-v1',
+      });
+      logs = [...logSpy.mock.calls];
+    } finally {
+      logSpy.mockRestore();
+      errorSpy.mockRestore();
+      spy.mockRestore();
+    }
+
+    const runDir = parseRunDir(logs);
+    expect(runDir).not.toBeUndefined();
+    createdRuns.push(runDir as string);
+    // 有题没出结果：必须走「漏跑」退出码，不能被当成全部通过。
+    expect(code).toBe(4);
+
+    const lines = readFileSync(join(runDir as string, 'results.ndjson'), 'utf8')
+      .split('\n')
+      .filter((line) => line.trim() !== '')
+      .map((line) => JSON.parse(line) as { item_id: string; pass: boolean });
+    // 好题仍然跑完并落盘：这是「单题故障不拖垮整卷」的核心证据。
+    expect(lines.some((line) => line.item_id === 'demo-a-todo-fold-01.r1')).toBe(true);
+    const manifest = JSON.parse(readFileSync(join(runDir as string, 'run.json'), 'utf8')) as {
+      items: { id: string }[];
+    };
+    expect(manifest.items.some((item) => item.id === 'demo-a-todo-fold-02.r999')).toBe(true);
   });
 });
 
