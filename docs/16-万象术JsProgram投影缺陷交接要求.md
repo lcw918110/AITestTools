@@ -1,12 +1,12 @@
 # 万象术 JsProgram 投影缺陷 · 交接要求
 
-| 字段     | 值                                                       |
-| :------- | :------------------------------------------------------- |
-| 状态     | **待修复**（交由万象术侧）                               |
-| 日期     | 2026-11-23                                               |
-| 提出方   | AITestTools（评测器侧）                                  |
-| 承接方   | 万象术（`wanxiangshu`）                                  |
-| 证据来源 | 本机实测（Node 直接调用 `dist/` 产物），见第 2 节         |
+| 字段     | 值                                                |
+| :------- | :------------------------------------------------ |
+| 状态     | **待修复**（交由万象术侧）                        |
+| 日期     | 2026-11-23                                        |
+| 提出方   | AITestTools（评测器侧）                           |
+| 承接方   | 万象术（`wanxiangshu`）                           |
+| 证据来源 | 本机实测（Node 直接调用 `dist/` 产物），见第 2 节 |
 
 > 本文只描述**需要修复什么**。所有结论均可复现，复现命令见第 3 节。
 
@@ -21,20 +21,24 @@
 ```js
 // Capability.js:166-169
 export function JsCapabilityModule_memberNamesFor(capabilities, roleName) {
-    const labels = map_1(JsCapabilityModule_labelOf, toArray_1(capabilities));
-    //                                 ↑ 传入的是字符串标签，如 "Fork"
-    return JsCapabilityModule_law.membersFor(labels, roleName);
+  const labels = map_1(JsCapabilityModule_labelOf, toArray_1(capabilities));
+  //                                 ↑ 传入的是字符串标签，如 "Fork"
+  return JsCapabilityModule_law.membersFor(labels, roleName);
 }
 
 // Capability.js:92-126
 export function JsCapabilityModule_labelOf(capability) {
-    switch (capability.tag) {   // ← 字符串没有 .tag，值为 undefined
-        case 1: return "Write";
-        case 2: return "Glob";
-        // ...
-        default:
-            return "Read";      // ← 全部落到这里
-    }
+  switch (
+    capability.tag // ← 字符串没有 .tag，值为 undefined
+  ) {
+    case 1:
+      return 'Write';
+    case 2:
+      return 'Glob';
+    // ...
+    default:
+      return 'Read'; // ← 全部落到这里
+  }
 }
 ```
 
@@ -76,12 +80,12 @@ memberNamesFor(perms(Orchestrator), 'orchestrator')                          => 
 
 ### 2.3 各角色投影错位全貌
 
-| 角色 | 真实权限 | 经失效入口投影 | 错位 |
-| :--- | :--- | :--- | :--- |
-| Orchestrator | `Fork, Join, Horizon, ResetScope` | `cat, ls, rg, stat, whereAll, where` | 委派能力 `fork/horizon` 全部丢失 |
-| Manager | `Fork, Resume, …, Read, Glob` | `write, rm, cat, …, resume, commission, review` | 出现权限外的 `write/rm/commission` |
-| Engineer | `Fission, Read, Write, …, Fetch` | `rm, mv, …, fork, resume, commission, devops, fission` | 出现权限外的 `fork/commission/devops` |
-| Plan | `JsPlan, Ask, Deliver, Review…` | `cat, stat, whereAll, where` | 全部丢失 |
+| 角色         | 真实权限                          | 经失效入口投影                                         | 错位                                  |
+| :----------- | :-------------------------------- | :----------------------------------------------------- | :------------------------------------ |
+| Orchestrator | `Fork, Join, Horizon, ResetScope` | `cat, ls, rg, stat, whereAll, where`                   | 委派能力 `fork/horizon` 全部丢失      |
+| Manager      | `Fork, Resume, …, Read, Glob`     | `write, rm, cat, …, resume, commission, review`        | 出现权限外的 `write/rm/commission`    |
+| Engineer     | `Fission, Read, Write, …, Fetch`  | `rm, mv, …, fork, resume, commission, devops, fission` | 出现权限外的 `fork/commission/devops` |
+| Plan         | `JsPlan, Ask, Deliver, Review…`   | `cat, stat, whereAll, where`                           | 全部丢失                              |
 
 ---
 
@@ -143,7 +147,7 @@ Available tools: askPreviousScope, assume, horizon, join, skill, todowrite-for-o
 
    ```js
    export function JsCapabilityModule_memberNamesFor(capabilities, roleName) {
-       return JsCapabilityModule_law.membersFor(toArray_1(capabilities), roleName);
+     return JsCapabilityModule_law.membersFor(toArray_1(capabilities), roleName);
    }
    ```
 
